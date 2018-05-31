@@ -1,4 +1,4 @@
-""" tensorMONK's :: neuralEssentials                                         """
+""" TensorMONK's :: NeuralEssentials                                         """
 
 import torch
 import torch.nn as nn
@@ -13,7 +13,7 @@ class CudaModel(nn.Module):
         self.is_cuda = is_cuda
         self.NET46 = net( **net_kwargs )
         self.tensor_size = self.NET46.tensor_size
-        
+
     def forward(self, tensor):
         if type(tensor) in [list,tuple]:
             if self.is_cuda:

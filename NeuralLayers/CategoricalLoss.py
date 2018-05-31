@@ -1,4 +1,4 @@
-""" tensorMONK's :: neuralLayers :: categoricalLoss                          """
+""" TensorMONK's :: NeuralLayers :: CategoricalLoss                          """
 
 import torch,torch.nn as nn, torch.nn.functional as F, numpy as np
 from   torch.autograd  import Variable

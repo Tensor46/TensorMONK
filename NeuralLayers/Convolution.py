@@ -1,4 +1,4 @@
-""" tensorMONK's :: neuralLayers :: Convolution                              """
+""" TensorMONK's :: NeuralLayers :: Convolution                              """
 
 __all__ = ["Convolution", ]
 
@@ -8,7 +8,7 @@ import torch.nn as nn
 
 
 class MaxOut(nn.Module):
-    """ https://arxiv.org/pdf/1302.4389.pdf """
+    """ Implemented https://arxiv.org/pdf/1302.4389.pdf """
     def __init__(self):
         super(MaxOut, self).__init__()
 
@@ -18,7 +18,7 @@ class MaxOut(nn.Module):
 
 
 class Swish(nn.Module):
-    """ https://arxiv.org/pdf/1710.05941v1.pdf """
+    """ Implemented https://arxiv.org/pdf/1710.05941v1.pdf """
     def __init__(self):
         super(Swish, self).__init__()
         self.sigmoid = nn.Sigmoid()
@@ -115,7 +115,6 @@ class Convolution(nn.Module):
         return tensor
 
 
-#
 # x = torch.rand(3,3,10,10)
 # test = Convolution((1,3,10,10), (3,3), 16, (2,2), False, "maxo", 0.5, True, False)
 # test(x).size()

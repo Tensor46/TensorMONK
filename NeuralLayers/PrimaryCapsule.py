@@ -1,4 +1,4 @@
-""" tensorMONK's :: neuralLayers :: PrimaryCapsule                           """
+""" TensorMONK's :: NeuralLayers :: PrimaryCapsule                           """
 
 import torch.nn as nn
 from .Convolution import Convolution

@@ -1,4 +1,4 @@
-""" tensorMONK's :: neuralEssentials                                         """
+""" TensorMONK's :: NeuralEssentials                                         """
 
 import os
 import copy
@@ -16,12 +16,10 @@ def SaveModel(Model):
     for x in what2save:
         if "net" in x.lower():
             eval("Model."+x+".zero_grad()")
-            this_network  = copy.deepcopy(getattr(Model, x)).cpu().state_dict()
+            this_network  = copy.deepcopy(getattr(Model, x)).state_dict()
             for y in this_network.keys():
                 this_network[y] = this_network[y].cpu()
             dict_stuff.update({x : this_network})
         else:
             dict_stuff.update({x : getattr(Model, x)})
-    # if Model.is_cuda:
-    #     [eval("Model."+x+".cuda()") for x in what2save if "net" in x.lower()]
     torch.save(dict_stuff, file_name)

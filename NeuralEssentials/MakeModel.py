@@ -1,4 +1,4 @@
-""" tensorMONK's :: neuralEssentials                                         """
+""" TensorMONK's :: NeuralEssentials                                         """
 
 import os
 import numpy as np
@@ -11,7 +11,7 @@ is_cuda = torch.cuda.is_available()
 #==============================================================================#
 
 
-def MakeModel(file_name, tensor_size, n_labels,
+def MakeCNN(file_name, tensor_size, n_labels,
               embedding_net, embedding_net_kwargs,
               loss_net, loss_net_kwargs,
               default_gpu=0, gpus=1, ignore_trained=False):

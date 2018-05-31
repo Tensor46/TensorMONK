@@ -1,4 +1,4 @@
-""" tensorMONK's :: neuralEssentials                                         """
+""" TensorMONK's :: NeuralEssentials                                         """
 
 import os
 import torch

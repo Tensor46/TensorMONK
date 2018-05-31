@@ -1,4 +1,4 @@
-""" tensorMONK's :: neuralLayers :: RoutingCapsule                           """
+""" TensorMONK's :: NeuralLayers :: RoutingCapsule                           """
 
 import torch
 import torch.nn as nn

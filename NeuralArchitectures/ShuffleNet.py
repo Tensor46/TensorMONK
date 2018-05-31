@@ -8,7 +8,7 @@ from ..NeuralLayers import *
 
 
 class ShuffleNet(nn.Module):
-    """ Implemented - https://arxiv.org/pdf/1707.01083.pdf """
+    """ Implemented https://arxiv.org/pdf/1707.01083.pdf """
     def __init__(self, tensor_size=(6, 3, 224, 224), groups=4, *args, **kwargs):
         super(ShuffleNet, self).__init__()
         activation, batch_nm, pre_nm = "relu", True, False

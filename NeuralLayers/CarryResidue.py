@@ -1,4 +1,4 @@
-""" tensorMONK's :: neuralLayers :: CarryResidue                          """
+""" TensorMONK's :: NeuralLayers :: CarryResidue                          """
 
 __all__ = ["ResidualOriginal", "ResidualComplex", "ResidualComplex2", "ResidualMobile",
            "ResidualShuffle", "SimpleFire", "CarryModular"]
