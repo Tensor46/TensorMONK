@@ -1,2 +1,2 @@
 # TensorMONK
-A collection of deep learning models using flexible modules (using PyTorch)
+A collection of deep learning models with flexible modules (PyTorch implemtation)
