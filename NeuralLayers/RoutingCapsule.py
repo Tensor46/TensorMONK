@@ -27,12 +27,16 @@ class RoutingCapsule(nn.Module):
         u = u.view(*(tensor.size()[:4] + self.tensor_size[1:]))
         bias = Variable(torch.zeros(batch_size, primary_capsule_length, h, w, self.tensor_size[1]))
         if tensor.is_cuda:
-            bias = bias.cuda()
+            bias = bias.to(tensor.device) if torch.__version__.startswith("0.4") else bias.cuda()
+        # routing
         for i in range(self.iterations):
+            # softmax
             c = F.softmax(bias, 4)
-            s = (c.unsqueeze(5)*u).sum(3).sum(2).sum(1)
+            s = (c.unsqueeze(5)*u.detach()).sum(3).sum(2).sum(1)
+            # squash
             sum_squares = (s**2).sum(2).unsqueeze(2)
             v = (sum_squares/(1+sum_squares)) * s / (sum_squares**0.5)
+            # bias update
             bias = bias + (u * v.view(batch_size, 1, 1, 1, self.tensor_size[1], self.tensor_size[2])).sum(5)
         return v
 

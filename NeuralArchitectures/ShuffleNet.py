@@ -8,7 +8,11 @@ from ..NeuralLayers import *
 
 
 class ShuffleNet(nn.Module):
-    """ Implemented https://arxiv.org/pdf/1707.01083.pdf """
+    """ Implemented https://arxiv.org/pdf/1707.01083.pdf
+
+        Works for all the min(height, width) >= 32
+        To replicate the paper, use tensor_size = (1, 3, 224, 224)
+    """
     def __init__(self, tensor_size=(6, 3, 224, 224), groups=4, *args, **kwargs):
         super(ShuffleNet, self).__init__()
         activation, batch_nm, pre_nm = "relu", True, False
@@ -27,12 +31,16 @@ class ShuffleNet(nn.Module):
 
         self.Net46 = nn.Sequential()
         print(tensor_size)
-        self.Net46.add_module("Shuffle0", Convolution(tensor_size, 3, c1, 2, True, activation, 0., batch_nm, False))
+        stride = 2 if min(tensor_size[2], tensor_size[3]) >= 64 else 1
+        self.Net46.add_module("Shuffle0", Convolution(tensor_size, 3, c1, stride, True, activation, 0., batch_nm, False))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Shuffle1", nn.AvgPool2d((3, 3), stride=(2, 2), padding=1))
-        _tensor_size = (self.Net46[-2].tensor_size[0], self.Net46[-2].tensor_size[1],
-                        self.Net46[-2].tensor_size[2]//2, self.Net46[-2].tensor_size[3]//2)
-        print(_tensor_size)
+        if min(tensor_size[2], tensor_size[3]) >= 128:
+            self.Net46.add_module("Shuffle1", nn.AvgPool2d((3, 3), stride=(2, 2), padding=1))
+            _tensor_size = (self.Net46[-2].tensor_size[0], self.Net46[-2].tensor_size[1],
+                            self.Net46[-2].tensor_size[2]//2, self.Net46[-2].tensor_size[3]//2)
+            print(_tensor_size)
+        else:
+            _tensor_size = self.Net46[-1].tensor_size
         self.Net46.add_module("Shuffle2", ResidualShuffle(_tensor_size, 3, c2, 2, True, activation, 0., batch_nm, False))
         print(self.Net46[-1].tensor_size)
         self.Net46.add_module("Shuffle3", ResidualShuffle(self.Net46[-1].tensor_size, 3, c2, 1, True, activation, 0., batch_nm, False))
@@ -73,8 +81,8 @@ class ShuffleNet(nn.Module):
         return self.Net46(tensor).view(tensor.size(0), -1)
 
 
-# from tensorMONK.NeuralLayers import *
-# tensor_size = (1, 3, 160, 128)
+# from NeuralLayers import *
+# tensor_size = (1, 3, 32, 32)
 # tensor = torch.rand(*tensor_size)
 # test = ShuffleNet(tensor_size)
 # test(tensor).size()

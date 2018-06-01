@@ -6,7 +6,21 @@ from   torch.autograd  import Variable
 #==============================================================================#
 
 
-class CategoricalLoss(nn.Module):
+class SupervisedLoss(nn.Module):
+    """
+        type
+            entropy         ::
+            softmax         ::
+            tayloredSoftmax ::
+            triplet         ::
+
+        distance
+            cosine          ::
+            dot             ::
+
+        center
+        
+    """
     def __init__(self, tensor_size=128, n_labels=10, *args, **kwargs):
         super(CategoricalLoss,self).__init__()
         if type(tensor_size) in [list, tuple]:
@@ -16,7 +30,7 @@ class CategoricalLoss(nn.Module):
         nn.init.orthogonal_(self.weight, gain=1./np.sqrt(np.prod(tensor_size)))
         self.m, self.s = .3, 10
         self.tensor_size = (1,)
-        
+
     def forward(self, tensor, targets):
         BSZ = tensor.size(0)
         responses = tensor.mm(self.weight)
