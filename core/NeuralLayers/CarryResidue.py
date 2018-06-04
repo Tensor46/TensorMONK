@@ -1,6 +1,6 @@
 """ TensorMONK's :: NeuralLayers :: CarryResidue                          """
 
-__all__ = ["ResidualOriginal", "ResidualComplex", "ResidualComplex2", "ResidualMobile",
+__all__ = ["ResidualOriginal", "ResidualComplex", "ResidualComplex2", "ResidualInverted",
            "ResidualShuffle", "SimpleFire", "CarryModular"]
 
 import torch
@@ -15,7 +15,7 @@ class BaseBlock(nn.Module):
         if hasattr(self, "pre_network"):
             tensor = self.pre_network(tensor)
 
-        if hasattr(self, "no_residue_or_carry") and self.no_residue_or_carry: # For MobileNET, strides>1
+        if hasattr(self, "skip_residue") and self.skip_residue: # For MobileNET, strides>1
             tensor = self.network(tensor)
             if hasattr(self, "Activation"):
                 return self.Activation(tensor)
@@ -105,20 +105,23 @@ class ResidualComplex2(BaseBlock):
 # ============================================================================ #
 
 
-class ResidualMobile(BaseBlock):
+class ResidualInverted(BaseBlock):
+    """ MobileNetV2 supporting block - https://arxiv.org/pdf/1801.04381.pdf """
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
-                 activation="relu", dropout=0., batch_nm=False, pre_nm=False, *args, **kwargs):
-        super(ResidualMobile, self).__init__()
+                 activation="relu6", dropout=0., batch_nm=False, pre_nm=False, t=1, *args, **kwargs):
+        super(ResidualInverted, self).__init__()
         if dropout > 0.:
             self.pre_network = nn.Dropout2d(dropout)
         self.network = nn.Sequential()
-        self.network.add_module("Block1x1pre", Convolution(tensor_size, (1, 1), out_channels, (1, 1), True, activation, 0., batch_nm, pre_nm))
-        self.network.add_module("Block3x3", Convolution(self.network[-1].tensor_size, filter_size, out_channels, strides, True, activation, 0., batch_nm, pre_nm, groups=out_channels))
+        self.network.add_module("Block1x1pre", Convolution(tensor_size, (1, 1), out_channels*t, (1, 1), True, activation, 0., batch_nm, pre_nm))
+        self.network.add_module("Block3x3", Convolution(self.network[-1].tensor_size, filter_size, out_channels*t, strides,
+                                                        True, activation, 0., batch_nm, pre_nm, groups=out_channels*t))
         self.network.add_module("Block1x1pst", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, "", 0., batch_nm, pre_nm))
 
+        self.skip_residue = False
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)):
-            self.no_residue_or_carry = True
-        if tensor_size[1] != out_channels:
+            self.skip_residue = True
+        if not self.skip_residue and tensor_size[1] != out_channels:
             self.edit_residue = Convolution(tensor_size, (1, 1), out_channels, strides, True, "", 0., batch_nm, pre_nm)
         self.tensor_size = self.network[-1].tensor_size
 # ============================================================================ #
@@ -207,7 +210,7 @@ class CarryModular(BaseBlock):
 
 
 
-# from tensorMONK.NeuralLayers import Convolution
+# from core.NeuralLayers import Convolution
 # tensor_size = (3,64,10,10)
 # x = torch.rand(*tensor_size)
 #
@@ -220,7 +223,7 @@ class CarryModular(BaseBlock):
 # test = ResidualComplex2(tensor_size, 3, 64, 2, False, "relu", 0., True, False)
 # test(x).size()
 # %timeit test(x).size()
-# test = ResidualMobile(tensor_size, 3, 64, 2, False, "relu", 0., True, False)
+# test = ResidualInverted(tensor_size, 3, 64, 2, False, "relu", 0., True, False)
 # test(x).size()
 # %timeit test(x).size()
 # test = ResidualShuffle(tensor_size, 3, 64, 2, False, "relu", 0., True, False)

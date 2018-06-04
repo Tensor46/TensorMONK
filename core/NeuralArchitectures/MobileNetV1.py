@@ -13,7 +13,7 @@ class MobileNetV1(nn.Module):
         To replicate the paper, use tensor_size = (1, 3, 224, 224)
         Works fairly well, for tensor_size of min(height, width) >= 128
     """
-    def __init__(self, tensor_size=(6, 3, 224, 224), groups=4, *args, **kwargs):
+    def __init__(self, tensor_size=(6, 3, 224, 224), *args, **kwargs):
         super(MobileNetV1, self).__init__()
         activation, batch_nm, pre_nm = "relu", True, False
 

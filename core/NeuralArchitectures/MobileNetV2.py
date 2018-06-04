@@ -7,81 +7,65 @@ from ..NeuralLayers import *
 #==============================================================================#
 
 
-class MobileNetV1(nn.Module):
-    """ Implemented https://arxiv.org/pdf/1707.01083.pdf
+class MobileNetV2(nn.Module):
+    """ Implemented https://arxiv.org/pdf/1801.04381.pdf
 
         To replicate the paper, use tensor_size = (1, 3, 224, 224)
-        Works fairly well, for tensor_size of min(height, width) >= 128
+        Works fairly well, for tensor_size's of min(height, width) >= 128
     """
-    def __init__(self, tensor_size=(6, 3, 224, 224), groups=4, *args, **kwargs):
-        super(MobileNetV1, self).__init__()
+    def __init__(self, tensor_size=(6, 3, 224, 224), *args, **kwargs):
+        super(MobileNetV2, self).__init__()
         activation, batch_nm, pre_nm = "relu", True, False
 
         self.Net46 = nn.Sequential()
         print(tensor_size)
         self.Net46.add_module("Mobile0", Convolution(tensor_size, 3, 32, 2, True, activation, 0., batch_nm, False))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile1", Convolution(self.Net46[-1].tensor_size, 3, 32, 1, True, activation, 0., batch_nm, False, 32))
+        self.Net46.add_module("Mobile1", ResidualInverted(self.Net46[-1].tensor_size, 3, 16, 1, True, activation, 0., batch_nm, pre_nm, t=1))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile2", Convolution(self.Net46[-1].tensor_size, 1, 64, 1, True, activation, 0., batch_nm, False, 1))
+        self.Net46.add_module("Mobile2", ResidualInverted(self.Net46[-1].tensor_size, 3, 24, 2, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile3", Convolution(self.Net46[-1].tensor_size, 3, 64, 2, True, activation, 0., batch_nm, False, 64))
+        self.Net46.add_module("Mobile3", ResidualInverted(self.Net46[-1].tensor_size, 3, 24, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile4", Convolution(self.Net46[-1].tensor_size, 1, 128, 1, True, activation, 0., batch_nm, False, 1))
+        self.Net46.add_module("Mobile4", ResidualInverted(self.Net46[-1].tensor_size, 3, 32, 2, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile5", Convolution(self.Net46[-1].tensor_size, 3, 128, 1, True, activation, 0., batch_nm, False, 128))
+        self.Net46.add_module("Mobile5", ResidualInverted(self.Net46[-1].tensor_size, 3, 32, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile6", Convolution(self.Net46[-1].tensor_size, 1, 128, 1, True, activation, 0., batch_nm, False, 1))
+        self.Net46.add_module("Mobile6", ResidualInverted(self.Net46[-1].tensor_size, 3, 32, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile7", Convolution(self.Net46[-1].tensor_size, 3, 128, 2, True, activation, 0., batch_nm, False, 128))
+        self.Net46.add_module("Mobile7", ResidualInverted(self.Net46[-1].tensor_size, 3, 64, 2, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile8", Convolution(self.Net46[-1].tensor_size, 1, 256, 1, True, activation, 0., batch_nm, False, 1))
+        self.Net46.add_module("Mobile8", ResidualInverted(self.Net46[-1].tensor_size, 3, 64, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile9", Convolution(self.Net46[-1].tensor_size, 3, 256, 1, True, activation, 0., batch_nm, False, 256))
+        self.Net46.add_module("Mobile9", ResidualInverted(self.Net46[-1].tensor_size, 3, 64, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile10", Convolution(self.Net46[-1].tensor_size, 1, 256, 1, True, activation, 0., batch_nm, False, 1))
+        self.Net46.add_module("Mobile10", ResidualInverted(self.Net46[-1].tensor_size, 3, 64, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile11", Convolution(self.Net46[-1].tensor_size, 3, 256, 2, True, activation, 0., batch_nm, False, 256))
+        self.Net46.add_module("Mobile11", ResidualInverted(self.Net46[-1].tensor_size, 3, 96, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile12", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1))
+        self.Net46.add_module("Mobile12", ResidualInverted(self.Net46[-1].tensor_size, 3, 96, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile13", Convolution(self.Net46[-1].tensor_size, 3, 512, 1, True, activation, 0., batch_nm, False, 512))
+        self.Net46.add_module("Mobile13", ResidualInverted(self.Net46[-1].tensor_size, 3, 96, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile14", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1))
+        self.Net46.add_module("Mobile14", ResidualInverted(self.Net46[-1].tensor_size, 3, 160, 2, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile15", Convolution(self.Net46[-1].tensor_size, 3, 512, 1, True, activation, 0., batch_nm, False, 512))
+        self.Net46.add_module("Mobile15", ResidualInverted(self.Net46[-1].tensor_size, 3, 160, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile16", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1))
+        self.Net46.add_module("Mobile16", ResidualInverted(self.Net46[-1].tensor_size, 3, 160, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile17", Convolution(self.Net46[-1].tensor_size, 3, 512, 1, True, activation, 0., batch_nm, False, 512))
+        self.Net46.add_module("Mobile17", ResidualInverted(self.Net46[-1].tensor_size, 3, 320, 1, True, activation, 0., batch_nm, pre_nm, t=6))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile18", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1))
+        self.Net46.add_module("Mobile18", Convolution(self.Net46[-1].tensor_size, 1, 1280, 1, True, activation, 0., batch_nm, pre_nm))
         print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile19", Convolution(self.Net46[-1].tensor_size, 3, 512, 1, True, activation, 0., batch_nm, False, 512))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile20", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile21", Convolution(self.Net46[-1].tensor_size, 3, 512, 1, True, activation, 0., batch_nm, False, 512))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile22", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile23", Convolution(self.Net46[-1].tensor_size, 3, 512, 2, True, activation, 0., batch_nm, False, 512))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile24", Convolution(self.Net46[-1].tensor_size, 1, 1024, 1, True, activation, 0., batch_nm, False, 1))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile25", Convolution(self.Net46[-1].tensor_size, 3, 1024, 1, True, activation, 0., batch_nm, False, 1024))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile26", Convolution(self.Net46[-1].tensor_size, 1, 1024, 1, True, activation, 0., batch_nm, False, 1))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile26", nn.AvgPool2d(self.Net46[-1].tensor_size[2:]))
-        self.tensor_size = (6, 1024)
-        print(1024)
+        self.Net46.add_module("Pool", nn.AvgPool2d(self.Net46[-1].tensor_size[2:]))
+        self.tensor_size = (6, 1280)
+        print(1280)
 
     def forward(self, tensor):
         return self.Net46(tensor).view(tensor.size(0), -1)
 
 
-# from tensorMONK.NeuralLayers import *
+# from core.NeuralLayers import *
 # tensor = torch.rand(1,3,224,224)
-# test = MobileNetV1((1,3,224,224))
+# test = MobileNetV2((1,3,224,224))
 # test(tensor).size()
