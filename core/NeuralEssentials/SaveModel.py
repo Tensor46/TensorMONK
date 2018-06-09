@@ -16,7 +16,8 @@ def SaveModel(Model):
     for x in what2save:
         if "net" in x.lower():
             eval("Model."+x+".zero_grad()")
-            this_network  = copy.deepcopy(getattr(Model, x)).state_dict()
+            this_network  = getattr(Model, x).state_dict()
+            # this_network  = copy.deepcopy(getattr(Model, x)).state_dict()
             for y in this_network.keys():
                 this_network[y] = this_network[y].cpu()
             dict_stuff.update({x : this_network})
