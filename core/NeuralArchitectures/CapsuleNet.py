@@ -18,7 +18,7 @@ class CapsuleNet(nn.Module):
                  routing_capsule_length=16, routing_iterations=3,
                  replicate_paper=True, *args, **kwargs):
         super(CapsuleNet, self).__init__()
-        activation, batch_nm, pre_nm = "relu", False, False
+        activation, batch_nm, pre_nm, weight_norm = "relu", False, False, True
 
         if replicate_paper:
             primary_n_capsules = 8
@@ -27,17 +27,17 @@ class CapsuleNet(nn.Module):
             routing_iterations = 3
             block = Convolution
             self.InitialConvolutions = Convolution(tensor_size, filter_size=9, out_channels= 256,
-                                                   strides=1, pad=False, activation="relu",
-                                                   dropout=0., batch_nm=False, pre_nm=False)
+                                                   strides=1, pad=False, activation="relu", dropout=0.,
+                                                   batch_nm=False, pre_nm=False, groups=1, weight_norm=weight_norm)
             _tensor_size = self.InitialConvolutions.tensor_size
         else: # You can be creative!
             block = Convolution
-            self.InitialConvolutions = nn.Sequential(Convolution(tensor_size, 5, 64, 1, False, "relu", 0., False, False),
-                                                     ResidualComplex((6,  64, 24, 24), 3, 256, 1, True, "relu", 0., False, False),
-                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., False, False),
-                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., False, False),
-                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., False, False),
-                                                     Convolution((6, 256, 24, 24), 5, 64, 1, False, "", 0., False, False),)
+            self.InitialConvolutions = nn.Sequential(Convolution(tensor_size, 5, 64, 1, False, "relu", 0., False, False, 1, True),
+                                                     ResidualComplex((6,  64, 24, 24), 3, 256, 1, True, "relu", 0., False, False, 1, True),
+                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., False, False, 1, True),
+                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., False, False, 1, True),
+                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., False, False, 1, True),
+                                                     Convolution((6, 256, 24, 24), 5, 64, 1, False, "", 0., False, False, 1, True),)
             _tensor_size = self.InitialConvolutions[-1].tensor_size
         print("InitialConvolutions output size :: ", _tensor_size)
 
@@ -45,7 +45,7 @@ class CapsuleNet(nn.Module):
         self.PrimaryCapsule = PrimaryCapsule(_tensor_size,
                                              filter_size=9, out_channels=256, strides=2,
                                              pad=False, activation="", dropout=0.,
-                                             batch_nm=False, pre_nm=False,
+                                             batch_nm=False, pre_nm=False, groups=1, weight_norm=weight_norm,
                                              block=block, n_capsules=primary_n_capsules,
                                              capsule_length=primary_capsule_length)
         print("Primary capsule output size :: ", self.PrimaryCapsule.tensor_size)
@@ -56,7 +56,7 @@ class CapsuleNet(nn.Module):
         print("Routing capsule output size :: ", self.RoutingCapsule.tensor_size)
         self.Reconstruction = nn.Sequential(nn.Linear(n_labels*routing_capsule_length, 512), nn.ReLU(),
                                             nn.Linear(512, 1024), nn.ReLU(),
-                                            nn.Linear(1024, np.prod(tensor_size[1:])), nn.Sigmoid())
+                                            nn.Linear(1024, int(np.prod(tensor_size[1:]))), nn.Sigmoid())
 
         self.tensor_size = (6, n_labels)
         self.input_tensor_size = tensor_size
@@ -65,9 +65,9 @@ class CapsuleNet(nn.Module):
         tensor_size = tensor.size()
 
         # CapsuleNet
-        tensor_20x20 = self.InitialConvolutions(tensor)
-        tensor_6x6 = self.PrimaryCapsule(tensor_20x20)
-        features = self.RoutingCapsule(tensor_6x6)
+        tensor_deep = self.InitialConvolutions(tensor)
+        tensor_primary = self.PrimaryCapsule(tensor_deep)
+        features = self.RoutingCapsule(tensor_primary)
 
         # Reconstruction (only during training)
         #   remove 'if' loop if you like to view the rec_tensor on test data
@@ -85,9 +85,9 @@ class CapsuleNet(nn.Module):
         return features, rec_tensor, rec_loss
 
 
-# from NeuralLayers import *
+# from core.NeuralLayers import *
 # tensor_size = (2, 1, 28, 28)
 # targets = torch.LongTensor([1, 2])
 # tensor = torch.rand(*tensor_size)
 # test = CapsuleNet(tensor_size)
-# test(tensor, targets)[0].size()
+# test(tensor, targets)[2]
