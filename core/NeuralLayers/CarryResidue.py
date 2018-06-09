@@ -10,9 +10,9 @@ from .Convolution import Convolution
 
 
 class BaseBlock(nn.Module):
-    """ Any residual class forward! """
+    """ Any residual or carry class forward! """
     def forward(self, tensor):
-        if hasattr(self, "pre_network"):
+        if hasattr(self, "pre_network"): # for dropout & SqueezeNet Fire
             tensor = self.pre_network(tensor)
 
         if hasattr(self, "skip_residue") and self.skip_residue: # For MobileNET, strides>1
@@ -46,52 +46,55 @@ class BaseBlock(nn.Module):
 
 class ResidualOriginal(BaseBlock):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
-                 activation="relu", dropout=0., batch_nm=False, pre_nm=False, *args, **kwargs):
+                 activation="relu", dropout=0., batch_nm=False, pre_nm=False,
+                 groups=1, weight_norm=False, *args, **kwargs):
         super(ResidualOriginal, self).__init__()
         if dropout > 0.:
             self.pre_network = nn.Dropout2d(dropout)
         self.network = nn.Sequential()
-        self.network.add_module("Block3x3_1", Convolution(tensor_size, filter_size, out_channels, strides, True, activation, 0., batch_nm, pre_nm))
-        self.network.add_module("Block3x3_2", Convolution(self.network[-1].tensor_size, filter_size, out_channels, (1, 1), True, activation, 0., batch_nm, pre_nm))
+        self.network.add_module("Block3x3_1", Convolution(tensor_size, filter_size, out_channels, strides, True, activation, 0., batch_nm, pre_nm, groups, weight_norm))
+        self.network.add_module("Block3x3_2", Convolution(self.network[-1].tensor_size, filter_size, out_channels, (1, 1), True, activation, 0., batch_nm, pre_nm, groups, weight_norm))
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) or tensor_size[1] != out_channels:
             _filter_size = (3, 3) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
-            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm)
+            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_norm)
         self.tensor_size = self.network[-1].tensor_size
 # ============================================================================ #
 
 
 class ResidualComplex(BaseBlock):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
-                 activation="relu", dropout=0., batch_nm=False, pre_nm=False, *args, **kwargs):
+                 activation="relu", dropout=0., batch_nm=False, pre_nm=False,
+                 groups=1, weight_norm=False, *args, **kwargs):
         super(ResidualComplex, self).__init__()
         if dropout > 0.:
             self.pre_network = nn.Dropout2d(dropout)
         self.network = nn.Sequential()
-        self.network.add_module("Block1x1/4", Convolution(tensor_size, (1, 1), out_channels//4, (1, 1), True, activation, 0., batch_nm, pre_nm))
-        self.network.add_module("Block3x3/4", Convolution(self.network[-1].tensor_size, filter_size, out_channels//4, strides, True, activation, 0., batch_nm, pre_nm))
-        self.network.add_module("Block1x1", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, activation, 0., batch_nm, pre_nm))
+        self.network.add_module("Block1x1/4", Convolution(tensor_size, (1, 1), out_channels//4, (1, 1), True, activation, 0., batch_nm, pre_nm, groups, weight_norm))
+        self.network.add_module("Block3x3/4", Convolution(self.network[-1].tensor_size, filter_size, out_channels//4, strides, True, activation, 0., batch_nm, pre_nm, groups, weight_norm))
+        self.network.add_module("Block1x1", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, activation, 0., batch_nm, pre_nm, groups, weight_norm))
 
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) or tensor_size[1] != out_channels:
             _filter_size = (3, 3) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
-            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm)
+            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_norm)
         self.tensor_size = self.network[-1].tensor_size
 # ============================================================================ #
 
 
 class ResidualComplex2(BaseBlock):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
-                 activation="relu", dropout=0., batch_nm=False, pre_nm=False, *args, **kwargs):
+                 activation="relu", dropout=0., batch_nm=False, pre_nm=False,
+                 groups=1, weight_norm=False, *args, **kwargs):
         super(ResidualComplex2, self).__init__()
         if dropout > 0.:
             self.pre_network = nn.Dropout2d(dropout)
         self.network = nn.Sequential()
-        self.network.add_module("Block1x1/4", Convolution(tensor_size, (1, 1), out_channels//4, (1, 1), True, activation, 0., batch_nm, pre_nm))
-        self.network.add_module("Block3x3/4", Convolution(self.network[-1].tensor_size, filter_size, out_channels//4, strides, True, activation, 0., batch_nm, pre_nm))
-        self.network.add_module("Block1x1", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, "", 0., batch_nm, pre_nm))
+        self.network.add_module("Block1x1/4", Convolution(tensor_size, (1, 1), out_channels//4, (1, 1), True, activation, 0., batch_nm, pre_nm, groups, weight_norm))
+        self.network.add_module("Block3x3/4", Convolution(self.network[-1].tensor_size, filter_size, out_channels//4, strides, True, activation, 0., batch_nm, pre_nm, groups, weight_norm))
+        self.network.add_module("Block1x1", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, "", 0., batch_nm, pre_nm, groups, weight_norm))
 
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) or tensor_size[1] != out_channels:
             _filter_size = (3, 3) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
-            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm)
+            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_norm)
         self.tensor_size = self.network[-1].tensor_size
 
         if activation == "relu":
@@ -108,21 +111,22 @@ class ResidualComplex2(BaseBlock):
 class ResidualInverted(BaseBlock):
     """ MobileNetV2 supporting block - https://arxiv.org/pdf/1801.04381.pdf """
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
-                 activation="relu6", dropout=0., batch_nm=False, pre_nm=False, t=1, *args, **kwargs):
+                 activation="relu6", dropout=0., batch_nm=False, pre_nm=False,
+                 groups=1, weight_norm=False, t=1, *args, **kwargs):
         super(ResidualInverted, self).__init__()
         if dropout > 0.:
             self.pre_network = nn.Dropout2d(dropout)
         self.network = nn.Sequential()
-        self.network.add_module("Block1x1pre", Convolution(tensor_size, (1, 1), out_channels*t, (1, 1), True, activation, 0., batch_nm, pre_nm))
+        self.network.add_module("Block1x1pre", Convolution(tensor_size, (1, 1), out_channels*t, (1, 1), True, activation, 0., batch_nm, pre_nm, groups, weight_norm))
         self.network.add_module("Block3x3", Convolution(self.network[-1].tensor_size, filter_size, out_channels*t, strides,
-                                                        True, activation, 0., batch_nm, pre_nm, groups=out_channels*t))
-        self.network.add_module("Block1x1pst", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, "", 0., batch_nm, pre_nm))
+                                                        True, activation, 0., batch_nm, pre_nm, out_channels*t, weight_norm))
+        self.network.add_module("Block1x1pst", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, "", 0., batch_nm, pre_nm, groups, weight_norm))
 
         self.skip_residue = False
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)):
             self.skip_residue = True
         if not self.skip_residue and tensor_size[1] != out_channels:
-            self.edit_residue = Convolution(tensor_size, (1, 1), out_channels, strides, True, "", 0., batch_nm, pre_nm)
+            self.edit_residue = Convolution(tensor_size, (1, 1), out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_norm)
         self.tensor_size = self.network[-1].tensor_size
 # ============================================================================ #
 
@@ -141,24 +145,24 @@ class ChannelShuffle(nn.Module):
 
 
 class ResidualShuffle(BaseBlock):
-    """ https://arxiv.org/pdf/1707.01083.pdf """
+    """ ShuffleNet supporting block - https://arxiv.org/pdf/1707.01083.pdf """
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
                  activation="relu", dropout=0., batch_nm=False, pre_nm=False,
-                 groups=4, *args, **kwargs):
+                 groups=4, weight_norm=False,*args, **kwargs):
         super(ResidualShuffle, self).__init__()
         if dropout > 0.:
             self.pre_network = nn.Dropout2d(dropout)
         self.network = nn.Sequential()
-        self.network.add_module("Block1x1pre", Convolution(tensor_size, (1, 1), out_channels, (1, 1), True, activation, 0., batch_nm, pre_nm, groups))
+        self.network.add_module("Block1x1pre", Convolution(tensor_size, (1, 1), out_channels, (1, 1), True, activation, 0., batch_nm, pre_nm, groups, weight_norm))
         self.network.add_module("Shuffle", ChannelShuffle(groups))
-        self.network.add_module("Block3x3", Convolution(self.network[-2].tensor_size, filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups))
-        self.network.add_module("Block1x1pst", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, "", 0., batch_nm, pre_nm, groups))
+        self.network.add_module("Block3x3", Convolution(self.network[-2].tensor_size, filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_norm))
+        self.network.add_module("Block1x1pst", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, "", 0., batch_nm, pre_nm, groups, weight_norm))
 
         self.edit_residue = nn.Sequential()
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)):
             self.edit_residue.add_module("AveragePOOL", nn.AvgPool2d((3, 3), stride=(2, 2), padding=1))
         if tensor_size[1] != out_channels:
-            self.edit_residue.add_module("Block1x1AdjustDepth", Convolution(tensor_size, (1, 1), out_channels, (1, 1), True, "", 0., batch_nm, pre_nm, groups))
+            self.edit_residue.add_module("Block1x1AdjustDepth", Convolution(tensor_size, (1, 1), out_channels, (1, 1), True, "", 0., batch_nm, pre_nm, groups, weight_norm))
         self.tensor_size = self.network[-1].tensor_size
 
         if activation == "relu":
@@ -173,16 +177,18 @@ class ResidualShuffle(BaseBlock):
 
 
 class SimpleFire(BaseBlock):
+    """ SqueezeNet supporting block - https://arxiv.org/pdf/1602.07360.pdf """
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
-                 activation="relu", dropout=0., batch_nm=False, pre_nm=False, *args, **kwargs):
+                 activation="relu", dropout=0., batch_nm=False, pre_nm=False,
+                 groups=1, weight_norm=False, *args, **kwargs):
         super(SimpleFire, self).__init__()
         self.pre_network = nn.Sequential()
         if dropout > 0.:
             self.pre_network.add_module("DropOut", nn.Dropout2d(dropout))
-        self.pre_network.add_module("Block1x1Shrink", Convolution(tensor_size, (1, 1), out_channels//4, (1, 1), True, "", 0., batch_nm, pre_nm))
+        self.pre_network.add_module("Block1x1Shrink", Convolution(tensor_size, (1, 1), out_channels//4, (1, 1), True, "", 0., batch_nm, pre_nm, groups, weight_norm))
 
-        self.network = Convolution(self.pre_network[-1].tensor_size, filter_size, out_channels//2, strides, True, activation, 0., batch_nm, pre_nm)
-        self.edit_carry = Convolution(self.pre_network[-1].tensor_size, (1, 1), out_channels//2, strides, True, activation, 0., batch_nm, pre_nm)
+        self.network = Convolution(self.pre_network[-1].tensor_size, filter_size, out_channels//2, strides, True, activation, 0., batch_nm, pre_nm, groups, weight_norm)
+        self.edit_carry = Convolution(self.pre_network[-1].tensor_size, (1, 1), out_channels//2, strides, True, activation, 0., batch_nm, pre_nm, groups, weight_norm)
 
         self.tensor_size = (self.network.tensor_size[0], self.network.tensor_size[1]*2,
                             self.network.tensor_size[2], self.network.tensor_size[3])
@@ -191,7 +197,8 @@ class SimpleFire(BaseBlock):
 
 class CarryModular(BaseBlock):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
-                 activation="relu", dropout=0., batch_nm=False, pre_nm=False, growth_rate=32,
+                 activation="relu", dropout=0., batch_nm=False, pre_nm=False,
+                 groups=1, weight_norm=False, growth_rate=32,
                  block=SimpleFire, *args, **kwargs):
         super(CarryModular, self).__init__()
         if dropout > 0.:
@@ -200,10 +207,9 @@ class CarryModular(BaseBlock):
             growth_rate = out_channels - tensor_size[1]
         else:
             self.dynamic = True
-        self.network = block(tensor_size, filter_size, growth_rate, strides, pad, activation, 0., batch_nm, pre_nm)
-        self.edit_carry = nn.Sequential()
+        self.network = block(tensor_size, filter_size, growth_rate, strides, pad, activation, 0., batch_nm, pre_nm, groups, weight_norm)
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)):
-            self.edit_carry.add_module("AveragePOOL", nn.AvgPool2d((3, 3), stride=(2, 2), padding=1))
+            self.edit_carry = nn.AvgPool2d((3, 3), stride=(2, 2), padding=1)
         self.tensor_size = (self.network.tensor_size[0], out_channels,
                             self.network.tensor_size[2], self.network.tensor_size[3])
 # ============================================================================ #
