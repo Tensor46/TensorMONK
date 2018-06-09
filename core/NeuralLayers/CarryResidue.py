@@ -241,13 +241,3 @@ class CarryModular(BaseBlock):
 # test = CarryFire(tensor_size, 3, 128, 2, False, "relu", 0., False, False)
 # test(x).size()
 # %timeit test(x).size()
-#
-# test = CarryFire(tensor_size, 3, 128, 1, False, "relu", 0., False, False)
-# test
-
-# tensor_size = (3,200,28,28)
-# x = torch.rand(*tensor_size)
-#
-# test = ResidualShuffle(tensor_size, 3, 200, 1, True, "relu", 0., True, False, 2)
-# test(x).size()
-# %timeit test(x).size()
