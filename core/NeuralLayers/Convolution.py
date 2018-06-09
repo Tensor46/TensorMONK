@@ -50,7 +50,7 @@ def ActivationFNs(activation, pre_nm):
 class Convolution(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1),
                  pad=True, activation="relu", dropout=0., batch_nm=False,
-                 pre_nm=False, groups=1, *args, **kwargs):
+                 pre_nm=False, groups=1, weight_norm=False, *args, **kwargs):
         super(Convolution, self).__init__()
         # Checks
         assert len(tensor_size) == 4 and type(tensor_size) in [list, tuple], \
@@ -81,7 +81,12 @@ class Convolution(nn.Module):
             pre, pst, act = ActivationFNs(activation, pre_nm)
             if act is not None:
                 self.Activation = act
-        self.Convolution = nn.Conv2d(tensor_size[1]//pre, out_channels*pst, filter_size, strides, padding, bias=False, groups=groups)
+        if weight_norm:
+            """ https://arxiv.org/pdf/1602.07868.pdf """
+            self.Convolution = nn.utils.weight_norm(nn.Conv2d(tensor_size[1]//pre, out_channels*pst, filter_size,
+                                                              strides, padding, bias=False, groups=groups), name='weight')
+        else:
+            self.Convolution = nn.Conv2d(tensor_size[1]//pre, out_channels*pst, filter_size, strides, padding, bias=False, groups=groups)
         torch.nn.init.orthogonal_(self.Convolution.weight)
         if not pre_nm:
             if batch_nm:
