@@ -7,7 +7,7 @@ import torchvision.transforms as DataMods
 # ============================================================================ #
 
 
-def MNIST(data_path="./INs_OUTs/", tensor_size = (6, 1, 28, 28), BSZ=64, cpus=4):
+def MNIST(data_path="./data/", tensor_size = (6, 1, 28, 28), BSZ=64, cpus=4):
     n_labels = 10
     dataset = torchvision.datasets.MNIST(root=data_path, train=True, download=True,
                 transform=DataMods.Compose([DataMods.ToTensor(), DataMods.Normalize((0.1307,), (0.3081,)),]))

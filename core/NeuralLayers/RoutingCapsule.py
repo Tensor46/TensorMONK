@@ -20,7 +20,8 @@ class RoutingCapsule(nn.Module):
         #               = (32*6*6, 8 , 10*16)
         weight_size = (np.prod(tensor_size[1:-1]), tensor_size[-1], n_capsules*capsule_length)
         self.weight = nn.Parameter(torch.Tensor(*weight_size))
-        nn.init.orthogonal_(self.weight, gain=1./np.sqrt(tensor_size[-1]))
+        nn.init.xavier_normal_(self.weight, gain=0.01)
+        # nn.init.orthogonal_(self.weight, gain=1./np.sqrt(tensor_size[-1]))
         self.tensor_size = (6, n_capsules, capsule_length)
 
     def forward(self, tensor):
@@ -58,7 +59,7 @@ class RoutingCapsule(nn.Module):
             sum_squares = (s**2).sum(2).unsqueeze(2)
             v = (sum_squares/(1+sum_squares)) * s / (sum_squares**0.5)
             # bias update -- size = _ x 32 x 6 x 6 x 10
-            if i != self.iterations-1:
+            if i < self.iterations-1:
                 bias = bias + (u * v.view(batch_size, 1, 1, 1, self.tensor_size[1], self.tensor_size[2])).sum(5)
 
         return v

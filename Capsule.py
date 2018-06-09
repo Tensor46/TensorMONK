@@ -19,7 +19,7 @@ import torch.optim as neuralOptimizer
 def trainMONK(args):
     tensor_size = (1, 1, 28, 28)
     trDataLoader, teDataLoader, n_labels = NeuralEssentials.MNIST(args.trainDataPath,  tensor_size, args.BSZ, args.cpus)
-    file_name = "./INs_OUTs/" + args.Architecture.lower()
+    file_name = "./models/" + args.Architecture.lower()
     Model = NeuralEssentials.MakeCNN(file_name, tensor_size, n_labels,
                                        embedding_net=NeuralArchitectures.CapsuleNet,
                                        embedding_net_kwargs={"replicate_paper" : True},
@@ -27,7 +27,12 @@ def trainMONK(args):
                                        default_gpu=args.default_gpu, gpus=args.gpus,
                                        ignore_trained=args.ignore_trained)
 
-    Optimizer = neuralOptimizer.Adam(Model.netEmbedding.parameters())
+    if args.optimizer.lower() == "adam":
+        Optimizer = neuralOptimizer.Adam(Model.netEmbedding.parameters())
+    elif args.optimizer.lower() == "sgd":
+        Optimizer = neuralOptimizer.SGD(Model.netEmbedding.parameters(), lr= args.learningRate)
+    else:
+        raise NotImplementedError
 
     # Usual training
     for _ in range(args.Epochs):
@@ -88,18 +93,20 @@ def trainMONK(args):
 # ============================================================================ #
 def parse_args():
     parser = argparse.ArgumentParser(description="mellowID using tensorMONK!!!")
-    parser.add_argument("-A","--Architecture",required=True, help = "Ex: mini | mighty")
-    parser.add_argument("-B","--BSZ",        type=int,  default=32)
-    parser.add_argument("-E","--Epochs",     type=int,  default=6)
-    parser.add_argument("--learningRate",    type=float,default=0.06)
+    parser.add_argument("-A", "--Architecture", type=str, default="capsule")
+    parser.add_argument("-B", "--BSZ", type=int, default=32)
+    parser.add_argument("-E", "--Epochs", type=int, default=6)
 
-    parser.add_argument("--default_gpu",     type=int,  default=1)
-    parser.add_argument("--gpus",            type=int,  default=1)
-    parser.add_argument("--cpus",            type=int,  default=6)
+    parser.add_argument("--optimizer", type=str, default="adam", choices=["adam", "sgd",])
+    parser.add_argument("--learningRate", type=float, default=0.06)
 
-    parser.add_argument("--trainDataPath",   type=str,  default="./INs_OUTs")
-    parser.add_argument("--testDataPath",    type=str,  default="./INs_OUTs")
-    parser.add_argument("-I","--ignore_trained", action="store_true")
+    parser.add_argument("--default_gpu", type=int,  default=1)
+    parser.add_argument("--gpus", type=int, default=1)
+    parser.add_argument("--cpus", type=int, default=6)
+
+    parser.add_argument("--trainDataPath", type=str, default="./data")
+    parser.add_argument("--testDataPath", type=str, default="./data")
+    parser.add_argument("-I", "--ignore_trained", action="store_true")
 
     return parser.parse_args()
 

@@ -14,15 +14,15 @@ class CudaModel(nn.Module):
         self.NET46 = net( **net_kwargs )
         self.tensor_size = self.NET46.tensor_size
 
-    def forward(self, tensor):
-        if type(tensor) in [list,tuple]:
+    def forward(self, inputs):
+        if type(inputs) in [list,tuple]:
             if self.is_cuda:
-                tensor = [x.cuda() for x in tensor]
-            return self.NET46(*tensor)
+                inputs = [x.cuda() for x in inputs]
+            return self.NET46(*inputs)
         else:
             if self.is_cuda:
-                tensor = tensor.cuda()
+                inputs = inputs.cuda()
             if self.is_cuda and self.gpus>1:
-                return nn.parallel.data_parallel(self.NET46, tensor, range(self.gpus))
+                return nn.parallel.data_parallel(self.NET46, inputs, range(self.gpus))
             else:
-                return self.NET46(tensor)
+                return self.NET46(inputs)
