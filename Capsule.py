@@ -10,7 +10,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from PIL import Image as ImPIL
 from core import *
 import torch.optim as neuralOptimizer
 #==============================================================================#
@@ -22,7 +21,7 @@ def trainMONK(args):
     file_name = "./models/" + args.Architecture.lower()
     Model = NeuralEssentials.MakeCNN(file_name, tensor_size, n_labels,
                                        embedding_net=NeuralArchitectures.CapsuleNet,
-                                       embedding_net_kwargs={"replicate_paper" : True},
+                                       embedding_net_kwargs={"replicate_paper" : args.replicate_paper},
                                        loss_net=NeuralLayers.CapsuleLoss, loss_net_kwargs={},
                                        default_gpu=args.default_gpu, gpus=args.gpus,
                                        ignore_trained=args.ignore_trained)
@@ -106,6 +105,9 @@ def parse_args():
 
     parser.add_argument("--trainDataPath", type=str, default="./data")
     parser.add_argument("--testDataPath", type=str, default="./data")
+
+    parser.add_argument("--replicate_paper", action="store_true")
+
     parser.add_argument("-I", "--ignore_trained", action="store_true")
 
     return parser.parse_args()

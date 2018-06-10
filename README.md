@@ -17,8 +17,13 @@ A collection of deep learning architectures with flexible modules (a PyTorch imp
 
 ## ImageNet :: How to train?
 
-If you have more nvidia graphic cards & cores available, adjust the batch size (BSZ), number of GPUs (gpus) & number of threads (cpus) accordingly.
+If you have more nvidia graphic cards & cores available, adjust the batch size (BSZ), number of GPUs (gpus) & number of threads (cpus) accordingly in the ./ImageNet.sh.
+Further, update your train and validation folder location (trainDataPath and testDataPath). Finally, run ./ImageNet.sh.
 
-python ImageNet.py -A residual50 -B 32 -E 30 --optimizer sgd --learningRate 0.1 --gpus 1 --cpus 6 --trainDataPath ./data/ImageNet/train --testDataPath ./data/ImageNet/validation
-python ImageNet.py -A residual50 -B 32 -E 30 --optimizer sgd --learningRate 0.01 --gpus 1 --cpus 6 --trainDataPath ./data/ImageNet/train --testDataPath ./data/ImageNet/validation
-python ImageNet.py -A residual50 -B 32 -E 30 --optimizer sgd --learningRate 0.001 --gpus 1 --cpus 6 --trainDataPath ./data/ImageNet/train --testDataPath ./data/ImageNet/validation
+## CapsuleNet :: How to train?
+
+To replicate Hinton's paper on MNIST, run the following:
+
+python Capsule.py -A capsule -B 256 -E 500 --optimizer adam --gpus 2 --cpus 6 --trainDataPath ./data --testDataPath ./data --replicate_paper
+
+Ignore the replicate_paper argument to create a deep architecture (with few residual blocks before primary capsule). You can essentially add any blocks available in NeuralLayers to create a deep architecture, followed by a primary capsule and secondary capsule on any dataset. However, do consider two things 1. if you do reconstruction, update the reconstruction network accordingly, 2. capsule nets do require a good amount of gpu ram. 

@@ -10,7 +10,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from PIL import Image as ImPIL
 from core import *
 import torch.optim as neuralOptimizer
 #==============================================================================#
@@ -23,7 +22,7 @@ def trainMONK(args):
                                                          functions=[], random_flip=True)
     teDataLoader, n_labels = NeuralEssentials.FolderITTR(args.testDataPath, args.BSZ, tensor_size, args.cpus,
                                                          functions=[], random_flip=False)
-    
+
     file_name = "./models/" + args.Architecture.lower()
 
     if args.Architecture.lower() == "residual18":
