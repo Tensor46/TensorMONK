@@ -9,7 +9,7 @@ from ..NeuralLayers import *
 
 class MobileNetV1(nn.Module):
     """
-        Implemented https://arxiv.org/pdf/1707.01083.pdf
+        Implemented https://arxiv.org/pdf/1704.04861.pdf
 
         To replicate the paper, use default parameters
         Works fairly well, for tensor_size of min(height, width) >= 128

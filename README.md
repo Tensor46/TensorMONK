@@ -7,7 +7,7 @@ A collection of deep learning architectures with flexible modules (a PyTorch imp
 
 ### NeuralArchitectures
 * [ResidualNet (18/34/50/101/152)](https://arxiv.org/pdf/1512.03385.pdf)
-* [MobileNetV1](https://arxiv.org/pdf/1707.01083.pdf)
+* [MobileNetV1](https://arxiv.org/pdf/1704.04861.pdf)
 * [MobileNetV2](https://arxiv.org/pdf/1801.04381.pdf)
 * [ShuffleNet (type = g1, g2, g3, g4, g8 from table 1)](https://arxiv.org/pdf/1707.01083.pdf)
 * [CapsuleNet (Hinton's version, and an example deep network)](https://arxiv.org/pdf/1710.09829.pdf)
