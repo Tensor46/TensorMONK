@@ -1,4 +1,4 @@
-""" tensorMONK's :: NeuralArchitectures                                      """
+""" TensorMONK's :: NeuralArchitectures                                      """
 
 import numpy as np
 import torch

@@ -1,4 +1,4 @@
-""" tensorMONK's :: NeuralArchitectures                                      """
+""" TensorMONK's :: NeuralArchitectures                                      """
 
 import torch
 import torch.nn as nn

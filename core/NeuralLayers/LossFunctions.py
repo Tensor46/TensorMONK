@@ -11,7 +11,7 @@ import numpy as np
 
 class CapsuleLoss(nn.Module):
     def __init__(self, n_labels, *args, **kwargs):
-        super(CapsuleLoss,self).__init__()
+        super(CapsuleLoss, self).__init__()
 
         self.n_labels = n_labels
         self.tensor_size = (1,)
@@ -64,7 +64,7 @@ class CategoricalLoss(nn.Module):
     """
     def __init__(self, tensor_size=128, n_labels=10, type="entr",
                  distance="dot", center=False, *args, **kwargs):
-        super(CategoricalLoss,self).__init__()
+        super(CategoricalLoss, self).__init__()
         if isinstance(tensor_size, list) or isinstance(tensor_size, tuple):
             if len(tensor_size)>1: # batch size is not required
                 tensor_size = tensor_size[1:]
@@ -100,6 +100,7 @@ class CategoricalLoss(nn.Module):
 
         if self.type.endswith("entr"):
             loss = F.cross_entropy(responses,targets.view(-1))
+
         elif self.type.endswith("smax"):
             identity = Variable(torch.eye(self.n_labels))
             if targets.is_cuda:
@@ -109,7 +110,7 @@ class CategoricalLoss(nn.Module):
             loss = -torch.log( (responses*onehot_targets).sum(1) / responses.sum(1) ).sum() / BSZ
 
         elif self.type == "lmcl":
-            m, s = 0.35, 10     # From https://arxiv.org/pdf/1801.09414.pdf
+            m, s = 0.35, 10  # From https://arxiv.org/pdf/1801.09414.pdf
             genuineIDX = Variable(torch.from_numpy(np.arange(BSZ)))
             if targets.is_cuda: genuineIDX = genuineIDX.cuda()
             genuineIDX = targets.view(-1) + genuineIDX * self.n_labels

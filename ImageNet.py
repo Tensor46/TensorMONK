@@ -17,12 +17,61 @@ import torch.optim as neuralOptimizer
 
 
 def trainMONK(args):
-    tensor_size = (1, 1, 28, 28)
-    trDataLoader, teDataLoader, n_labels = NeuralEssentials.MNIST(args.trainDataPath,  tensor_size, args.BSZ, args.cpus)
+    tensor_size = (1, 3, 224, 224)
+
+    trDataLoader, n_labels = NeuralEssentials.FolderITTR(args.trainDataPath, args.BSZ, tensor_size, args.cpus,
+                                                         functions=[], random_flip=True)
+    teDataLoader, n_labels = NeuralEssentials.FolderITTR(args.testDataPath, args.BSZ, tensor_size, args.cpus,
+                                                         functions=[], random_flip=False)
+    
     file_name = "./models/" + args.Architecture.lower()
+
+    if args.Architecture.lower() == "residual18":
+        embedding_net = NeuralArchitectures.ResidualNet,
+        embedding_net_kwargs = {"type" : "r18"}
+    elif args.Architecture.lower() == "residual34":
+        embedding_net = NeuralArchitectures.ResidualNet,
+        embedding_net_kwargs = {"type" : "r34"}
+    elif args.Architecture.lower() == "residual50":
+        embedding_net = NeuralArchitectures.ResidualNet,
+        embedding_net_kwargs = {"type" : "r50"}
+    elif args.Architecture.lower() == "residual101":
+        embedding_net = NeuralArchitectures.ResidualNet,
+        embedding_net_kwargs = {"type" : "r101"}
+    elif args.Architecture.lower() == "residual152":
+        embedding_net = NeuralArchitectures.ResidualNet,
+        embedding_net_kwargs = {"type" : "r152"}
+    elif args.Architecture.lower() == "mobilev1":
+        embedding_net = NeuralArchitectures.MobileNetV1,
+        embedding_net_kwargs = {}
+    elif args.Architecture.lower() == "mobilev2":
+        embedding_net = NeuralArchitectures.MobileNetV2,
+        embedding_net_kwargs = {}
+    elif args.Architecture.lower() == "mobilev2":
+        embedding_net = NeuralArchitectures.MobileNetV2,
+        embedding_net_kwargs = {}
+    elif args.Architecture.lower() == "shuffle1":
+        embedding_net = NeuralArchitectures.ShuffleNet,
+        embedding_net_kwargs = {"type" : "g1"}
+    elif args.Architecture.lower() == "shuffle2":
+        embedding_net = NeuralArchitectures.ShuffleNet,
+        embedding_net_kwargs = {"type" : "g2"}
+    elif args.Architecture.lower() == "shuffle3":
+        embedding_net = NeuralArchitectures.ShuffleNet,
+        embedding_net_kwargs = {"type" : "g3"}
+    elif args.Architecture.lower() == "shuffle4":
+        embedding_net = NeuralArchitectures.ShuffleNet,
+        embedding_net_kwargs = {"type" : "g4"}
+    elif args.Architecture.lower() == "shuffle8":
+        embedding_net = NeuralArchitectures.ShuffleNet,
+        embedding_net_kwargs = {"type" : "g8
+    else:
+        raise NotImplementedError
+
+
     Model = NeuralEssentials.MakeCNN(file_name, tensor_size, n_labels,
-                                       embedding_net=NeuralArchitectures.SimpleNet,
-                                       embedding_net_kwargs={"replicate_paper" : True},
+                                       embedding_net=embedding_net,
+                                       embedding_net_kwargs=embedding_net_kwargs,
                                        loss_net=NeuralLayers.CategoricalLoss,
                                        loss_net_kwargs={"type" : args.loss_type, "distance" : args.loss_distance},
                                        default_gpu=args.default_gpu, gpus=args.gpus,
@@ -93,7 +142,10 @@ def trainMONK(args):
 # ============================================================================ #
 def parse_args():
     parser = argparse.ArgumentParser(description="ImageNet using TensorMONK!!!")
-    parser.add_argument("-A","--Architecture", type=str, default="simplenet")
+    parser.add_argument("-A","--Architecture", type=str, default="residual50",
+                        choices = ["residual18", "residual34", "residual50",
+                        "residual101", "residual152", "mobilev1", "mobilev2",
+                        "shuffle1", "shuffle2", "shuffle3", "shuffle4", "shuffle8"])
 
     parser.add_argument("-B","--BSZ", type=int,  default=32)
     parser.add_argument("-E","--Epochs", type=int,  default=6)
@@ -108,8 +160,8 @@ def parse_args():
     parser.add_argument("--gpus", type=int,  default=1)
     parser.add_argument("--cpus", type=int,  default=6)
 
-    parser.add_argument("--trainDataPath", type=str,  default="./data")
-    parser.add_argument("--testDataPath", type=str,  default="./data")
+    parser.add_argument("--trainDataPath", type=str,  default="./data/ImageNet/train")
+    parser.add_argument("--testDataPath", type=str,  default="./data/ImageNet/validation")
     parser.add_argument("-I","--ignore_trained", action="store_true")
 
     return parser.parse_args()

@@ -90,6 +90,22 @@ def trainMONK(args):
     print("\nDone with training")
     return Model
 
+# class argsjump:
+#     Architecture = "simplenet"
+#     BSZ = 32
+#     Epochs = 6
+#     optimizer = "sgd"
+#     learningRate = .06
+#     loss_type = "lmcl"
+#     loss_distance = "dot"
+#     default_gpu = 1
+#     gpus = 1
+#     cpus = 6
+#     trainDataPath = "./data"
+#     testDataPath = "./data"
+#     ignore_trained = True
+# args = argsjump()
+
 # ============================================================================ #
 def parse_args():
     parser = argparse.ArgumentParser(description="SimpleMNIST using TensorMONK!!!")

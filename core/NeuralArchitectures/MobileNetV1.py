@@ -1,4 +1,4 @@
-""" tensorMONK's :: NeuralArchitectures                                      """
+""" TensorMONK's :: NeuralArchitectures                                      """
 
 import torch
 import torch.nn as nn
@@ -8,80 +8,45 @@ from ..NeuralLayers import *
 
 
 class MobileNetV1(nn.Module):
-    """ Implemented https://arxiv.org/pdf/1707.01083.pdf
+    """
+        Implemented https://arxiv.org/pdf/1707.01083.pdf
 
-        To replicate the paper, use tensor_size = (1, 3, 224, 224)
+        To replicate the paper, use default parameters
         Works fairly well, for tensor_size of min(height, width) >= 128
     """
-    def __init__(self, tensor_size=(6, 3, 224, 224), *args, **kwargs):
+    def __init__(self, tensor_size=(6, 3, 224, 224), activation="relu",
+                 batch_nm=True, pre_nm=False, weight_norm=False, *args, **kwargs):
         super(MobileNetV1, self).__init__()
-        activation, batch_nm, pre_nm, weight_norm = "relu", True, False, False
 
         self.Net46 = nn.Sequential()
-        print(tensor_size)
-        self.Net46.add_module("Mobile0", Convolution(tensor_size, 3, 32, 2, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile1", Convolution(self.Net46[-1].tensor_size, 3, 32, 1, True, activation, 0., batch_nm, False, 32, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile2", Convolution(self.Net46[-1].tensor_size, 1, 64, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile3", Convolution(self.Net46[-1].tensor_size, 3, 64, 2, True, activation, 0., batch_nm, False, 64, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile4", Convolution(self.Net46[-1].tensor_size, 1, 128, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile5", Convolution(self.Net46[-1].tensor_size, 3, 128, 1, True, activation, 0., batch_nm, False, 128, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile6", Convolution(self.Net46[-1].tensor_size, 1, 128, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile7", Convolution(self.Net46[-1].tensor_size, 3, 128, 2, True, activation, 0., batch_nm, False, 128, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile8", Convolution(self.Net46[-1].tensor_size, 1, 256, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile9", Convolution(self.Net46[-1].tensor_size, 3, 256, 1, True, activation, 0., batch_nm, False, 256, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile10", Convolution(self.Net46[-1].tensor_size, 1, 256, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile11", Convolution(self.Net46[-1].tensor_size, 3, 256, 2, True, activation, 0., batch_nm, False, 256, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile12", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile13", Convolution(self.Net46[-1].tensor_size, 3, 512, 1, True, activation, 0., batch_nm, False, 512, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile14", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile15", Convolution(self.Net46[-1].tensor_size, 3, 512, 1, True, activation, 0., batch_nm, False, 512, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile16", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile17", Convolution(self.Net46[-1].tensor_size, 3, 512, 1, True, activation, 0., batch_nm, False, 512, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile18", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile19", Convolution(self.Net46[-1].tensor_size, 3, 512, 1, True, activation, 0., batch_nm, False, 512, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile20", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile21", Convolution(self.Net46[-1].tensor_size, 3, 512, 1, True, activation, 0., batch_nm, False, 512, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile22", Convolution(self.Net46[-1].tensor_size, 1, 512, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile23", Convolution(self.Net46[-1].tensor_size, 3, 512, 2, True, activation, 0., batch_nm, False, 512, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile24", Convolution(self.Net46[-1].tensor_size, 1, 1024, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile25", Convolution(self.Net46[-1].tensor_size, 3, 1024, 1, True, activation, 0., batch_nm, False, 1024, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile26", Convolution(self.Net46[-1].tensor_size, 1, 1024, 1, True, activation, 0., batch_nm, False, 1, weight_norm))
-        print(self.Net46[-1].tensor_size)
-        self.Net46.add_module("Mobile26", nn.AvgPool2d(self.Net46[-1].tensor_size[2:]))
+
+        block_params = [(3, 32, 2, 1), (3, 32, 1, 32), (1, 64, 1, 1), (3, 64, 2, 64),
+                        (1, 128, 1, 1), (3, 128, 1, 128), (1, 128, 1, 1), (3, 128, 2, 128),
+                        (1, 256, 1, 1), (3, 256, 1, 256), (1, 256, 1, 1), (3, 256, 2, 256),
+                        (1, 512, 1, 1), (3, 512, 1, 512), (1, 512, 1, 1), (3, 512, 1, 512),
+                        (1, 512, 1, 1), (3, 512, 1, 512), (1, 512, 1, 1), (3, 512, 1, 512),
+                        (1, 512, 1, 1), (3, 512, 1, 512), (1, 512, 1, 1), (3, 512, 2, 512),
+                        (1, 1024, 1, 1), (3, 1024, 1, 1024), (1, 1024, 1, 1), ]
+
+        print("Input", tensor_size)
+        _tensor_size = tensor_size
+        for i, (k, oc, s, g) in enumerate(block_params):
+            self.Net46.add_module("Mobile"+str(i), Convolution(_tensor_size, k, oc, s,
+                                  True, activation, 0., batch_nm, False if i == 0 else pre_nm, g, weight_norm))
+            _tensor_size = self.Net46[-1].tensor_size
+            print("Mobile"+str(i), _tensor_size)
+
+        self.Net46.add_module("AveragePool", nn.AvgPool2d(self.Net46[-1].tensor_size[2:]))
+        print("AveragePool", (1, 1024, 1, 1))
+
         self.tensor_size = (6, 1024)
-        print(1024)
 
     def forward(self, tensor):
         return self.Net46(tensor).view(tensor.size(0), -1)
 
 
 # from core.NeuralLayers import *
-# tensor = torch.rand(1,3,224,224)
-# test = MobileNetV1((1,3,224,224))
+# tensor_size = (1, 3, 224, 224)
+# tensor = torch.rand(*tensor_size)
+# test = MobileNetV1(tensor_size)
 # test(tensor).size()
