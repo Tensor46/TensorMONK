@@ -46,9 +46,6 @@ def trainMONK(args):
     elif args.Architecture.lower() == "mobilev2":
         embedding_net = NeuralArchitectures.MobileNetV2,
         embedding_net_kwargs = {}
-    elif args.Architecture.lower() == "mobilev2":
-        embedding_net = NeuralArchitectures.MobileNetV2,
-        embedding_net_kwargs = {}
     elif args.Architecture.lower() == "shuffle1":
         embedding_net = NeuralArchitectures.ShuffleNet,
         embedding_net_kwargs = {"type" : "g1"}

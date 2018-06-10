@@ -123,4 +123,3 @@ class Convolution(nn.Module):
 # x = torch.rand(3,3,10,10)
 # test = Convolution((1,3,10,10), (3,3), 16, (2,2), False, "maxo", 0.5, True, False)
 # test(x).size()
-# test.adjustweights(x)
