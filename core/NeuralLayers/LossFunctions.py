@@ -45,9 +45,9 @@ class CategoricalLoss(nn.Module):
         type         :: entr/smax/tsmax/tentr/lmcl
                         entr  - categorical cross entropy
                         smax  - softmax
-                        tsmax - taylored softmax
+                        tsmax - taylor softmax
                                 https://arxiv.org/pdf/1511.05042.pdf
-                        tentr - taylored entropy
+                        tentr - taylor entropy
                         lmcl  - large margin cosine loss
                                 https://arxiv.org/pdf/1801.09414.pdf
 
