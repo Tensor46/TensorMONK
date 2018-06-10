@@ -24,11 +24,11 @@ A collection of deep learning architectures with flexible modules (a PyTorch imp
 ### NeuralLayers
 * Convolution -- A convolution layer with following parameters:
 
-1. tensor_size = a list/tuple of length 4 (BxWxHxC - any B should work)
-2. filter_size = int/list/tuple (if list/tuple, length must be 2)
-3. out_channels = int
-4. strides = int/list/tuple (if list/tuple, length must be 2)
-5. pad = True/False (True essentially delivers same output size when strides = 1, and False returns valid convolution)
+  1. tensor_size = a list/tuple of length 4 (BxWxHxC - any B should work)
+  2. filter_size = int/list/tuple (if list/tuple, length must be 2)
+  3. out_channels = int
+  4. strides = int/list/tuple (if list/tuple, length must be 2)
+  5. pad = True/False (True essentially delivers same output size when strides = 1, and False returns valid convolution)
 6. activation = relu/relu6/lklu(leaky relu)/tanh/sigm/[maxo](https://arxiv.org/pdf/1302.4389.pdf)/[swish](https://arxiv.org/pdf/1710.05941v1.pdf)
 7. dropout = 0. to 1. (adds dropout layer)
 8. batch_nm = True/False (adds batch normalization when True)
