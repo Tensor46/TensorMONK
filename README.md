@@ -12,6 +12,22 @@ A collection of deep learning architectures with flexible modules (a PyTorch imp
 * [ShuffleNet (type = g1, g2, g3, g4, g8 from table 1)](https://arxiv.org/pdf/1707.01083.pdf)
 * [CapsuleNet (Hinton's version, and an example deep network)](https://arxiv.org/pdf/1710.09829.pdf)
 
+### NeuralEssentials
+* BaseModel -- A base class that contains networks (embedding, loss or any), meters (loss, accuracy etc), fileName, isCUDA
+* CudaModel -- Converts any model (pytorch module) to run on single gpu's or multiple gpu's or cpu
+* LoadModel -- Loads pretrained models (usually, from ./models)
+* SaveModel -- Save models (usually, state_dict of anything that starts with net in BaseModel, and rest as is)
+
+* FolderITTR -- PyTorch image folder iterator with few extras.
+* MNIST -- To get MNIST, train and test dataset loader.
+
+### NeuralLayers
+#### Convolution -- A convolution layer with following parameters: 1. tensor_size = a list/tuple of length 4 (BxWxHxC - any B should work), 2. filter_size = int/list/tuple (if list/tuple, length must be 2), 3. out_channels = int, 4. strides = int/list/tuple (if list/tuple, length must be 2), 5. pad = True/False (True essentially delivers same output size when strides = 1, and False returns valid convolution). 6. activation = relu/relu6/lklu(leaky relu)/tanh/sigm/[maxo](https://arxiv.org/pdf/1302.4389.pdf)/[swish](https://arxiv.org/pdf/1710.05941v1.pdf), 7. dropout = 0. to 1. (adds dropout layer), 8. batch_nm = True/False (adds batch normalization when True), 9. pre_nm = True/False (when True along with batch_nm -- batch normalization + activation + convolution else convolution + batch normalization + activation), 10. groups = 1 (default), 11. weight_norm = [True](https://arxiv.org/pdf/1602.07868.pdf)/False
+#### CarryResidue
+*
+
+
+
 ## Available Architectures
 * ResidualNet (18/34/50/101/152)
 * MobileNetV1
