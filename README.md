@@ -18,7 +18,7 @@ To replicate Hinton's paper on MNIST, run the following:
 
 python Capsule.py -A capsule -B 256 -E 500 --optimizer adam --gpus 2 --cpus 6 --trainDataPath ./data --testDataPath ./data --replicate_paper
 
-Ignore the replicate_paper argument to create a deep architecture (with few residual blocks before primary capsule). You can essentially add any blocks available in NeuralLayers to create a deep architecture, followed by a primary capsule and secondary capsule on any dataset. However, do consider two things 1. if you do reconstruction, update the reconstruction network accordingly, 2. capsule nets do require a good amount of gpu ram.
+Ignore the replicate_paper argument to create a deep architecture (with few residual blocks before primary capsule). You can essentially add any blocks available in NeuralLayers to create a deep architecture, followed by a primary capsule and secondary capsule on any dataset. However, do consider two things 1. if you do reconstruction, update the reconstruction network relative to tensor_size, 2. capsule nets do require a good amount of gpu ram.
 
 ## Details on core (NeuralArchitectures, NeuralEssentials, NeuralLayers)
 
