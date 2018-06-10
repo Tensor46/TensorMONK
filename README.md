@@ -7,12 +7,12 @@ A collection of deep learning architectures with flexible modules (a PyTorch imp
 * PyTorch 0.4
 * torchvision
 
-## ImageNet :: How to train?
+## How to train ImageNet?
 
 If you have more nvidia graphic cards & cores available, adjust the batch size (BSZ), number of GPUs (gpus) & number of threads (cpus) accordingly in the ./ImageNet.sh.
 Further, update your train and validation folder location (trainDataPath and testDataPath). Finally, run ./ImageNet.sh.
 
-## CapsuleNet :: How to train?
+## How to train CapsuleNet?
 
 To replicate Hinton's paper on MNIST, run the following:
 
