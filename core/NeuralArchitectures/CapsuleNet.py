@@ -18,7 +18,7 @@ class CapsuleNet(nn.Module):
                  routing_capsule_length=16, routing_iterations=3,
                  replicate_paper=True, *args, **kwargs):
         super(CapsuleNet, self).__init__()
-        activation, batch_nm, pre_nm, weight_norm = "relu", False, False, True
+        activation, batch_nm, pre_nm, weight_nm = "relu", False, False, True
 
         if replicate_paper:
             primary_n_capsules = 8
@@ -28,7 +28,7 @@ class CapsuleNet(nn.Module):
             block = Convolution
             self.InitialConvolutions = Convolution(tensor_size, filter_size=9, out_channels= 256,
                                                    strides=1, pad=False, activation="relu", dropout=0.,
-                                                   batch_nm=False, pre_nm=False, groups=1, weight_norm=weight_norm)
+                                                   batch_nm=False, pre_nm=False, groups=1, weight_nm=weight_nm)
             _tensor_size = self.InitialConvolutions.tensor_size
         else: # You can be creative!
             block = Convolution
@@ -45,7 +45,7 @@ class CapsuleNet(nn.Module):
         self.PrimaryCapsule = PrimaryCapsule(_tensor_size,
                                              filter_size=9, out_channels=256, strides=2,
                                              pad=False, activation="", dropout=0.,
-                                             batch_nm=False, pre_nm=False, groups=1, weight_norm=weight_norm,
+                                             batch_nm=False, pre_nm=False, groups=1, weight_nm=weight_nm,
                                              block=block, n_capsules=primary_n_capsules,
                                              capsule_length=primary_capsule_length)
         print("Primary capsule output size :: ", self.PrimaryCapsule.tensor_size)

@@ -1,5 +1,6 @@
 """ TensorMONK's :: NeuralLayers                                             """
 
+from .Linear import Linear
 from .Convolution import Convolution
 from .ConvolutionTranspose import ConvolutionTranspose
 from .CarryResidue import ResidualOriginal, ResidualComplex, ResidualComplex2

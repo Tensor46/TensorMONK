@@ -15,7 +15,7 @@ class MobileNetV1(nn.Module):
         Works fairly well, for tensor_size of min(height, width) >= 128
     """
     def __init__(self, tensor_size=(6, 3, 224, 224), activation="relu",
-                 batch_nm=True, pre_nm=False, weight_norm=False, *args, **kwargs):
+                 batch_nm=True, pre_nm=False, weight_nm=False, *args, **kwargs):
         super(MobileNetV1, self).__init__()
 
         self.Net46 = nn.Sequential()
@@ -32,7 +32,7 @@ class MobileNetV1(nn.Module):
         _tensor_size = tensor_size
         for i, (k, oc, s, g) in enumerate(block_params):
             self.Net46.add_module("Mobile"+str(i), Convolution(_tensor_size, k, oc, s,
-                                  True, activation, 0., batch_nm, False if i == 0 else pre_nm, g, weight_norm))
+                                  True, activation, 0., batch_nm, False if i == 0 else pre_nm, g, weight_nm))
             _tensor_size = self.Net46[-1].tensor_size
             print("Mobile"+str(i), _tensor_size)
 

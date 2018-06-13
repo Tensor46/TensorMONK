@@ -50,7 +50,7 @@ def ActivationFNs(activation, pre_nm):
 class ConvolutionTranspose(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1),
                  pad=True, activation="relu", dropout=0., batch_nm=False,
-                 pre_nm=False, groups=1, weight_norm=False, *args, **kwargs):
+                 pre_nm=False, groups=1, weight_nm=False, *args, **kwargs):
         super(ConvolutionTranspose, self).__init__()
         # Checks
         assert len(tensor_size) == 4 and type(tensor_size) in [list, tuple], \
@@ -83,7 +83,7 @@ class ConvolutionTranspose(nn.Module):
         if act is not None:
             self.Activation = act
 
-        if weight_norm:
+        if weight_nm:
             """ https://arxiv.org/pdf/1602.07868.pdf """
             self.ConvolutionTranspose = nn.utils.weight_norm(nn.ConvTranspose2d(tensor_size[1]//pre, out_channels*pst, filter_size,
                                                              strides, padding, bias=False, groups=groups), name='weight')

@@ -50,7 +50,7 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
   * batch_nm = True/False (adds batch normalization when True)
   * pre_nm = True/False (when True along with batch_nm -- batch normalization + activation + convolution else convolution + batch normalization + activation)
   * groups = 1 (default)
-  * weight_norm = [True](https://arxiv.org/pdf/1602.07868.pdf)/False
+  * [weight_nm](https://arxiv.org/pdf/1602.07868.pdf) = True/False
 
 * CarryResidue -- Has several layers that requires residual connections or concatenation
   * [ResidualOriginal](https://arxiv.org/pdf/1512.03385.pdf)

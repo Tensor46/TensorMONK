@@ -50,7 +50,7 @@ def ActivationFNs(activation, pre_nm):
 class Convolution(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1),
                  pad=True, activation="relu", dropout=0., batch_nm=False,
-                 pre_nm=False, groups=1, weight_norm=False, *args, **kwargs):
+                 pre_nm=False, groups=1, weight_nm=False, *args, **kwargs):
         super(Convolution, self).__init__()
         # Checks
         assert len(tensor_size) == 4 and type(tensor_size) in [list, tuple], \
@@ -68,7 +68,12 @@ class Convolution(nn.Module):
             strides = tuple(strides)
         assert len(strides) == 2, "Convolution -- strides length must be 2"
         assert isinstance(pad, bool), "Convolution -- pad must be boolean"
+        assert isinstance(activation, str), "Convolution -- pad must be str"
         assert isinstance(dropout, float), "Convolution -- dropout must be float"
+        assert isinstance(batch_nm, bool), "Convolution -- batch_nm must be boolean"
+        assert isinstance(pre_nm, bool), "Convolution -- dropout must be boolean"
+        assert isinstance(groups, int), "Convolution -- dropout must be int"
+        assert isinstance(weight_nm, bool), "Convolution -- dropout must be boolean"
         activation = activation.lower()
         # Modules
         padding = (filter_size[0]//2, filter_size[1]//2) if pad else 0
@@ -81,7 +86,7 @@ class Convolution(nn.Module):
             pre, pst, act = ActivationFNs(activation, pre_nm)
             if act is not None:
                 self.Activation = act
-        if weight_norm:
+        if weight_nm:
             """ https://arxiv.org/pdf/1602.07868.pdf """
             self.Convolution = nn.utils.weight_norm(nn.Conv2d(tensor_size[1]//pre, out_channels*pst, filter_size,
                                                               strides, padding, bias=False, groups=groups), name='weight')
