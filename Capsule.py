@@ -25,11 +25,11 @@ def trainMONK(args):
                                        loss_net=NeuralLayers.CapsuleLoss, loss_net_kwargs={},
                                        default_gpu=args.default_gpu, gpus=args.gpus,
                                        ignore_trained=args.ignore_trained)
-
+    params = Model.netEmbedding.parameters() + Model.netLoss.parameters()
     if args.optimizer.lower() == "adam":
-        Optimizer = neuralOptimizer.Adam(Model.netEmbedding.parameters())
+        Optimizer = neuralOptimizer.Adam(params)
     elif args.optimizer.lower() == "sgd":
-        Optimizer = neuralOptimizer.SGD(Model.netEmbedding.parameters(), lr= args.learningRate)
+        Optimizer = neuralOptimizer.SGD(params, lr= args.learningRate)
     else:
         raise NotImplementedError
 
