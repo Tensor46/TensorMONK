@@ -26,40 +26,40 @@ def trainMONK(args):
     file_name = "./models/" + args.Architecture.lower()
 
     if args.Architecture.lower() == "residual18":
-        embedding_net = NeuralArchitectures.ResidualNet,
+        embedding_net = NeuralArchitectures.ResidualNet
         embedding_net_kwargs = {"type" : "r18"}
     elif args.Architecture.lower() == "residual34":
-        embedding_net = NeuralArchitectures.ResidualNet,
+        embedding_net = NeuralArchitectures.ResidualNet
         embedding_net_kwargs = {"type" : "r34"}
     elif args.Architecture.lower() == "residual50":
-        embedding_net = NeuralArchitectures.ResidualNet,
+        embedding_net = NeuralArchitectures.ResidualNet
         embedding_net_kwargs = {"type" : "r50"}
     elif args.Architecture.lower() == "residual101":
-        embedding_net = NeuralArchitectures.ResidualNet,
+        embedding_net = NeuralArchitectures.ResidualNet
         embedding_net_kwargs = {"type" : "r101"}
     elif args.Architecture.lower() == "residual152":
-        embedding_net = NeuralArchitectures.ResidualNet,
+        embedding_net = NeuralArchitectures.ResidualNet
         embedding_net_kwargs = {"type" : "r152"}
     elif args.Architecture.lower() == "mobilev1":
-        embedding_net = NeuralArchitectures.MobileNetV1,
+        embedding_net = NeuralArchitectures.MobileNetV1
         embedding_net_kwargs = {}
     elif args.Architecture.lower() == "mobilev2":
-        embedding_net = NeuralArchitectures.MobileNetV2,
+        embedding_net = NeuralArchitectures.MobileNetV2
         embedding_net_kwargs = {}
     elif args.Architecture.lower() == "shuffle1":
-        embedding_net = NeuralArchitectures.ShuffleNet,
+        embedding_net = NeuralArchitectures.ShuffleNet
         embedding_net_kwargs = {"type" : "g1"}
     elif args.Architecture.lower() == "shuffle2":
-        embedding_net = NeuralArchitectures.ShuffleNet,
+        embedding_net = NeuralArchitectures.ShuffleNet
         embedding_net_kwargs = {"type" : "g2"}
     elif args.Architecture.lower() == "shuffle3":
-        embedding_net = NeuralArchitectures.ShuffleNet,
+        embedding_net = NeuralArchitectures.ShuffleNet
         embedding_net_kwargs = {"type" : "g3"}
     elif args.Architecture.lower() == "shuffle4":
-        embedding_net = NeuralArchitectures.ShuffleNet,
+        embedding_net = NeuralArchitectures.ShuffleNet
         embedding_net_kwargs = {"type" : "g4"}
     elif args.Architecture.lower() == "shuffle8":
-        embedding_net = NeuralArchitectures.ShuffleNet,
+        embedding_net = NeuralArchitectures.ShuffleNet
         embedding_net_kwargs = {"type" : "g8
     else:
         raise NotImplementedError
@@ -72,11 +72,11 @@ def trainMONK(args):
                                        loss_net_kwargs={"type" : args.loss_type, "distance" : args.loss_distance},
                                        default_gpu=args.default_gpu, gpus=args.gpus,
                                        ignore_trained=args.ignore_trained)
-
+    params = Model.netEmbedding.parameters() + Model.netLoss.parameters()
     if args.optimizer.lower() == "adam":
-        Optimizer = neuralOptimizer.Adam(Model.netEmbedding.parameters())
+        Optimizer = neuralOptimizer.Adam(params)
     elif args.optimizer.lower() == "sgd":
-        Optimizer = neuralOptimizer.SGD(Model.netEmbedding.parameters(), lr= args.learningRate)
+        Optimizer = neuralOptimizer.SGD(params, lr= args.learningRate)
     else:
         raise NotImplementedError
 
