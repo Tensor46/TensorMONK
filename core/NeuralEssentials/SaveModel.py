@@ -14,7 +14,7 @@ def SaveModel(Model):
         file_name += ".t7"
 
     for x in what2save:
-        if "net" in x.lower():
+        if "net" in x.lower() and getattr(Model, x) is not None:
             eval("Model."+x+".zero_grad()")
             this_network  = getattr(Model, x).state_dict()
             # this_network  = copy.deepcopy(getattr(Model, x)).state_dict()
