@@ -28,22 +28,22 @@ class Swish(nn.Module):
 # ============================================================================ #
 
 
-def ActivationFNs(activation, pre_nm):
+def ActivationFNs(activation):
     if activation == "relu":
-        return 1, 1, nn.ReLU()
+        return nn.ReLU()
     if activation == "relu6":
-        return 1, 1, nn.ReLU6()
+        return nn.ReLU6()
     if activation == "lklu":
-        return 1, 1, nn.LeakyReLU()
+        return nn.LeakyReLU()
     if activation == "tanh":
-        return 1, 1, nn.Tanh()
+        return nn.Tanh()
     if activation == "sigm":
-        return 1, 1, nn.Sigmoid()
+        return nn.Sigmoid()
     if activation == "maxo":
-        return (2, 1, MaxOut()) if pre_nm else (1, 2, MaxOut())
+        return MaxOut()
     if activation == "swish":
-        return 1, 1, Swish()
-    return 1, 1, None
+        return Swish()
+    return None
 # ============================================================================ #
 
 
@@ -79,16 +79,20 @@ class ConvolutionTranspose(nn.Module):
 
         if batch_nm:
             self.Normalization = nn.BatchNorm2d(tensor_size[1])
-        pre, pst, act = ActivationFNs(activation, pre_nm)
+        pre_expansion = 1
+        act = ActivationFNs(activation)
+        if pre_nm and activation == "maxo":
+            pre_expansion = 2
         if act is not None:
             self.Activation = act
 
         if weight_nm:
             """ https://arxiv.org/pdf/1602.07868.pdf """
-            self.ConvolutionTranspose = nn.utils.weight_norm(nn.ConvTranspose2d(tensor_size[1]//pre, out_channels*pst, filter_size,
+            self.ConvolutionTranspose = nn.utils.weight_norm(nn.ConvTranspose2d(tensor_size[1]//pre_expansion, out_channels, filter_size,
                                                              strides, padding, bias=False, groups=groups), name='weight')
         else:
-            self.ConvolutionTranspose = nn.ConvTranspose2d(tensor_size[1]//pre, out_channels*pst, filter_size, strides, padding, bias=False, groups=groups)
+            self.ConvolutionTranspose = nn.ConvTranspose2d(tensor_size[1]//pre_expansion, out_channels, filter_size,
+                                                           strides, padding, bias=False, groups=groups)
             torch.nn.init.orthogonal_(self.ConvolutionTranspose.weight)
 
         # out tensor size
@@ -110,13 +114,6 @@ class ConvolutionTranspose(nn.Module):
         output_size = (tensor.size(0), output_size[1], output_size[2], output_size[3])
         tensor = self.ConvolutionTranspose(tensor, output_size=output_size)
         return tensor
-
-
-from core.NeuralLayers import *
-tensor_size = (1, 16, 5, 5)
-tensor = torch.rand(*tensor_size)
-test = ConvolutionTranspose(tensor_size, (3,3), 3, (2,2), True, "relu", 0.5, True, False)
-test(tensor).size()
 
 
 # x = torch.rand(3,3,10,10)
