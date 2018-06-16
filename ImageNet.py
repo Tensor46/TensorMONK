@@ -60,7 +60,7 @@ def trainMONK(args):
         embedding_net_kwargs = {"type" : "g4"}
     elif args.Architecture.lower() == "shuffle8":
         embedding_net = NeuralArchitectures.ShuffleNet
-        embedding_net_kwargs = {"type" : "g8
+        embedding_net_kwargs = {"type" : "g8"}
     else:
         raise NotImplementedError
 
