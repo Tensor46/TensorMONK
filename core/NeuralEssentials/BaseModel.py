@@ -5,6 +5,8 @@
 class BaseModel:
     netEmbedding = None
     netLoss = None
+    netAE = None
+    netAdversarial = None
     meterTop1 = []
     meterTop5 = []
     meterLoss = []
