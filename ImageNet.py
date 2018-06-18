@@ -119,7 +119,6 @@ def trainMONK(args):
         Model.netEmbedding.eval()
         Model.netLoss.eval()
         for i,(tensor, targets) in enumerate(teDataLoader):
-            Model.meterIterations += 1
             Model.netEmbedding.zero_grad()
             Model.netLoss.zero_grad()
             features = Model.netEmbedding( Variable(tensor) )
