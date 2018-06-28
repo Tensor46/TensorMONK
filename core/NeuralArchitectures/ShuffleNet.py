@@ -16,8 +16,8 @@ class ShuffleNet(nn.Module):
         To replicate the paper, use default parameters
     """
     def __init__(self, tensor_size=(6, 3, 224, 224), type="g4",
-                 activation="relu", batch_nm=True, pre_nm=False, weight_nm=False,
-                 *args, **kwargs):
+                 activation="relu", batch_nm=True, pre_nm=False, weight_norm=False,
+                 embedding=False, n_embedding=256, *args, **kwargs):
         super(ShuffleNet, self).__init__()
 
         assert type.lower() in ("g1", "g2", "g3", "g4", "g8"), "ShuffleNet -- type must be g1/g2/g3/g4/g8"
@@ -56,7 +56,7 @@ class ShuffleNet(nn.Module):
         if min(tensor_size[2], tensor_size[3]) < 64: # Addon -- To make it flexible for other tensor_size's
             s = 1
             print("Initial convolution strides changed from 2 to 1, as min(tensor_size[2], tensor_size[3]) <  64")
-        self.Net46.add_module("Convolution", Convolution(tensor_size, 3, 24, s, True, activation, 0., batch_nm, False, 1, weight_nm))
+        self.Net46.add_module("Convolution", Convolution(tensor_size, 3, 24, s, True, activation, 0., batch_nm, False, 1, weight_norm))
         print("Convolution",self.Net46[-1].tensor_size)
 
         if min(tensor_size[2], tensor_size[3]) > 128:
@@ -69,7 +69,7 @@ class ShuffleNet(nn.Module):
             _tensor_size = self.Net46[-1].tensor_size
 
         for i, (oc, s) in enumerate(block_params):
-            self.Net46.add_module("Shuffle"+str(i), ResidualShuffle(_tensor_size, 3, oc, s, True, activation, 0., batch_nm, pre_nm, groups, weight_nm))
+            self.Net46.add_module("Shuffle"+str(i), ResidualShuffle(_tensor_size, 3, oc, s, True, activation, 0., batch_nm, pre_nm, groups, weight_norm))
             _tensor_size = self.Net46[-1].tensor_size
             print("Shuffle"+str(i), _tensor_size)
 
@@ -77,7 +77,14 @@ class ShuffleNet(nn.Module):
         print("AveragePool", (1, oc, 1, 1))
         self.tensor_size = (6, oc)
 
+        if embedding:
+            self.embedding = nn.Linear(oc, 256, bias=False)
+            self.tensor_size = (6, n_embedding)
+            print("Linear", (1, n_embedding))
+
     def forward(self, tensor):
+        if hasattr(self, "embedding"):
+            return self.embedding(self.Net46(tensor).view(tensor.size(0), -1))
         return self.Net46(tensor).view(tensor.size(0), -1)
 
 
