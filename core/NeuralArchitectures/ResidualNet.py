@@ -17,8 +17,8 @@ class ResidualNet(nn.Module):
     """
 
     def __init__(self, tensor_size=(6,3,128,128), type="r18",
-                 activation="relu", batch_nm=True, pre_nm=False, weight_nm=False,
-                 *args, **kwargs):
+                 activation="relu", batch_nm=True, pre_nm=False, groups=1,
+                 weight_nm=False, embedding=False, n_embedding=256, *args, **kwargs):
         super(ResidualNet, self).__init__()
 
         assert type.lower() in ("r18", "r34", "r50", "r101", "r152"), "ResidualNet -- type must be r18/r34/r50/r101/r152"
@@ -78,16 +78,22 @@ class ResidualNet(nn.Module):
             _tensor_size = self.Net46[-1].tensor_size
 
         for i, (oc, s) in enumerate(block_params):
-            self.Net46.add_module("Residual"+str(i), BaseBlock(_tensor_size, 3, oc, s, True, activation, 0., batch_nm, pre_nm, 1, weight_nm))
+            self.Net46.add_module("Residual"+str(i), BaseBlock(_tensor_size, 3, oc, s, True, activation, 0., batch_nm, pre_nm, groups, weight_nm))
             _tensor_size = self.Net46[-1].tensor_size
             print("Residual"+str(i), _tensor_size)
 
         self.Net46.add_module("AveragePool", nn.AvgPool2d(self.Net46[-1].tensor_size[2:]))
         print("AveragePool", (1, oc, 1, 1))
-
         self.tensor_size = (6, oc)
 
+        if embedding:
+            self.embedding = nn.Linear(oc, n_embedding, bias=False)
+            self.tensor_size = (6, n_embedding)
+            print("Linear", (1, n_embedding))
+
     def forward(self, tensor):
+        if hasattr(self, "embedding"):
+            return self.embedding(self.Net46(tensor).view(tensor.size(0), -1))
         return self.Net46(tensor).view(tensor.size(0), -1)
 
 
