@@ -15,7 +15,8 @@ class MobileNetV1(nn.Module):
         Works fairly well, for tensor_size of min(height, width) >= 128
     """
     def __init__(self, tensor_size=(6, 3, 224, 224), activation="relu",
-                 batch_nm=True, pre_nm=False, weight_nm=False, *args, **kwargs):
+                 batch_nm=True, pre_nm=False, weight_nm=False,
+                 embedding=False, n_embedding=256, *args, **kwargs):
         super(MobileNetV1, self).__init__()
 
         self.Net46 = nn.Sequential()
@@ -38,10 +39,16 @@ class MobileNetV1(nn.Module):
 
         self.Net46.add_module("AveragePool", nn.AvgPool2d(self.Net46[-1].tensor_size[2:]))
         print("AveragePool", (1, 1024, 1, 1))
-
         self.tensor_size = (6, 1024)
 
+        if embedding:
+            self.embedding = nn.Linear(1024, n_embedding, bias=False)
+            self.tensor_size = (6, n_embedding)
+            print("Linear", (1, n_embedding))
+
     def forward(self, tensor):
+        if hasattr(self, "embedding"):
+            return self.embedding(self.Net46(tensor).view(tensor.size(0), -1))
         return self.Net46(tensor).view(tensor.size(0), -1)
 
 
