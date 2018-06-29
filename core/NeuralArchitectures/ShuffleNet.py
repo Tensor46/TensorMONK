@@ -78,7 +78,7 @@ class ShuffleNet(nn.Module):
         self.tensor_size = (6, oc)
 
         if embedding:
-            self.embedding = nn.Linear(oc, 256, bias=False)
+            self.embedding = nn.Linear(oc, n_embedding, bias=False)
             self.tensor_size = (6, n_embedding)
             print("Linear", (1, n_embedding))
 
