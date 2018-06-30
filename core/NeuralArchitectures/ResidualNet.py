@@ -28,7 +28,7 @@ class ResidualNet(nn.Module):
         super(ResidualNet, self).__init__()
 
         type = type.lower()
-        assert type in ("r18", "r34", "r50", "r101", "r152"), "ResidualNet -- type must be r18/r34/r50/r101/r152"
+        assert type in ("r18", "r34", "r50", "r101", "r152", "rn50", "rn101", "rn152"), "ResidualNet -- type must be r18/r34/r50/r101/r152/rn50/rn101/rn152"
 
         if type == "r18":
             BaseBlock = ResidualOriginal
@@ -42,22 +42,22 @@ class ResidualNet(nn.Module):
                            [(128, 2)] + [(128, 1)]*3 + \
                            [(256, 2)] + [(256, 1)]*5 + \
                            [(512, 2)] + [(512, 1)]*2
-        elif type == "r50" or type == "rn50":
+        elif type in ("r50", "rn50"):
             BaseBlock = ResidualComplex if type == "r50" else ResidualNeXt
             # 3x 256; 4x 512; 6x 1024; 3x 2048
             block_params = [(256, 1)]*3 + \
                            [(512, 2)] + [(512, 1)]*3 + \
                            [(1024, 2)] + [(1024, 1)]*5 + \
                            [(2048, 2)] + [(2048, 1)]*2
-        elif type == "r101" or type == "rn101":
-            BaseBlock = ResidualComplex if type == "r50" else ResidualNeXt
+        elif type in ("r101", "rn101"):
+            BaseBlock = ResidualComplex if type == "r101" else ResidualNeXt
             # 3x 256; 4x 512; 23x 1024; 3x 2048
             block_params = [(256, 1)]*3 + \
                            [(512, 2)] + [(512, 1)]*3 + \
                            [(1024, 2)] + [(1024, 1)]*22 + \
                            [(2048, 2)] + [(2048, 1)]*2
-        elif type == "r152" or type == "rn152":
-            BaseBlock = ResidualComplex if type == "r50" else ResidualNeXt
+        elif type in ("r152", "rn152"):
+            BaseBlock = ResidualComplex if type == "r152" else ResidualNeXt
             # 3x 256; 8x 512; 36x 1024; 3x 2048
             block_params = [(256, 1)]*3 + \
                            [(512, 2)] + [(512, 1)]*7 + \
