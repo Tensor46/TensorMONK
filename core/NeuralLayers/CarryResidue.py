@@ -87,7 +87,7 @@ class ResidualNeXt(BaseBlock):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
                  activation="relu", dropout=0., batch_nm=False, pre_nm=False,
                  groups=1, weight_nm=False, *args, **kwargs):
-        super(ResidualComplex, self).__init__()
+        super(ResidualNeXt, self).__init__()
         if dropout > 0.:
             self.pre_network = nn.Dropout2d(dropout)
         self.network = nn.Sequential()
