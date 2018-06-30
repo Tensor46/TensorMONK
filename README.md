@@ -22,7 +22,7 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
 ## Details on core (NeuralArchitectures, NeuralEssentials, NeuralLayers)
 
 ### NeuralArchitectures
-* [ResidualNet](https://arxiv.org/pdf/1512.03385.pdf) (18/34/50/101/152)
+* ResidualNet -- use type = [r18/r34/r50/r101/r152](https://arxiv.org/pdf/1512.03385.pdf) or [rn50/rn101/rn152 for ResNeXt](https://arxiv.org/pdf/1611.05431.pdf)
 * [InceptionV4](https://arxiv.org/pdf/1602.07261.pdf)
 * [MobileNetV1](https://arxiv.org/pdf/1704.04861.pdf)
 * [MobileNetV2](https://arxiv.org/pdf/1801.04381.pdf)
@@ -74,7 +74,7 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
   * [InceptionC](https://arxiv.org/pdf/1602.07261.pdf)
   * [ReductionA](https://arxiv.org/pdf/1602.07261.pdf)
   * [ReductionB](https://arxiv.org/pdf/1602.07261.pdf)
-  
+
 * [PrimaryCapsule](https://arxiv.org/pdf/1710.09829.pdf)
 * [RoutingCapsule](https://arxiv.org/pdf/1710.09829.pdf)
 * LossFunctions
