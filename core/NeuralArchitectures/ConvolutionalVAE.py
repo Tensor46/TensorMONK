@@ -81,9 +81,9 @@ class ConvolutionalVAE(nn.Module):
 
         self.tensor_size = (6, n_latent)
 
-    def forward(self, tensor):
+    def forward(self, tensor, noisy_tensor=None):
 
-        encoded = self.encoder(tensor)
+        encoded = self.encoder(tensor if noisy_tensor is None else noisy_tensor)
         mu, log_var = self.mu(encoded), self.log_var(encoded)
 
         std = log_var.mul(0.5).exp_()
