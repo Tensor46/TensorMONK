@@ -18,11 +18,6 @@ import torch.optim as neuralOptimizer
 def trainMONK(args):
     tensor_size = (1, 3, 224, 224)
 
-    trDataLoader, n_labels = NeuralEssentials.FolderITTR(args.trainDataPath, args.BSZ, tensor_size, args.cpus,
-                                                         functions=[], random_flip=True)
-    teDataLoader, n_labels = NeuralEssentials.FolderITTR(args.testDataPath, args.BSZ, tensor_size, args.cpus,
-                                                         functions=[], random_flip=False)
-
     file_name = "./models/" + args.Architecture.lower()
 
     if args.Architecture.lower() == "residual18":
@@ -40,6 +35,10 @@ def trainMONK(args):
     elif args.Architecture.lower() == "residual152":
         embedding_net = NeuralArchitectures.ResidualNet
         embedding_net_kwargs = {"type" : "r152"}
+    elif args.Architecture.lower() == "inceptionv4":
+        embedding_net = NeuralArchitectures.InceptionV4
+        embedding_net_kwargs = {}
+        tensor_size = (1, 3, 299, 299)
     elif args.Architecture.lower() == "mobilev1":
         embedding_net = NeuralArchitectures.MobileNetV1
         embedding_net_kwargs = {}
@@ -64,6 +63,10 @@ def trainMONK(args):
     else:
         raise NotImplementedError
 
+    trDataLoader, n_labels = NeuralEssentials.FolderITTR(args.trainDataPath, args.BSZ, tensor_size, args.cpus,
+                                                         functions=[], random_flip=True)
+    teDataLoader, n_labels = NeuralEssentials.FolderITTR(args.testDataPath, args.BSZ, tensor_size, args.cpus,
+                                                         functions=[], random_flip=False)
 
     Model = NeuralEssentials.MakeCNN(file_name, tensor_size, n_labels,
                                        embedding_net=embedding_net,
