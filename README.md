@@ -22,20 +22,27 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
 ## Details on core (NeuralArchitectures, NeuralEssentials, NeuralLayers)
 
 ### NeuralArchitectures
-* [ResidualNet (18/34/50/101/152)](https://arxiv.org/pdf/1512.03385.pdf)
+* [ResidualNet](https://arxiv.org/pdf/1512.03385.pdf) (18/34/50/101/152)
+* [InceptionV4](https://arxiv.org/pdf/1602.07261.pdf)
 * [MobileNetV1](https://arxiv.org/pdf/1704.04861.pdf)
 * [MobileNetV2](https://arxiv.org/pdf/1801.04381.pdf)
-* [ShuffleNet (type = g1, g2, g3, g4, g8 from table 1)](https://arxiv.org/pdf/1707.01083.pdf)
-* [CapsuleNet (Hinton's version, and an example deep network)](https://arxiv.org/pdf/1710.09829.pdf)
+* [ShuffleNet](https://arxiv.org/pdf/1707.01083.pdf) (type = g1, g2, g3, g4, g8 from table 1)
+* [CapsuleNet](https://arxiv.org/pdf/1710.09829.pdf) (Hinton's version, and an example deep network)
+* [LinearVAE](https://arxiv.org/pdf/1312.6114v10.pdf)
+* [ConvolutionalVAE](https://arxiv.org/pdf/1312.6114v10.pdf)
+* SimpleNet
 
 ### NeuralEssentials
 * BaseModel -- A base class that contains networks (embedding, loss or any), meters (loss, accuracy etc), fileName, isCUDA
 * CudaModel -- Converts any model (pytorch module) to run on single gpu or multiple gpu's or cpu
 * LoadModel -- Loads pretrained models (usually, from ./models)
 * SaveModel -- Save models (usually, state_dict of anything that starts with net in BaseModel, and rest as is)
-
+* MakeModel -- Builds model using base class
+  * MakeCNN -- Creates a CNN (netEmbedding) and loss layer (netLoss)
+  * MakeAE -- Creates an auto-encoder/vae in netAE
 * FolderITTR -- PyTorch image folder iterator with few extras.
-* MNIST -- To get MNIST, train and test dataset loader.
+* MNIST -- MNIST train and test dataset loader.
+* CIFAR10 -- CIFAR10 train and test dataset loader.
 
 ### NeuralLayers
 
@@ -52,6 +59,8 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
   * groups = 1 (default)
   * [weight_nm](https://arxiv.org/pdf/1602.07868.pdf) = True/False
 
+* ConvolutionTranspose -- A convolution transpose layer with parameters same as Convolution layer
+
 * CarryResidue -- Has several layers that requires residual connections or concatenation
   * [ResidualOriginal](https://arxiv.org/pdf/1512.03385.pdf)
   * [ResidualComplex](https://arxiv.org/pdf/1512.03385.pdf)
@@ -59,7 +68,13 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
   * [ResidualInverted](https://arxiv.org/pdf/1801.04381.pdf)
   * [ResidualShuffle](https://arxiv.org/pdf/1707.01083.pdf)
   * [SimpleFire](https://arxiv.org/pdf/1602.07360.pdf)
-
+  * [Stem2](https://arxiv.org/pdf/1602.07261.pdf)
+  * [InceptionA](https://arxiv.org/pdf/1602.07261.pdf)
+  * [InceptionB](https://arxiv.org/pdf/1602.07261.pdf)
+  * [InceptionC](https://arxiv.org/pdf/1602.07261.pdf)
+  * [ReductionA](https://arxiv.org/pdf/1602.07261.pdf)
+  * [ReductionB](https://arxiv.org/pdf/1602.07261.pdf)
+  
 * [PrimaryCapsule](https://arxiv.org/pdf/1710.09829.pdf)
 * [RoutingCapsule](https://arxiv.org/pdf/1710.09829.pdf)
 * LossFunctions
