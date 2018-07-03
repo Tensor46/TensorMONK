@@ -65,6 +65,9 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
   * [ResidualOriginal](https://arxiv.org/pdf/1512.03385.pdf)
   * [ResidualComplex](https://arxiv.org/pdf/1512.03385.pdf)
   * ResidualComplex2
+  * [ResidualNeXt](https://arxiv.org/pdf/1611.05431.pdf)
+  * [SEResidualComplex](https://arxiv.org/pdf/1709.01507.pdf)
+  * SEResidualNeXt
   * [ResidualInverted](https://arxiv.org/pdf/1801.04381.pdf)
   * [ResidualShuffle](https://arxiv.org/pdf/1707.01083.pdf)
   * [SimpleFire](https://arxiv.org/pdf/1602.07360.pdf)
