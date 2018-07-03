@@ -35,6 +35,24 @@ def trainMONK(args):
     elif args.Architecture.lower() == "residual152":
         embedding_net = NeuralArchitectures.ResidualNet
         embedding_net_kwargs = {"type" : "r152"}
+    elif args.Architecture.lower() == "resnext50":
+        embedding_net = NeuralArchitectures.ResidualNet
+        embedding_net_kwargs = {"type" : "rn50"}
+    elif args.Architecture.lower() == "resnext101":
+        embedding_net = NeuralArchitectures.ResidualNet
+        embedding_net_kwargs = {"type" : "rn101"}
+    elif args.Architecture.lower() == "resnext152":
+        embedding_net = NeuralArchitectures.ResidualNet
+        embedding_net_kwargs = {"type" : "rn152"}
+    elif args.Architecture.lower() == "seresidual50":
+        embedding_net = NeuralArchitectures.ResidualNet
+        embedding_net_kwargs = {"type" : "ser50"}
+    elif args.Architecture.lower() == "seresidual101":
+        embedding_net = NeuralArchitectures.ResidualNet
+        embedding_net_kwargs = {"type" : "ser101"}
+    elif args.Architecture.lower() == "seresidual152":
+        embedding_net = NeuralArchitectures.ResidualNet
+        embedding_net_kwargs = {"type" : "ser152"}
     elif args.Architecture.lower() == "inceptionv4":
         embedding_net = NeuralArchitectures.InceptionV4
         embedding_net_kwargs = {}
@@ -141,8 +159,11 @@ def trainMONK(args):
 def parse_args():
     parser = argparse.ArgumentParser(description="ImageNet using TensorMONK!!!")
     parser.add_argument("-A","--Architecture", type=str, default="residual50",
-                        choices = ["residual18", "residual34", "residual50",
-                        "residual101", "residual152", "mobilev1", "mobilev2",
+                        choices = ["residual18", "residual34",
+                        "residual50", "residual101", "residual152",
+                        "resnext50", "resnext101", "resnext152",
+                        "seresidual50", "seresidual101", "seresidual152",
+                        "inceptionv4", "mobilev1", "mobilev2",
                         "shuffle1", "shuffle2", "shuffle3", "shuffle4", "shuffle8"])
 
     parser.add_argument("-B","--BSZ", type=int,  default=32)
