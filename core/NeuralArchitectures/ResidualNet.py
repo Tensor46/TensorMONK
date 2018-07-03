@@ -10,8 +10,30 @@ from ..NeuralLayers import *
 
 class ResidualNet(nn.Module):
     """
-        Implemented https://arxiv.org/pdf/1512.03385.pdf
+        Implemented
+        ResNet*   from https://arxiv.org/pdf/1512.03385.pdf
+        ResNeXt*  from https://arxiv.org/pdf/1611.05431.pdf
+        SEResNet* from https://arxiv.org/pdf/1709.01507.pdf
+        SEResNeXt* --  Squeeze-and-Excitation + ResNeXt
 
+            Available models        type
+            ================================
+            ResNet18                r18
+            ResNet34                r34
+            ResNet50                r50
+            ResNet101               r101
+            ResNet152               r152
+            ResNeXt50               rn50
+            ResNeXt101              rn101
+            ResNeXt152              rn152
+            SEResNet50              ser50
+            SEResNet101             ser101
+            SEResNet152             ser152
+            SEResNeXt50             sern50
+            SEResNeXt101            sern101
+            SEResNeXt152            sern152
+
+        * SE = Squeeze-and-Excitation
         Works for all the min(height, width) >= 32
         To replicate the paper, use default parameters (and select type)
     """
@@ -21,36 +43,48 @@ class ResidualNet(nn.Module):
                  weight_nm=False, embedding=False, n_embedding=256, *args, **kwargs):
         super(ResidualNet, self).__init__()
 
-        assert type.lower() in ("r18", "r34", "r50", "r101", "r152"), "ResidualNet -- type must be r18/r34/r50/r101/r152"
+        type = type.lower()
+        assert type in ("r18", "r34", "r50", "r101", "r152", "rn50", "rn101", "rn152",
+                        "ser50", "ser101", "ser152", "sern50", "sern101", "sern152"), \
+            "ResidualNet -- type must be r18/r34/r50/r101/r152/rn50/rn101/rn152/ser50/ser101/ser152/sern50/sern101/sern152"
 
-        if type.lower() == "r18":
+        if type == "r18":
             BaseBlock = ResidualOriginal
             # 2x 64; 2x 128; 2x 256; 2x 512
             block_params = [(64, 1), (64, 1), (256, 2), (256, 1),
                             (128, 2), (128, 1), (512, 2), (512, 1)]
-        elif type.lower() == "r34":
+        elif type == "r34":
             BaseBlock = ResidualOriginal
             # 3x 64; 4x 128; 6x 256; 3x 512
             block_params = [(64, 1)]*3 + \
                            [(128, 2)] + [(128, 1)]*3 + \
                            [(256, 2)] + [(256, 1)]*5 + \
                            [(512, 2)] + [(512, 1)]*2
-        elif type.lower() == "r50":
-            BaseBlock = ResidualComplex
+        elif type in ("r50", "rn50", "ser50", "sern50"):
+            if type.startswith("se"):
+                BaseBlock = SEResidualNeXt if type == "sern50" else SEResidualComplex
+            else:
+                BaseBlock = ResidualNeXt if type == "rn50" else ResidualComplex
             # 3x 256; 4x 512; 6x 1024; 3x 2048
             block_params = [(256, 1)]*3 + \
                            [(512, 2)] + [(512, 1)]*3 + \
                            [(1024, 2)] + [(1024, 1)]*5 + \
                            [(2048, 2)] + [(2048, 1)]*2
-        elif type.lower() == "r101":
-            BaseBlock = ResidualComplex
+        elif type in ("r101", "rn101", "ser101", "sern101"):
+            if type.startswith("se"):
+                BaseBlock = SEResidualNeXt if type == "sern101" else SEResidualComplex
+            else:
+                BaseBlock = ResidualNeXt if type == "rn101" else ResidualComplex
             # 3x 256; 4x 512; 23x 1024; 3x 2048
             block_params = [(256, 1)]*3 + \
                            [(512, 2)] + [(512, 1)]*3 + \
                            [(1024, 2)] + [(1024, 1)]*22 + \
                            [(2048, 2)] + [(2048, 1)]*2
-        elif type.lower() == "r152":
-            BaseBlock = ResidualComplex
+        elif type in ("r152", "rn152", "ser152", "sern152"):
+            if type.startswith("se"):
+                BaseBlock = SEResidualNeXt if type == "sern152" else SEResidualComplex
+            else:
+                BaseBlock = ResidualNeXt if type == "rn152" else ResidualComplex
             # 3x 256; 8x 512; 36x 1024; 3x 2048
             block_params = [(256, 1)]*3 + \
                            [(512, 2)] + [(512, 1)]*7 + \
@@ -100,5 +134,5 @@ class ResidualNet(nn.Module):
 # from core.NeuralLayers import *
 # tensor_size = (1, 3, 224, 224)
 # tensor = torch.rand(*tensor_size)
-# test = ResidualNet(tensor_size, "r18")
+# test = ResidualNet(tensor_size, "r101")
 # test(tensor).size()
