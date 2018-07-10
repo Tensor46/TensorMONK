@@ -2,7 +2,7 @@
 
 __all__ = ["ResidualOriginal", "ResidualComplex", "ResidualComplex2", "ResidualInverted",
            "ResidualShuffle", "ResidualNeXt",
-           "SEResidualComplex", "SEResidualNeXt", 
+           "SEResidualComplex", "SEResidualNeXt",
            "SimpleFire", "CarryModular",
            "Stem2", "InceptionA", "InceptionB", "InceptionC", "ReductionA", "ReductionB"]
 
@@ -23,8 +23,8 @@ class ResidualOriginal(nn.Module):
         self.network.add_module("Block3x3_1", Convolution(tensor_size, filter_size, out_channels, strides, True, activation, 0., batch_nm, pre_nm, groups, weight_nm))
         self.network.add_module("Block3x3_2", Convolution(self.network[-1].tensor_size, filter_size, out_channels, (1, 1), True, activation, 0., batch_nm, pre_nm, groups, weight_nm))
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) or tensor_size[1] != out_channels:
-            _filter_size = (3, 3) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
-            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_nm)
+            # _filter_size = (3, 3) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
+            self.edit_residue = Convolution(tensor_size, 1, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_nm)
         self.tensor_size = self.network[-1].tensor_size
 
     def forward(self, tensor):
@@ -48,8 +48,8 @@ class ResidualComplex(nn.Module):
         self.network.add_module("Block1x1", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, activation, 0., batch_nm, pre_nm, groups, weight_nm))
 
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) or tensor_size[1] != out_channels:
-            _filter_size = (3, 3) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
-            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_nm)
+            # _filter_size = (3, 3) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
+            self.edit_residue = Convolution(tensor_size, 1, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_nm)
         self.tensor_size = self.network[-1].tensor_size
 
     def forward(self, tensor):
@@ -78,8 +78,8 @@ class SEResidualComplex(nn.Module):
                                                Convolution((1, out_channels//r, 1, 1), 1, out_channels, 1, False, "sigm"))
 
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) or tensor_size[1] != out_channels:
-            _filter_size = (3, 3) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
-            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_nm)
+            # _filter_size = (3, 3) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
+            self.edit_residue = Convolution(tensor_size, 1, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_nm)
         self.tensor_size = self.network[-1].tensor_size
 
     def forward(self, tensor):
@@ -106,8 +106,8 @@ class ResidualNeXt(nn.Module):
         self.network.add_module("Block1x1", Convolution(self.network[-1].tensor_size, (1, 1), out_channels, (1, 1), True, activation, 0., batch_nm, pre_nm, groups, weight_nm))
 
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) or tensor_size[1] != out_channels:
-            _filter_size, grps = (3, 2) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
-            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm, grps, weight_nm)
+            # _filter_size, grps = (3, 2) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
+            self.edit_residue = Convolution(tensor_size, 1, out_channels, strides, True, "", 0., batch_nm, pre_nm, 1, weight_nm)
         self.tensor_size = self.network[-1].tensor_size
 
     def forward(self, tensor):
@@ -140,8 +140,8 @@ class SEResidualNeXt(nn.Module):
                                                Convolution((1, out_channels//r, 1, 1), 1, out_channels, 1, False, "sigm"))
 
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) or tensor_size[1] != out_channels:
-            _filter_size, grps = (3, 2) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
-            self.edit_residue = Convolution(tensor_size, _filter_size, out_channels, strides, True, "", 0., batch_nm, pre_nm, grps, weight_nm)
+            # _filter_size, grps = (3, 2) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
+            self.edit_residue = Convolution(tensor_size, 1, out_channels, strides, True, "", 0., batch_nm, pre_nm, 1, weight_nm)
         self.tensor_size = self.network[-1].tensor_size
 
     def forward(self, tensor):
@@ -155,7 +155,10 @@ class SEResidualNeXt(nn.Module):
 
 
 class ResidualComplex2(nn.Module):
-    """ Similar to ResidualComplex, other than activation(tensor + residue)  """
+    """
+        Similar to ResidualComplex, other than activation(tensor + residue) and
+        residue filter_size is 3 when strides > 1
+    """
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
                  activation="relu", dropout=0., batch_nm=False, pre_nm=False,
                  groups=1, weight_nm=False, *args, **kwargs):
@@ -209,7 +212,7 @@ class ResidualInverted(nn.Module):
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)):
             self.skip_residue = True
         if not self.skip_residue and tensor_size[1] != out_channels:
-            self.edit_residue = Convolution(tensor_size, (1, 1), out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_nm)
+            self.edit_residue = Convolution(tensor_size, 1, out_channels, strides, True, "", 0., batch_nm, pre_nm, groups, weight_nm)
         self.tensor_size = self.network[-1].tensor_size
 
     def forward(self, tensor):
@@ -253,7 +256,7 @@ class ResidualShuffle(nn.Module):
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)):
             self.edit_residue.add_module("AveragePOOL", nn.AvgPool2d((3, 3), stride=(2, 2), padding=1))
         if tensor_size[1] != out_channels:
-            self.edit_residue.add_module("Block1x1AdjustDepth", Convolution(tensor_size, (1, 1), out_channels, (1, 1), True, "", 0., batch_nm, pre_nm, groups, weight_nm))
+            self.edit_residue.add_module("Block1x1AdjustDepth", Convolution(tensor_size, 1, out_channels, 1, True, "", 0., batch_nm, pre_nm, groups, weight_nm))
         self.tensor_size = self.network[-1].tensor_size
 
         if activation == "relu":
@@ -284,10 +287,10 @@ class SimpleFire(nn.Module):
         self.pre_network = nn.Sequential()
         if dropout > 0.:
             self.pre_network.add_module("DropOut", nn.Dropout2d(dropout))
-        self.pre_network.add_module("Block1x1Shrink", Convolution(tensor_size, (1, 1), out_channels//4, (1, 1), True, "", 0., batch_nm, pre_nm, groups, weight_nm))
+        self.pre_network.add_module("Block1x1Shrink", Convolution(tensor_size, 1, out_channels//4, 1, True, "", 0., batch_nm, pre_nm, groups, weight_nm))
 
         self.network1 = Convolution(self.pre_network[-1].tensor_size, filter_size, out_channels//2, strides, True, activation, 0., batch_nm, pre_nm, groups, weight_nm)
-        self.network2 = Convolution(self.pre_network[-1].tensor_size, (1, 1), out_channels//2, strides, True, activation, 0., batch_nm, pre_nm, groups, weight_nm)
+        self.network2 = Convolution(self.pre_network[-1].tensor_size, 1, out_channels//2, strides, True, activation, 0., batch_nm, pre_nm, groups, weight_nm)
 
         self.tensor_size = (self.network1.tensor_size[0], self.network1.tensor_size[1]*2,
                             self.network1.tensor_size[2], self.network1.tensor_size[3])
