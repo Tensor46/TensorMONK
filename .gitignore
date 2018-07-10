@@ -3,14 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 YellowFIN.py
-Attentive*
+test.py
 test.jpeg
-CIFAR10/
-cifar-10-batches-py/
-cifar-10-python.tar.gz
-processed/
-raw/
-reinforcement*
+
 
 
 # C extensions

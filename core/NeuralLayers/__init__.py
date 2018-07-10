@@ -11,5 +11,7 @@ from .CarryResidue import Stem2, InceptionA, InceptionB, InceptionC, ReductionA,
 from .PrimaryCapsule import PrimaryCapsule
 from .RoutingCapsule import RoutingCapsule
 
+from .DetailPooling import DetailPooling
+
 from .LossFunctions import CapsuleLoss, CategoricalLoss
 from .ObfuscateDecolor import ObfuscateDecolor

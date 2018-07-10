@@ -65,6 +65,9 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
   * [ResidualOriginal](https://arxiv.org/pdf/1512.03385.pdf)
   * [ResidualComplex](https://arxiv.org/pdf/1512.03385.pdf)
   * ResidualComplex2
+  * [ResidualNeXt](https://arxiv.org/pdf/1611.05431.pdf)
+  * [SEResidualComplex](https://arxiv.org/pdf/1709.01507.pdf)
+  * SEResidualNeXt
   * [ResidualInverted](https://arxiv.org/pdf/1801.04381.pdf)
   * [ResidualShuffle](https://arxiv.org/pdf/1707.01083.pdf)
   * [SimpleFire](https://arxiv.org/pdf/1602.07360.pdf)
@@ -77,6 +80,10 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
 
 * [PrimaryCapsule](https://arxiv.org/pdf/1710.09829.pdf)
 * [RoutingCapsule](https://arxiv.org/pdf/1710.09829.pdf)
+* [DetailPooling](https://arxiv.org/pdf/1804.04076.pdf) -- Use asymmetric and lite to switch between different implementations.
+  * asymmetric - True (equation 6)/False (equation 5)
+  * lite - True (trainable weights - full-DPP) / False (linearly downscale)
+
 * LossFunctions
   * [CapsuleLoss](https://arxiv.org/pdf/1710.09829.pdf)
   * CategoricalLoss -- Cross entropy / softmax / [taylor softmax](https://arxiv.org/pdf/1511.05042.pdf) / [large margin cosine loss](https://arxiv.org/pdf/1801.09414.pdf)
