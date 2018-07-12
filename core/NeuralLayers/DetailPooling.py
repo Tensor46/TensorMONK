@@ -14,7 +14,7 @@ class DetailPooling(nn.Module):
         super(DetailPooling, self).__init__()
 
         # Notes: A user study in [31] showed that on average people preferred
-        # DPID (0.5 ≤ λ ≤ 1) over all considered downscaling techniques.
+        # DPID (0.5 ≤ lambda ≤ 1) over all considered downscaling techniques.
         self._lambda = nn.Parameter(torch.Tensor(1))
         self._lambda.data.mul_(0).add_(.6)
 

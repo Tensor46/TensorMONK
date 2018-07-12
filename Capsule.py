@@ -25,7 +25,7 @@ def trainMONK(args):
                                        loss_net=NeuralLayers.CapsuleLoss, loss_net_kwargs={},
                                        default_gpu=args.default_gpu, gpus=args.gpus,
                                        ignore_trained=args.ignore_trained)
-    params = Model.netEmbedding.parameters() + Model.netLoss.parameters()
+    params = list(Model.netEmbedding.parameters()) + list(Model.netLoss.parameters())
     if args.optimizer.lower() == "adam":
         Optimizer = neuralOptimizer.Adam(params)
     elif args.optimizer.lower() == "sgd":

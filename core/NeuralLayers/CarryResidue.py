@@ -234,7 +234,7 @@ class ChannelShuffle(nn.Module):
     def forward(self, tensor):
         tensor_size = tensor.size()
         tensor = tensor.view(tensor_size[0], self.groups, -1, tensor_size[2], tensor_size[3])
-        tensor = tensor.transpose_(2, 1).contiguous()
+        tensor = tensor.transpose(2, 1).contiguous()
         return tensor.view(tensor_size[0], -1, tensor_size[2], tensor_size[3]).contiguous()
 
 
