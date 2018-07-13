@@ -54,7 +54,7 @@ class RoutingCapsule(nn.Module):
             #   however, retaining dimensions can explain better
             # s size without sum's = _ x 32 x 6 x 6 x 10 x 16
             # s size = _ x 10 x 16
-            s = (c.unsqueeze(5)*u.detach()).sum(3).sum(2).sum(1)
+            s = (c.unsqueeze(5)*u).sum(3).sum(2).sum(1)
             # squash -- v size = _ x 10 x 16
             sum_squares = (s**2).sum(2).unsqueeze(2)
             v = (sum_squares/(1+sum_squares)) * s / (sum_squares**0.5)
