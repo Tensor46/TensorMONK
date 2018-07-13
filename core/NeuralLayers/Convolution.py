@@ -40,7 +40,7 @@ class Swish(nn.Module):
 # ============================================================================ #
 
 
-def ActivationFNs(activation):
+def activations(activation):
     if activation == "relu":
         return nn.ReLU()
     if activation == "relu6":
@@ -96,7 +96,7 @@ class Convolution(nn.Module):
         if pre_nm:
             if batch_nm:
                 self.Normalization = nn.BatchNorm2d(tensor_size[1])
-            act = ActivationFNs(activation)
+            act = activations(activation)
             if act is not None:
                 self.Activation = act
         if weight_nm:
@@ -109,7 +109,7 @@ class Convolution(nn.Module):
         if not pre_nm:
             if batch_nm:
                 self.Normalization = nn.BatchNorm2d(out_channels*pst_expansion)
-            act = ActivationFNs(activation)
+            act = activations(activation)
             if act is not None:
                 self.Activation = act
         self.pre_nm = pre_nm
