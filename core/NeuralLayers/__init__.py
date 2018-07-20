@@ -1,17 +1,27 @@
 """ TensorMONK's :: NeuralLayers                                             """
 
-from .Linear import Linear
-from .Convolution import Convolution
-from .ConvolutionTranspose import ConvolutionTranspose
-from .CarryResidue import ResidualOriginal, ResidualComplex, ResidualComplex2
-from .CarryResidue import ResidualInverted, ResidualShuffle, ResidualNeXt
-from .CarryResidue import SEResidualComplex, SEResidualNeXt
-from .CarryResidue import SimpleFire, CarryModular
-from .CarryResidue import Stem2, InceptionA, InceptionB, InceptionC, ReductionA, ReductionB
-from .PrimaryCapsule import PrimaryCapsule
-from .RoutingCapsule import RoutingCapsule
+from .linear import Linear
+from .convolution import Convolution
+from .convolutiontranspose import ConvolutionTranspose
+from .carryresidue import ResidualOriginal, ResidualComplex, ResidualComplex2
+from .carryresidue import ResidualInverted, ResidualShuffle, ResidualNeXt
+from .carryresidue import SEResidualComplex, SEResidualNeXt
+from .carryresidue import SimpleFire, CarryModular
+from .carryresidue import Stem2, InceptionA, InceptionB, InceptionC, ReductionA, ReductionB
+from .primarycapsule import PrimaryCapsule
+from .routingcapsule import RoutingCapsule
 
-from .DetailPooling import DetailPooling
+from .detailpooling import DetailPooling
+from .lossfunctions import CapsuleLoss, CategoricalLoss
+from .obfuscatedecolor import ObfuscateDecolor
 
-from .LossFunctions import CapsuleLoss, CategoricalLoss
-from .ObfuscateDecolor import ObfuscateDecolor
+
+del convolution
+del convolutiontranspose
+del carryresidue
+del primarycapsule
+del routingcapsule
+del linear
+del detailpooling
+del lossfunctions
+del obfuscatedecolor

@@ -11,19 +11,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from PIL import Image as ImPIL
-from core import *
+import core
 import torch.optim as neuralOptimizer
 #==============================================================================#
 
 
 def trainMONK(args):
     tensor_size = (1, 1, 28, 28)
-    trDataLoader, teDataLoader, n_labels = NeuralEssentials.MNIST(args.trainDataPath,  tensor_size, args.BSZ, args.cpus)
+    trDataLoader, teDataLoader, n_labels = core.NeuralEssentials.MNIST(args.trainDataPath,  tensor_size, args.BSZ, args.cpus)
     file_name = "./models/" + args.Architecture.lower()
-    Model = NeuralEssentials.MakeCNN(file_name, tensor_size, n_labels,
-                                       embedding_net=NeuralArchitectures.SimpleNet,
+    Model = core.NeuralEssentials.MakeCNN(file_name, tensor_size, n_labels,
+                                       embedding_net=core.NeuralArchitectures.SimpleNet,
                                        embedding_net_kwargs={},
-                                       loss_net=NeuralLayers.CategoricalLoss,
+                                       loss_net=core.NeuralLayers.CategoricalLoss,
                                        loss_net_kwargs={"type" : args.loss_type, "distance" : args.loss_distance},
                                        default_gpu=args.default_gpu, gpus=args.gpus,
                                        ignore_trained=args.ignore_trained)
@@ -68,7 +68,7 @@ def trainMONK(args):
         print("... {:6d} :: Cost {:1.3f} :: Top1/Top5 - {:3.2f}/{:3.2f} :: {:4d} I/S     ".format(Model.meterIterations,
                     np.mean(Model.meterLoss[-i:]), np.mean(Model.meterTop1[-i:]),
                     np.mean(Model.meterTop5[-i:]), int(np.mean(Model.meterSpeed[-i:]))))
-        NeuralEssentials.SaveModel(Model)
+        core.NeuralEssentials.SaveModel(Model)
 
         test_top1, test_top5 = [], []
         Model.netEmbedding.eval()
@@ -124,8 +124,8 @@ def parse_args():
     parser.add_argument("--gpus", type=int,  default=1)
     parser.add_argument("--cpus", type=int,  default=6)
 
-    parser.add_argument("--trainDataPath", type=str,  default="./data")
-    parser.add_argument("--testDataPath", type=str,  default="./data")
+    parser.add_argument("--trainDataPath", type=str,  default="../data/MNIST")
+    parser.add_argument("--testDataPath", type=str,  default="../data/MNIST")
     parser.add_argument("-I","--ignore_trained", action="store_true")
 
     return parser.parse_args()

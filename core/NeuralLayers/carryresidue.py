@@ -8,7 +8,7 @@ __all__ = ["ResidualOriginal", "ResidualComplex", "ResidualComplex2", "ResidualI
 
 import torch
 import torch.nn as nn
-from .Convolution import Convolution
+from .convolution import Convolution
 # ============================================================================ #
 
 

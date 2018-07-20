@@ -4,46 +4,7 @@ __all__ = ["ConvolutionTranspose", ]
 
 import torch
 import torch.nn as nn
-# ============================================================================ #
-
-
-class MaxOut(nn.Module):
-    """ Implemented https://arxiv.org/pdf/1302.4389.pdf """
-    def __init__(self):
-        super(MaxOut, self).__init__()
-
-    def forward(self, tensor):
-        return torch.max(*tensor.split(tensor.size(1)//2, 1))
-# ============================================================================ #
-
-
-class Swish(nn.Module):
-    """ Implemented https://arxiv.org/pdf/1710.05941v1.pdf """
-    def __init__(self):
-        super(Swish, self).__init__()
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, tensor):
-        return tensor * self.sigmoid(tensor)
-# ============================================================================ #
-
-
-def activations(activation):
-    if activation == "relu":
-        return nn.ReLU()
-    if activation == "relu6":
-        return nn.ReLU6()
-    if activation == "lklu":
-        return nn.LeakyReLU()
-    if activation == "tanh":
-        return nn.Tanh()
-    if activation == "sigm":
-        return nn.Sigmoid()
-    if activation == "maxo":
-        return MaxOut()
-    if activation == "swish":
-        return Swish()
-    return None
+from .activations import Activations
 # ============================================================================ #
 
 
@@ -81,7 +42,7 @@ class ConvolutionTranspose(nn.Module):
         if batch_nm:
             self.Normalization = nn.BatchNorm2d(tensor_size[1])
         pre_expansion = 1
-        act = activations(activation)
+        act = Activations(activation)
         if pre_nm and activation == "maxo":
             pre_expansion = 2
         if act is not None:
