@@ -1,7 +1,7 @@
 """ TensorMONK's :: NeuralLayers :: PrimaryCapsule                           """
 
 import torch.nn as nn
-from .Convolution import Convolution
+from .convolution import Convolution
 # ============================================================================ #
 
 

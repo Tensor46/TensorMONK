@@ -3,9 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 YellowFIN.py
-test.py
-test.jpeg
-
+test*
+.idea/
 
 
 # C extensions

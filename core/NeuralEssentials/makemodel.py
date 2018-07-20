@@ -2,9 +2,9 @@
 
 import os
 import numpy as np
-from .BaseModel import BaseModel
-from .CudaModel import CudaModel
-from .LoadModel import LoadModel
+from .basemodel import BaseModel
+from .cudamodel import CudaModel
+from .loadmodel import LoadModel
 import torch
 is_cuda = torch.cuda.is_available()
 #==============================================================================#

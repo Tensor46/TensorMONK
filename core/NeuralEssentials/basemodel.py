@@ -1,11 +1,9 @@
 """ TensorMONK's :: NeuralEssentials                                         """
 
-#==============================================================================#
-#==============================================================================#
+
 class BaseModel:
     netEmbedding = None
     netLoss = None
-    netAE = None
     netAdversarial = None
     meterTop1 = []
     meterTop5 = []
@@ -13,5 +11,5 @@ class BaseModel:
     meterTeAC = []
     meterSpeed = []
     meterIterations = 0
-    fileName  = None
+    fileName = None
     isCUDA = False

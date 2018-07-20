@@ -14,7 +14,7 @@ class DetailPooling(nn.Module):
         super(DetailPooling, self).__init__()
 
         # Notes: A user study in [31] showed that on average people preferred
-        # DPID (0.5 ≤ lambda ≤ 1) over all considered downscaling techniques.
+        # DPID (0.5 <= lambda <= 1) over all considered downscaling techniques.
         self._lambda = nn.Parameter(torch.Tensor(1))
         self._lambda.data.mul_(0).add_(.6)
 
@@ -33,7 +33,8 @@ class DetailPooling(nn.Module):
             self.weight = nn.init.xavier_normal_(self.weight, gain=0.01)
 
         # Computing tensor_size
-        self.tensor_size = tensor_size[:2] + F.avg_pool2d(torch.rand(1, 1, tensor_size[2], tensor_size[3]), (2, 2)).size()[2:]
+        self.tensor_size = tensor_size[:2] + \
+            F.avg_pool2d(torch.rand(1, 1, tensor_size[2], tensor_size[3]), (2, 2)).size()[2:]
 
     def forward(self, tensor):
 
@@ -47,7 +48,7 @@ class DetailPooling(nn.Module):
             if tensor.is_cuda and not self.weight.is_cuda:
                 self.weight = self.weight.cuda()
             equation2 = F.conv2d(F.conv2d(padded_tensor, self.weight, groups=tensor.size(1)),
-                                 self.weight.transpose(2,3), groups=tensor.size(1)).div(16)
+                                 self.weight.transpose(2, 3), groups=tensor.size(1)).div(16)
         else:
             equation2 = F.conv2d(padded_tensor, self.weight, groups=tensor.size(1))
 
@@ -62,11 +63,11 @@ class DetailPooling(nn.Module):
         # equation 4 - adding alpha - trainable parameter
         equation4 = equation56.add(self._alpha)
         # equation 7 - normalizing
-        equation7 = equation4.div(F.avg_pool2d(F.pad(equation4, (0, 1, 0, 1), mode="replicate"), (2, 2), (1, 1)).add(1e-8))
+        equation7 = equation4.div(F.avg_pool2d(F.pad(equation4, (0, 1, 0, 1), mode="replicate"),
+                                               (2, 2), (1, 1)).add(1e-8))
         # equation 8 - final DPP
         equation8 = F.avg_pool2d(tensor.mul(equation7), (2, 2))
         return equation8
-
 
 
 # tensor_size = (3,3,10,10)

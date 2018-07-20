@@ -1,56 +1,17 @@
 """ TensorMONK's :: NeuralLayers :: Convolution                              """
 
-__all__ = ["Convolution", ]
+__all__ = ["ConvolutionTranspose", ]
 
 import torch
 import torch.nn as nn
-# ============================================================================ #
-
-
-class MaxOut(nn.Module):
-    """ Implemented https://arxiv.org/pdf/1302.4389.pdf """
-    def __init__(self):
-        super(MaxOut, self).__init__()
-
-    def forward(self, tensor):
-        return torch.max(*tensor.split(tensor.size(1)//2, 1))
-# ============================================================================ #
-
-
-class Swish(nn.Module):
-    """ Implemented https://arxiv.org/pdf/1710.05941v1.pdf """
-    def __init__(self):
-        super(Swish, self).__init__()
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, tensor):
-        return tensor * self.sigmoid(tensor)
-# ============================================================================ #
-
-
-def ActivationFNs(activation):
-    if activation == "relu":
-        return nn.ReLU()
-    if activation == "relu6":
-        return nn.ReLU6()
-    if activation == "lklu":
-        return nn.LeakyReLU()
-    if activation == "tanh":
-        return nn.Tanh()
-    if activation == "sigm":
-        return nn.Sigmoid()
-    if activation == "maxo":
-        return MaxOut()
-    if activation == "swish":
-        return Swish()
-    return None
+from .activations import Activations
 # ============================================================================ #
 
 
 class ConvolutionTranspose(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1),
                  pad=True, activation="relu", dropout=0., batch_nm=False,
-                 pre_nm=False, groups=1, weight_nm=False, *args, **kwargs):
+                 pre_nm=False, groups=1, weight_nm=False, **kwargs):
         super(ConvolutionTranspose, self).__init__()
         # Checks
         assert len(tensor_size) == 4 and type(tensor_size) in [list, tuple], \
@@ -70,7 +31,8 @@ class ConvolutionTranspose(nn.Module):
         assert isinstance(pad, bool), "ConvolutionTranspose -- pad must be boolean"
         assert isinstance(dropout, float), "ConvolutionTranspose -- dropout must be float"
 
-        pre_nm = True # pre_nm is always turned on
+        pre_nm = True # always true
+        dilation = kwargs["dilation"] if "dilation" in kwargs.keys() else (1, 1)
         activation = activation.lower()
         # Modules
         padding = (filter_size[0]//2, filter_size[1]//2) if pad else (0, 0)
@@ -80,7 +42,7 @@ class ConvolutionTranspose(nn.Module):
         if batch_nm:
             self.Normalization = nn.BatchNorm2d(tensor_size[1])
         pre_expansion = 1
-        act = ActivationFNs(activation)
+        act = Activations(activation)
         if pre_nm and activation == "maxo":
             pre_expansion = 2
         if act is not None:
@@ -88,8 +50,11 @@ class ConvolutionTranspose(nn.Module):
 
         if weight_nm:
             """ https://arxiv.org/pdf/1602.07868.pdf """
-            self.ConvolutionTranspose = nn.utils.weight_norm(nn.ConvTranspose2d(tensor_size[1]//pre_expansion, out_channels, filter_size,
-                                                             strides, padding, bias=False, groups=groups), name='weight')
+            self.ConvolutionTranspose = nn.utils.weight_norm(nn.ConvTranspose2d(tensor_size[1]//pre_expansion,
+                                                                                out_channels, filter_size,
+                                                                                strides, padding, bias=False,
+                                                                                dilation=dilation, groups=groups),
+                                                             name='weight')
         else:
             self.ConvolutionTranspose = nn.ConvTranspose2d(tensor_size[1]//pre_expansion, out_channels, filter_size,
                                                            strides, padding, bias=False, groups=groups)
@@ -99,7 +64,6 @@ class ConvolutionTranspose(nn.Module):
         self.tensor_size = (tensor_size[0], out_channels,
                             (tensor_size[2] - 1)*strides[0] - 2*padding[0] + filter_size[0],
                             (tensor_size[3] - 1)*strides[1] - 2*padding[1] + filter_size[1],)
-
 
     def forward(self, tensor, output_size=None):
         if hasattr(self, "dropout"):
