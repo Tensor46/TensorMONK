@@ -43,6 +43,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- Requires more training (more gpus)!
 * [LinearVAE](https://arxiv.org/pdf/1312.6114v10.pdf)
 * [ConvolutionalVAE](https://arxiv.org/pdf/1312.6114v10.pdf)
 * SimpleNet
+* [PGGAN](https://arxiv.org/pdf/1710.10196.pdf)
 
 ### NeuralEssentials
 * BaseModel -- A base class that contains networks (embedding, loss or any), meters (loss, accuracy etc), fileName, isCUDA
