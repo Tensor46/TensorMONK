@@ -24,7 +24,7 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
 
 ### [Progressive Growing of GANs](https://arxiv.org/pdf/1710.10196.pdf)
 
-Trained on CIFAR10
+Trained on CIFAR10 (pggan-cifar10.py) -- Requires more training (more gpus)!
 
 ![Generator at 4x4](https://github.com/Tensor46/TensorMONK/blob/develop/models/pggan-cifar10-level1.gif)
 ![Generator at 8x8](https://github.com/tensor46/TensorMONK/blob/develop/models/pggan-cifar10-level2.gif)
