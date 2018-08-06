@@ -27,9 +27,9 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
 Trained on CIFAR10
 
 ![Generator at 4x4](https://github.com/Tensor46/TensorMONK/blob/develop/models/pggan-cifar10-level1.gif)
-![Generator at 8x8](https://github.com/tensor46/TensorMONK/models/pggan-cifar10-level2.gif)
-![Generator at 16x16](https://github.com/tensor46/TensorMONK/models/pggan-cifar10-level3.gif)
-![Generator at 32x32](https://github.com/tensor46/TensorMONK/models/pggan-cifar10-level4.gif)
+![Generator at 8x8](https://github.com/tensor46/TensorMONK/blob/develop/models/pggan-cifar10-level2.gif)
+![Generator at 16x16](https://github.com/tensor46/TensorMONK/blob/develop/models/pggan-cifar10-level3.gif)
+![Generator at 32x32](https://github.com/tensor46/TensorMONK/blob/develop/models/pggan-cifar10-level4.gif)
 
 ## Details on core (NeuralArchitectures, NeuralEssentials, NeuralLayers)
 
