@@ -5,6 +5,7 @@ from .savemodel import SaveModel
 from .loadmodel import LoadModel
 from .folderittr import FolderITTR
 from .makemodel import MakeCNN, MakeAE, MakeModel
+# make MakeModel more flexible and remove (MakeCNN & MakeAE)
 from .mnist import MNIST
 from .cifar10 import CIFAR10
 
