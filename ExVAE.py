@@ -137,7 +137,7 @@ def parse_args():
 
     parser.add_argument("--meta_learning", action="store_true")
 
-    parser.add_argument("--default_gpu", type=int,  default=1)
+    parser.add_argument("--default_gpu", type=int,  default=0)
     parser.add_argument("--gpus", type=int, default=1)
     parser.add_argument("--cpus", type=int, default=6)
 

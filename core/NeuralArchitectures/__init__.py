@@ -12,7 +12,9 @@ from .residualnet import ResidualNet
 from .inceptionv4 import InceptionV4
 from .linearvae import LinearVAE
 from .convolutionalvae import ConvolutionalVAE
+from .pggan import PGGAN
 
+del pggan
 del capsulenet
 del simplenet
 del shufflenet

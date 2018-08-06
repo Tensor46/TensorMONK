@@ -15,7 +15,9 @@ from .detailpooling import DetailPooling
 from .lossfunctions import CapsuleLoss, CategoricalLoss
 from .obfuscatedecolor import ObfuscateDecolor
 
+from .activations import Activations
 
+del activations
 del convolution
 del convolutiontranspose
 del carryresidue

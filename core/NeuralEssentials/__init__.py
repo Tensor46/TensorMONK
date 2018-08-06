@@ -4,7 +4,7 @@ from .basemodel import BaseModel
 from .savemodel import SaveModel
 from .loadmodel import LoadModel
 from .folderittr import FolderITTR
-from .makemodel import MakeCNN, MakeAE
+from .makemodel import MakeCNN, MakeAE, MakeModel
 from .mnist import MNIST
 from .cifar10 import CIFAR10
 

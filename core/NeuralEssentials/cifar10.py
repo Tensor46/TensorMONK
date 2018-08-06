@@ -6,11 +6,15 @@ import torchvision.transforms as transforms
 # ============================================================================ #
 
 
-def CIFAR10(data_path="./data/CIFAR10", tensor_size = (6, 3, 32, 32), BSZ=64, cpus=4):
+def CIFAR10(data_path="./data/CIFAR10", tensor_size = (6, 3, 32, 32), BSZ=64, cpus=4,
+            normalize_01=False):
     n_labels = 10
-    transform = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                                         (0.2023, 0.1994, 0.2010)), ])
+    if normalize_01:
+        transform = transforms.Compose([transforms.ToTensor(),])
+    else:
+        transform = transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                                             (0.2023, 0.1994, 0.2010)), ])
     dataset = torchvision.datasets.CIFAR10(root=data_path, train=True, download=True,
                                            transform=transform)
     trDataLoader = torch.utils.data.DataLoader(dataset, batch_size=BSZ, shuffle=True, num_workers=cpus)
