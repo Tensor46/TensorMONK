@@ -120,7 +120,7 @@ def parse_args():
     parser.add_argument("--loss_type", type=str, default="entr", choices=["entr", "smax", "tentr", "tsmax", "lmcl"])
     parser.add_argument("--loss_distance", type=str, default="dot", choices=["cosine", "dot"])
 
-    parser.add_argument("--default_gpu", type=int,  default=1)
+    parser.add_argument("--default_gpu", type=int,  default=0)
     parser.add_argument("--gpus", type=int,  default=1)
     parser.add_argument("--cpus", type=int,  default=6)
 

@@ -98,7 +98,7 @@ def parse_args():
     parser.add_argument("--optimizer", type=str, default="adam", choices=["adam", "sgd",])
     parser.add_argument("--learningRate", type=float, default=0.06)
 
-    parser.add_argument("--default_gpu", type=int,  default=1)
+    parser.add_argument("--default_gpu", type=int,  default=0)
     parser.add_argument("--gpus", type=int, default=1)
     parser.add_argument("--cpus", type=int, default=6)
 

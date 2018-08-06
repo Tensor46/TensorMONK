@@ -6,6 +6,7 @@ A collection of deep learning architectures (a PyTorch implementation).
 * python 3.6
 * PyTorch 0.4
 * torchvision
+* visdom
 
 ## How to train ImageNet?
 
@@ -18,6 +19,20 @@ To replicate Hinton's paper on MNIST, run the following:
 python Capsule.py -A capsule -B 256 -E 500 --optimizer adam --gpus 2 --cpus 6 --trainDataPath ./data --testDataPath ./data --replicate_paper
 
 Ignore the replicate_paper argument to create a deep architecture (with few residual blocks before primary capsule). You can essentially add any block available in NeuralLayers to create a deeper architecture, which is followed by a primary capsule and secondary capsule. However, do consider two things 1. if you do reconstruction, update the reconstruction network relative to tensor_size, 2. capsule nets do require a good amount of gpu ram.
+
+## Generative Adversarial Networks GAN
+
+### [Progressive Growing of GANs](https://arxiv.org/pdf/1710.10196.pdf)
+
+Trained on CIFAR10
+#### Generator at 4x4
+![Alt Text](https://github.com/tensor46/TensorMONK/models/pggan-cifar10-level1.gif)
+#### Generator at 8x8
+![Alt Text](https://github.com/tensor46/TensorMONK/models/pggan-cifar10-level2.gif)
+#### Generator at 16x16
+![Alt Text](https://github.com/tensor46/TensorMONK/models/pggan-cifar10-level3.gif)
+#### Generator at 32x32
+![Alt Text](https://github.com/tensor46/TensorMONK/models/pggan-cifar10-level4.gif)
 
 ## Details on core (NeuralArchitectures, NeuralEssentials, NeuralLayers)
 
