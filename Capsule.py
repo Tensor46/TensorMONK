@@ -15,11 +15,12 @@ import torch.optim as neuralOptimizer
 #==============================================================================#
 
 
-def trainMONK(args):
+def trainMONK():
+    args = parse_args()
     tensor_size = (1, 1, 28, 28)
     trDataLoader, teDataLoader, n_labels = NeuralEssentials.MNIST(args.trainDataPath,  tensor_size, args.BSZ, args.cpus)
     file_name = "./models/" + args.Architecture.lower()
-    Model = NeuralEssentials.MakeCNN(file_name, tensor_size, n_labels,
+    Model = NeuralEssentials.MakeModel(file_name, tensor_size, n_labels,
                                        embedding_net=NeuralArchitectures.CapsuleNet,
                                        embedding_net_kwargs={"replicate_paper" : args.replicate_paper},
                                        loss_net=NeuralLayers.CapsuleLoss, loss_net_kwargs={},
@@ -113,5 +114,4 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    Model = trainMONK(args)
+    Model = trainMONK()

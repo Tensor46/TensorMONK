@@ -23,13 +23,13 @@ def train():
     test_loader, n_labels = NeuralEssentials.FolderITTR(args.testDataPath, args.BSZ, tensor_size, args.cpus,
                                                         functions=[], random_flip=False)
 
-    Model = NeuralEssentials.MakeCNN(file_name, tensor_size, n_labels,
-                                     embedding_net=embedding_net,
-                                     embedding_net_kwargs=embedding_net_kwargs,
-                                     loss_net=NeuralLayers.CategoricalLoss,
-                                     loss_net_kwargs={"type": args.loss_type, "distance": args.loss_distance},
-                                     default_gpu=args.default_gpu, gpus=args.gpus,
-                                     ignore_trained=args.ignore_trained)
+    Model = NeuralEssentials.MakeModel(file_name, tensor_size, n_labels,
+                                       embedding_net=embedding_net,
+                                       embedding_net_kwargs=embedding_net_kwargs,
+                                       loss_net=NeuralLayers.CategoricalLoss,
+                                       loss_net_kwargs={"type": args.loss_type, "distance": args.loss_distance},
+                                       default_gpu=args.default_gpu, gpus=args.gpus,
+                                       ignore_trained=args.ignore_trained)
     params = list(Model.netEmbedding.parameters()) + list(Model.netLoss.parameters())
     if args.optimizer.lower() == "adam":
         optimizer = neural_optimizer.Adam(params)

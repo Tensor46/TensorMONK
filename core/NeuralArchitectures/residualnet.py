@@ -38,9 +38,18 @@ class ResidualNet(nn.Module):
         To replicate the paper, use default parameters (and select type)
     """
 
-    def __init__(self, tensor_size=(6,3,128,128), type="r18",
-                 activation="relu", batch_nm=True, pre_nm=False, groups=1,
-                 weight_nm=False, embedding=False, n_embedding=256, *args, **kwargs):
+    def __init__(self,
+                 tensor_size = (6, 3, 128, 128),
+                 type = "r18",
+                 activation = "relu",
+                 normalization = "batch",
+                 pre_nm = False,
+                 groups = 1,
+                 weight_nm = False,
+                 equalized = False,
+                 embedding = False,
+                 n_embedding = 256,
+                 *args, **kwargs):
         super(ResidualNet, self).__init__()
 
         type = type.lower()
@@ -99,7 +108,9 @@ class ResidualNet(nn.Module):
         if min(tensor_size[2], tensor_size[3]) < 64: # Addon -- To make it flexible for other tensor_size's
             s = 1
             print("Initial convolution strides changed from 2 to 1, as min(tensor_size[2], tensor_size[3]) <  64")
-        self.Net46.add_module("Convolution", Convolution(tensor_size, 7, 64, s, True, activation, 0., batch_nm, False, 1, weight_nm))
+        self.Net46.add_module("Convolution",
+            Convolution(tensor_size, 7, 64, s, True, activation, 0., normalization,
+                        False, 1, weight_nm, equalized, **kwargs))
         print("Convolution", self.Net46[-1].tensor_size)
 
         if min(tensor_size[2], tensor_size[3]) > 128:
@@ -112,7 +123,9 @@ class ResidualNet(nn.Module):
             _tensor_size = self.Net46[-1].tensor_size
 
         for i, (oc, s) in enumerate(block_params):
-            self.Net46.add_module("Residual"+str(i), BaseBlock(_tensor_size, 3, oc, s, True, activation, 0., batch_nm, pre_nm, groups, weight_nm))
+            self.Net46.add_module("Residual"+str(i),
+                BaseBlock(_tensor_size, 3, oc, s, True, activation, 0., normalization,
+                          pre_nm, groups, weight_nm, equalized, **kwargs))
             _tensor_size = self.Net46[-1].tensor_size
             print("Residual"+str(i), _tensor_size)
 
@@ -134,5 +147,5 @@ class ResidualNet(nn.Module):
 # from core.NeuralLayers import *
 # tensor_size = (1, 3, 224, 224)
 # tensor = torch.rand(*tensor_size)
-# test = ResidualNet(tensor_size, "r101")
+# test = ResidualNet(tensor_size, "ser50")
 # test(tensor).size()

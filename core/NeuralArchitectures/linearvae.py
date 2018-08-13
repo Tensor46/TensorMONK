@@ -23,12 +23,21 @@ class LinearVAE(nn.Module):
             n_latent :: length of latent vecotr Z
             decoder_final_activation :: tanh/sigm
 
-            activation, batch_nm, pre_nm, weight_nm, bias :: refer to core.NeuralLayers.Layers
+            activation, normalization, pre_nm, weight_nm, equalized, bias ::
+                refer to core.NeuralLayers
 
     """
-    def __init__(self, tensor_size=(6,784), embedding_layers=[1024, 512,], n_latent=128,
-                 decoder_final_activation="tanh", activation="relu", batch_nm=False,
-                 pre_nm=False, weight_nm=False, bias=False, *args, **kwargs):
+    def __init__(self,
+                 tensor_size = (6, 784),
+                 embedding_layers = [1024, 512,],
+                 n_latent = 128,
+                 decoder_final_activation = "tanh",
+                 activation = "relu",
+                 normalization = None,
+                 pre_nm = False,
+                 weight_nm = False,
+                 bias = False,
+                 *args, **kwargs):
         super(LinearVAE, self).__init__()
 
         assert type(tensor_size) in [list, tuple], "LinearVAE -- tensor_size must be tuple or list"
@@ -42,21 +51,21 @@ class LinearVAE(nn.Module):
         encoder = []
         _tensor_size = tensor_size
         for x in embedding_layers:
-            encoder.append(Linear(_tensor_size, x, activation, 0., batch_nm, pre_nm, weight_nm, bias))
+            encoder.append(Linear(_tensor_size, x, activation, 0., normalization, pre_nm, weight_nm, bias, **kwargs))
             _tensor_size = encoder[-1].tensor_size
         # One more linear layer to get to n_latent length vector
-        encoder.append(Linear(_tensor_size, n_latent, activation, 0., batch_nm, pre_nm, weight_nm, bias))
+        encoder.append(Linear(_tensor_size, n_latent, activation, 0., normalization, pre_nm, weight_nm, bias, **kwargs))
         _tensor_size = encoder[-1].tensor_size
         self.encoder = nn.Sequential(*encoder)
         # mu and log_var to synthesize Z
-        self.mu = Linear(_tensor_size, n_latent, "", 0., batch_nm, pre_nm, weight_nm, bias)
-        self.log_var = Linear(_tensor_size, n_latent, "", 0., batch_nm, pre_nm, weight_nm, bias)
+        self.mu = Linear(_tensor_size, n_latent, "", 0., normalization, pre_nm, weight_nm, bias, **kwargs)
+        self.log_var = Linear(_tensor_size, n_latent, "", 0., normalization, pre_nm, weight_nm, bias, **kwargs)
         # decoder - inverse of encoder
         decoder = []
         for x in embedding_layers[::-1]:
-            decoder.append(Linear(_tensor_size, x, activation, 0., batch_nm, pre_nm, weight_nm, bias))
+            decoder.append(Linear(_tensor_size, x, activation, 0., normalization, pre_nm, weight_nm, bias, **kwargs))
             _tensor_size = decoder[-1].tensor_size
-        decoder.append(Linear(_tensor_size, tensor_size[1], activation, 0., batch_nm, pre_nm, weight_nm, bias))
+        decoder.append(Linear(_tensor_size, tensor_size[1], activation, 0., normalization, pre_nm, weight_nm, bias, **kwargs))
         # Final normalization
         if decoder_final_activation == "tanh":
             decoder.append(nn.Tanh())
@@ -93,3 +102,4 @@ class LinearVAE(nn.Module):
 # tensor = torch.rand(*tensor_size)
 # test = LinearVAE(tensor_size, [1024, 512], 64)
 # test(tensor)[0].shape
+# test(tensor)[-3].shape

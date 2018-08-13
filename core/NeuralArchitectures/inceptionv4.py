@@ -12,27 +12,41 @@ class InceptionV4(nn.Module):
         Implemented https://arxiv.org/pdf/1602.07261.pdf
     """
 
-    def __init__(self, tensor_size=(6, 3, 299, 299),
-                 activation="relu", batch_nm=True, pre_nm=False, groups=1,
-                 weight_nm=False, embedding=False, n_embedding=256, *args, **kwargs):
+    def __init__(self,
+                 tensor_size = (6, 3, 299, 299),
+                 activation = "relu",
+                 normalization = None,
+                 pre_nm = False,
+                 groups = 1,
+                 weight_nm = False,
+                 equalized = False,
+                 embedding = False,
+                 n_embedding = 256,
+                 *args, **kwargs):
         super(InceptionV4, self).__init__()
 
         self.Net46 = nn.Sequential()
         print("Input", tensor_size)
-        self.Net46.add_module("Stem", Stem2(tensor_size, activation, batch_nm, False, groups, weight_nm))
+        self.Net46.add_module("Stem", Stem2(tensor_size, activation, normalization, pre_nm,
+                                            groups, weight_nm, equalized, **kwargs))
         print("Stem", self.Net46[-1].tensor_size)
         for i in range(4):
-            self.Net46.add_module("InceptionA"+str(i), InceptionA(self.Net46[-1].tensor_size, activation, batch_nm, False, groups, weight_nm))
+            self.Net46.add_module("InceptionA"+str(i), InceptionA(self.Net46[-1].tensor_size, activation, normalization,
+                                                                  pre_nm, groups, weight_nm, equalized, **kwargs))
             print("InceptionA", self.Net46[-1].tensor_size)
-        self.Net46.add_module("ReductionA", ReductionA(self.Net46[-1].tensor_size, activation, batch_nm, False, groups, weight_nm))
+        self.Net46.add_module("ReductionA", ReductionA(self.Net46[-1].tensor_size, activation, normalization,
+                                                       pre_nm, groups, weight_nm, equalized, **kwargs))
         print("ReductionA", self.Net46[-1].tensor_size)
         for i in range(7):
-            self.Net46.add_module("InceptionB"+str(i), InceptionB(self.Net46[-1].tensor_size, activation, batch_nm, False, groups, weight_nm))
+            self.Net46.add_module("InceptionB"+str(i), InceptionB(self.Net46[-1].tensor_size, activation, normalization,
+                                                                  pre_nm, groups, weight_nm, equalized, **kwargs))
             print("InceptionB", self.Net46[-1].tensor_size)
-        self.Net46.add_module("ReductionB", ReductionB(self.Net46[-1].tensor_size, activation, batch_nm, False, groups, weight_nm))
+        self.Net46.add_module("ReductionB", ReductionB(self.Net46[-1].tensor_size, activation, normalization,
+                                                       pre_nm, groups, weight_nm, equalized, **kwargs))
         print("ReductionB", self.Net46[-1].tensor_size)
         for i in range(3):
-            self.Net46.add_module("InceptionC"+str(i), InceptionC(self.Net46[-1].tensor_size, activation, batch_nm, False, groups, weight_nm))
+            self.Net46.add_module("InceptionC"+str(i), InceptionC(self.Net46[-1].tensor_size, activation, normalization,
+                                                                  pre_nm, groups, weight_nm, equalized, **kwargs))
             print("InceptionC", self.Net46[-1].tensor_size)
 
         self.Net46.add_module("AveragePool", nn.AvgPool2d(self.Net46[-1].tensor_size[2:]))

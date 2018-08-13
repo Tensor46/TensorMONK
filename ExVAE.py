@@ -16,19 +16,20 @@ import torch.optim as neuralOptimizer
 #==============================================================================#
 
 
-def trainMONK(args):
+def trainMONK():
+    args = parse_args()
     if args.Project.lower() == "mnist":
         tensor_size = (1, 1, 28, 28)
-        trDataLoader, teDataLoader, n_labels = NeuralEssentials.MNIST("./data/MNIST",  tensor_size, args.BSZ, args.cpus)
+        trDataLoader, teDataLoader, n_labels = NeuralEssentials.MNIST("../data/MNIST",  tensor_size, args.BSZ, args.cpus)
     elif args.Project.lower() == "cifar10":
         tensor_size = (1, 3, 32, 32)
-        trDataLoader, teDataLoader, n_labels = NeuralEssentials.CIFAR10("./data/CIFAR10",  tensor_size, args.BSZ, args.cpus)
+        trDataLoader, teDataLoader, n_labels = NeuralEssentials.CIFAR10("../data/CIFAR10",  tensor_size, args.BSZ, args.cpus)
     file_name = "./models/" + args.Architecture.lower()
 
     if args.Architecture.lower() == "cvae":
         autoencoder_net = NeuralArchitectures.ConvolutionalVAE
         autoencoder_net_kwargs = {"embedding_layers" : [(3, 32, 2), (3, 64, 2), (3, 128, 2),], "n_latent" : 64,
-                                  "decoder_final_activation" : "tanh", "pad" : True, "activation" : "relu", "batch_nm" : False}
+                                  "decoder_final_activation" : "tanh", "pad" : True, "activation" : "relu", "normalization" : None}
     elif args.Architecture.lower() == "lvae":
         autoencoder_net = NeuralArchitectures.LinearVAE
         autoencoder_net_kwargs = {"embedding_layers" : [1024, 512,], "n_latent" : 32,
@@ -36,15 +37,15 @@ def trainMONK(args):
     else:
         raise NotImplementedError
 
-    Model = NeuralEssentials.MakeAE(file_name, tensor_size, n_labels,
-                                    autoencoder_net, autoencoder_net_kwargs,
-                                    default_gpu=args.default_gpu, gpus=args.gpus,
-                                    ignore_trained=args.ignore_trained)
+    Model = NeuralEssentials.MakeModel(file_name, tensor_size, n_labels,
+                                       autoencoder_net, autoencoder_net_kwargs,
+                                       default_gpu=args.default_gpu, gpus=args.gpus,
+                                       ignore_trained=args.ignore_trained)
 
     if args.optimizer.lower() == "adam":
-        Optimizer = neuralOptimizer.Adam(Model.netAE.parameters())
+        Optimizer = neuralOptimizer.Adam(Model.netEmbedding.parameters())
     elif args.optimizer.lower() == "sgd":
-        Optimizer = neuralOptimizer.SGD(Model.netAE.parameters(), lr= args.learningRate)
+        Optimizer = neuralOptimizer.SGD(Model.netEmbedding.parameters(), lr= args.learningRate)
     else:
         raise NotImplementedError
 
@@ -54,18 +55,18 @@ def trainMONK(args):
     # Usual training
     for _ in range(args.Epochs):
         Timer  = timeit.default_timer()
-        Model.netAE.train()
+        Model.netEmbedding.train()
         for i,(tensor, targets) in enumerate(trDataLoader):
             Model.meterIterations += 1
 
             # forward pass and parameter update
-            Model.netAE.zero_grad()
+            Model.netEmbedding.zero_grad()
             if args.meta_learning:
                 org_tensor = Variable(tensor)
                 tensor = transformer(org_tensor)
-                encoded, mu, log_var, latent, decoded, kld, mse = Model.netAE((org_tensor, tensor))
+                encoded, mu, log_var, latent, decoded, kld, mse = Model.netEmbedding((org_tensor, tensor))
             else:
-                encoded, mu, log_var, latent, decoded, kld, mse = Model.netAE(Variable(tensor))
+                encoded, mu, log_var, latent, decoded, kld, mse = Model.netEmbedding(Variable(tensor))
             loss = kld * 0.1 + mse
             loss.backward()
             Optimizer.step()
@@ -97,27 +98,10 @@ def trainMONK(args):
 
                 show_utils.save_image(torch.cat([original, reconstructed], 0), "./models/CVAE_train.png", normalize=True)
 
-
         # save every epoch and print the average of epoch
         print("... {:6d} :: Cost {:2.3f}/{:2.3f}/{:2.3f} :: {:4d} I/S         ".format(Model.meterIterations,
               Model.meterLoss[-1], kld, mse, Model.meterSpeed[-1]))
         NeuralEssentials.SaveModel(Model)
-
-        # test_top1, test_top5 = [], []
-        # Model.netAE.eval()
-        # for i,(tensor, targets) in enumerate(teDataLoader):
-        #
-        #     Model.netEmbedding.zero_grad()
-        #     Model.netLoss.zero_grad()
-        #     encoded, mu, log_var, latent, decoded, kld, mse = Model.netAE(Variable(tensor))
-        #
-        #
-        #
-        #     test_top1.append(float(top1.cpu().data.numpy() if torch.__version__.startswith("0.4") else top1.cpu().data.numpy()[0]))
-        #     test_top5.append(float(top5.cpu().data.numpy() if torch.__version__.startswith("0.4") else top5.cpu().data.numpy()[0]))
-        # print("... Test accuracy - {:3.2f}/{:3.2f} ".format(np.mean(test_top1), np.mean(test_top5)))
-        # Model.netEmbedding.train()
-        # Model.netLoss.train()
         Timer = timeit.default_timer()
 
     print("\nDone with training")
@@ -147,5 +131,4 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    Model = trainMONK(args)
+    Model = trainMONK()

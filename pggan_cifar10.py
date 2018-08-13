@@ -22,7 +22,6 @@ def MakeGIF(list_images, file_name):
     if not file_name.endswith(".gif"):
         file_name += ".gif"
     imageio.mimsave(file_name, [imageio.imread(x) for x in list_images])
-
 # ============================================================================ #
 
 

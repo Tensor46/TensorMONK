@@ -16,15 +16,15 @@ import numpy as np
 class ConvolutionalAE(nn.Module):
     """ Auto-encoder for StackedConvolutionalAE """
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1),
-                 pad=True, activation="relu", dropout=0., batch_nm=False,
-                 pre_nm=False, groups=1, weight_norm=False, learningRate=0.1,
+                 pad=True, activation="relu", dropout=0., normalization=None,
+                 pre_nm=False, groups=1, weight_norm=False, equalized=False, learningRate=0.1,
                  block=Convolution, *args, **kwargs):
         super(ConvolutionalAE, self).__init__()
 
         self.encoder = block(tensor_size, filter_size, out_channels, strides, pad, activation, dropout,
-                                   batch_nm, pre_nm, groups, weight_norm)
+                                   normalization, pre_nm, groups, weight_norm, equalized, **kwargs)
         self.decoder = ConvolutionTranspose(self.encoder.tensor_size, filter_size, tensor_size[1], strides, pad,
-                                            activation, 0., batch_nm, pre_nm, groups, weight_norm)
+                                            activation, 0., normalization, pre_nm, groups, weight_norm, equalized, **kwargs)
         self.decoder.tensor_size = tensor_size
 
         self.Optimizer = torch.optim.SGD(self.parameters(), lr=learningRate)

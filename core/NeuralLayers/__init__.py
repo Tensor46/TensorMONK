@@ -16,8 +16,10 @@ from .lossfunctions import CapsuleLoss, CategoricalLoss
 from .obfuscatedecolor import ObfuscateDecolor
 
 from .activations import Activations
+from .normalizations import Normalizations
 
 del activations
+del normalizations
 del convolution
 del convolutiontranspose
 del carryresidue

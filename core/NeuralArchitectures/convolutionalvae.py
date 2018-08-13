@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ..NeuralLayers import *
 import numpy as np
-#==============================================================================#
+# ============================================================================ #
 
 
 class ReShape(nn.Module):
@@ -18,6 +18,7 @@ class ReShape(nn.Module):
 
     def forward(self, tensor):
         return tensor.view(tensor.size(0), *self.tensor_size[1:])
+# ============================================================================ #
 
 
 class ConvolutionalVAE(nn.Module):
@@ -32,12 +33,23 @@ class ConvolutionalVAE(nn.Module):
             n_latent :: length of latent vecotr Z
             decoder_final_activation :: tanh/sigm
 
-            activation, batch_nm, pre_nm, weight_nm, bias :: refer to core.NeuralLayers.Layers
-
+            activation, normalization, pre_nm, weight_nm, equalized, bias ::
+                refer to core.NeuralLayers
     """
-    def __init__(self, tensor_size=(6, 1, 28, 28), embedding_layers=[(3, 32, 2), (3, 64, 2),], n_latent=128,
-                 decoder_final_activation="tanh", pad=True, activation="relu", batch_nm=False, pre_nm=False,
-                 groups=1, weight_nm=False, bias=False, *args, **kwargs):
+    def __init__(self,
+                 tensor_size=(6, 1, 28, 28),
+                 embedding_layers=[(3, 32, 2), (3, 64, 2),],
+                 n_latent=128,
+                 decoder_final_activation="tanh",
+                 pad=True,
+                 activation="relu",
+                 normalization=None,
+                 pre_nm=False,
+                 groups=1,
+                 weight_nm=False,
+                 equalized=False,
+                 bias=False,
+                 *args, **kwargs):
         super(ConvolutionalVAE, self).__init__()
 
         assert type(tensor_size) in [list, tuple], "ConvolutionalVAE -- tensor_size must be tuple or list"
@@ -47,18 +59,18 @@ class ConvolutionalVAE(nn.Module):
         encoder = []
         _tensor_size = tensor_size
         for f, c, s in embedding_layers:
-            encoder.append(Convolution(_tensor_size, f, c, s, pad,  activation, 0., batch_nm, pre_nm, groups, weight_nm))
+            encoder.append(Convolution(_tensor_size, f, c, s, pad,  activation, 0., normalization, pre_nm, groups, weight_nm, equalized))
             _tensor_size = encoder[-1].tensor_size
         self.encoder = nn.Sequential(*encoder)
         # mu and log_var to synthesize Z
-        self.mu = Linear(_tensor_size, n_latent, "", 0., batch_nm, pre_nm, weight_nm, bias)
-        self.log_var = Linear(_tensor_size, n_latent, "", 0., batch_nm, pre_nm, weight_nm, bias)
+        self.mu = Linear(_tensor_size, n_latent, "", 0., bias=bias)
+        self.log_var = Linear(_tensor_size, n_latent, "", 0., bias=bias)
 
         # decoder - (Linear layer + ReShape) to generate encoder last output shape,
         #           followed by inverse of encoder
         decoder = []
         decoder.append(Linear(self.mu.tensor_size, int(np.prod(_tensor_size[1:])),
-                              activation, 0., batch_nm, pre_nm, weight_nm, bias))
+                              activation, 0., bias=bias))
         decoder.append(ReShape(_tensor_size))
 
         decoder_layers = []
@@ -69,7 +81,7 @@ class ConvolutionalVAE(nn.Module):
                 decoder_layers += [(x[0], embedding_layers[::-1][i+1][1], x[2], encoder[-(i+2)].tensor_size)]
 
         for i, (f, c, s, o) in enumerate(decoder_layers):
-            decoder.append(ConvolutionTranspose(_tensor_size, f, c, s, pad,  activation, 0., batch_nm, pre_nm, groups, weight_nm))
+            decoder.append(ConvolutionTranspose(_tensor_size, f, c, s, pad,  activation, 0., normalization, pre_nm, groups, weight_nm, equalized))
             decoder[-1].tensor_size = o # adjusting the output tensor size
             _tensor_size = decoder[-1].tensor_size
         # Final normalization

@@ -18,7 +18,6 @@ class CapsuleNet(nn.Module):
                  routing_capsule_length=16, routing_iterations=3,
                  replicate_paper=True, *args, **kwargs):
         super(CapsuleNet, self).__init__()
-        activation, batch_nm, pre_nm, weight_nm = "relu", False, False, True
 
         if replicate_paper:
             primary_n_capsules = 8
@@ -27,17 +26,16 @@ class CapsuleNet(nn.Module):
             routing_iterations = 3
             block = Convolution
             self.InitialConvolutions = Convolution(tensor_size, filter_size=9, out_channels= 256,
-                                                   strides=1, pad=False, activation="relu", dropout=0.,
-                                                   batch_nm=False, pre_nm=False, groups=1, weight_nm=weight_nm)
+                                                   strides=1, pad=False, activation="relu")
             _tensor_size = self.InitialConvolutions.tensor_size
         else: # You can be creative!
             block = Convolution
-            self.InitialConvolutions = nn.Sequential(Convolution(tensor_size, 5, 64, 1, False, "relu", 0., False, False, 1, True),
-                                                     ResidualComplex((6,  64, 24, 24), 3, 256, 1, True, "relu", 0., False, False, 1, True),
-                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., False, False, 1, True),
-                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., False, False, 1, True),
-                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., False, False, 1, True),
-                                                     Convolution((6, 256, 24, 24), 5, 64, 1, False, "", 0., False, False, 1, True),)
+            self.InitialConvolutions = nn.Sequential(Convolution(tensor_size, 5, 64, 1, False, "relu", 0., None, False),
+                                                     ResidualComplex((6,  64, 24, 24), 3, 256, 1, True, "relu", 0., None, False),
+                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., None, False),
+                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., None, False),
+                                                     ResidualComplex((6, 256, 24, 24), 3, 256, 1, True, "relu", 0., None, False),
+                                                     Convolution((6, 256, 24, 24), 5, 64, 1, False, "", 0., None, False),)
             _tensor_size = self.InitialConvolutions[-1].tensor_size
         print("InitialConvolutions output size :: ", _tensor_size)
 
@@ -45,7 +43,7 @@ class CapsuleNet(nn.Module):
         self.PrimaryCapsule = PrimaryCapsule(_tensor_size,
                                              filter_size=9, out_channels=256, strides=2,
                                              pad=False, activation="", dropout=0.,
-                                             batch_nm=False, pre_nm=False, groups=1, weight_nm=weight_nm,
+                                             batch_nm=False, pre_nm=False,
                                              block=block, n_capsules=primary_n_capsules,
                                              capsule_length=primary_capsule_length)
         print("Primary capsule output size :: ", self.PrimaryCapsule.tensor_size)
