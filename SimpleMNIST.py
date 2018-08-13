@@ -16,7 +16,8 @@ import torch.optim as neuralOptimizer
 #==============================================================================#
 
 
-def trainMONK(args):
+def trainMONK():
+    args = parse_args()
     tensor_size = (1, 1, 28, 28)
     trDataLoader, teDataLoader, n_labels = core.NeuralEssentials.MNIST(args.trainDataPath,  tensor_size, args.BSZ, args.cpus)
     file_name = "./models/" + args.Architecture.lower()
@@ -89,24 +90,9 @@ def trainMONK(args):
 
     print("\nDone with training")
     return Model
-
-# class argsjump:
-#     Architecture = "simplenet"
-#     BSZ = 32
-#     Epochs = 6
-#     optimizer = "sgd"
-#     learningRate = .06
-#     loss_type = "lmcl"
-#     loss_distance = "dot"
-#     default_gpu = 1
-#     gpus = 1
-#     cpus = 6
-#     trainDataPath = "./data"
-#     testDataPath = "./data"
-#     ignore_trained = True
-# args = argsjump()
-
 # ============================================================================ #
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="SimpleMNIST using TensorMONK!!!")
     parser.add_argument("-A","--Architecture", type=str, default="simplenet")
@@ -132,5 +118,4 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    Model = trainMONK(args)
+    Model = trainMONK()

@@ -11,7 +11,7 @@ from .activations import Activations
 
 class Linear(nn.Module):
     def __init__(self, tensor_size, out_features, activation="relu", dropout=0.,
-                 batch_nm=False, pre_nm=False, weight_nm=False, bias=True, *args, **kwargs):
+                 normalization=None, pre_nm=False, weight_nm=False, bias=True, *args, **kwargs):
         super(Linear, self).__init__()
         # Checks
         assert type(tensor_size) in [list, tuple], "Linear -- tensor_size must be tuple or list"
@@ -20,16 +20,17 @@ class Linear(nn.Module):
             tensor_size = (tensor_size[0], int(np.prod(tensor_size[1:])))
         assert type(out_features) is int, "Linear -- out_features must be int"
         assert dropout >= 0. and dropout < 1., "Linear -- dropout must be in the range 0. - 1."
-        assert type(batch_nm) is bool, "Linear -- batch_nm must be boolean"
+        assert normalization in [None, "batch"], "Linear's normalization must be None/'batch'"
         assert type(pre_nm) is bool, "Linear -- pre_nm must be boolean"
         assert type(weight_nm) is bool, "Linear -- weight_nm must be boolean"
+        assert type(bias) is bool, "Linear -- bias must be boolean"
         activation = activation.lower()
         self.pre_nm = pre_nm
         # Modules
         if dropout > 0.:
             self.dropout = nn.Dropout(dropout)
         if pre_nm:
-            if batch_nm:
+            if normalization == "batch":
                 self.Normalization = nn.BatchNorm1d(tensor_size[1])
             act = Activations(activation)
             if act is not None:
@@ -37,15 +38,15 @@ class Linear(nn.Module):
 
         if weight_nm:
             """ https://arxiv.org/pdf/1602.07868.pdf """
-            self.Linear = nn.utils.weight_norm(nn.Linear(tensor_size[1] // (2 if activation == "maxo" and pre_nm else 1),
-                                    out_features // (2 if activation == "maxo" and not pre_nm else 1), bias=bias), name='weight')
+            self.Linear = nn.utils.weight_norm(nn.Linear(tensor_size[1] // (2 if activation in ("maxo", "rmxo") and pre_nm else 1),
+                                    out_features // (2 if activation in ("maxo", "rmxo") and not pre_nm else 1), bias=bias), name='weight')
         else:
-            self.Linear = nn.Linear(tensor_size[1] // (2 if activation == "maxo" and pre_nm else 1),
-                                    out_features * (2 if activation == "maxo" and not pre_nm else 1), bias=bias)
+            self.Linear = nn.Linear(tensor_size[1] // (2 if activation in ("maxo", "rmxo") and pre_nm else 1),
+                                    out_features * (2 if activation in ("maxo", "rmxo") and not pre_nm else 1), bias=bias)
             torch.nn.init.orthogonal_(self.Linear.weight)
         if not pre_nm:
-            if batch_nm:
-                self.Normalization = nn.BatchNorm1d(out_features*(2 if activation == "maxo" and not pre_nm else 1))
+            if normalization == "batch":
+                self.Normalization = nn.BatchNorm1d(out_features*(2 if activation in ("maxo", "rmxo") and not pre_nm else 1))
             act = Activations(activation)
             if act is not None:
                 self.Activation = act
@@ -72,7 +73,8 @@ class Linear(nn.Module):
         return tensor
 
 
+# from core.NeuralLayers import Activations
 # tensor_size = (2, 3, 10, 10)
 # x = torch.rand(*tensor_size)
-# test = Linear(tensor_size, 16, "relu", 0., True, True, False, bias=False)
+# test = Linear(tensor_size, 16, "relu", 0., "batch", True, False, bias=False)
 # test(x).size()

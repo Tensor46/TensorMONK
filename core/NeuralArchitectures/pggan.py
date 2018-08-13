@@ -5,8 +5,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..NeuralLayers import *
+from ..NeuralLayers.normalizations import PixelWise
 import numpy as np
 # ============================================================================ #
+
 
 class ConvConvT(nn.Module):
     """
@@ -14,36 +16,57 @@ class ConvConvT(nn.Module):
         * weight-norm is used instead of equalized Convolution/ConvolutionTranspose
         layer -- "conv"/"trans"
     """
-    def __init__(self, layer, tensor_size, filter_size, out_channels,
-                 strides=1, pad=True, activation="lklu", weight_nm=True):
-        super(ConvConvT, self).__init__()
-        assert layer in ["conv", "trans"], "layer must be conv/trans --> {}".format(layer)
+    def __init__(self,
+                 layer,
+                 tensor_size,
+                 filter_size,
+                 out_channels,
+                 strides       = 1,
+                 pad           = True,
+                 activation    = "lklu",
+                 dropout       = 0.,
+                 normalization = "pixelwise",
+                 pre_nm        = False,
+                 groups        = 1,
+                 weight_nm     = False,
+                 equalized     = True):
 
+        super(ConvConvT, self).__init__()
+
+        assert layer in ["conv", "trans"], "layer must be conv/trans --> {}".format(layer)
         if layer == "conv": # convolution
             self.network = Convolution(tensor_size, filter_size, out_channels, strides,
-                                       pad, activation, weight_nm=weight_nm)
-            self.tensor_size = self.network.tensor_size
+                                       pad, activation, dropout, normalization, pre_nm,
+                                       groups, weight_nm, equalized, gain=np.sqrt(2)/4)
         else: # convolution transpose
             if tensor_size[2] == 1 or tensor_size[3] == 1: pad = False
-            self.network = nn.Sequential(ConvolutionTranspose(tensor_size, filter_size, out_channels,
-                                                              strides, pad, "", weight_nm=weight_nm),
-                                         nn.LeakyReLU(.2) if activation == "lklu" else nn.Sigmoid())
+            self.network = ConvolutionTranspose(tensor_size, filter_size, out_channels, strides,
+                                                pad, activation, dropout, normalization, pre_nm,
+                                                groups, weight_nm, equalized, gain=np.sqrt(2)/4)
             if tensor_size[2] > 1 and tensor_size[3] > 1: # safe check
-                self.network[0].tensor_size = (1, out_channels, tensor_size[2]*strides, tensor_size[3]*strides)
-            self.tensor_size = self.network[0].tensor_size
+                self.network.tensor_size = (1, out_channels, tensor_size[2]*strides, tensor_size[3]*strides)
         self.activation = activation
+        self.tensor_size = self.network.tensor_size
 
     def forward(self, tensor):
-        tensor = self.network(tensor)
-        if self.activation == "sigm":
-            # when last layer -- no pixelwise norm
-            return tensor
-        return tensor.div(tensor.pow(2).mean(1, True).add(1e-8).pow(.5))
+        return self.network(tensor)
+
+
 # from core.NeuralLayers import *
 # tensor_size = (1, 6, 10, 10)
 # tensor = torch.rand(*tensor_size)
-# test = ConvConvT(True, tensor_size, 3, 6, 2)
+# test = ConvConvT("conv", tensor_size, 3, 6, 2)
 # test(tensor).shape
+# ============================================================================ #
+
+
+class ReShape(nn.Module):
+    def __init__(self, tensor_size):
+        super(ReShape, self).__init__()
+        self.tensor_size = tensor_size
+
+    def forward(self, tensor):
+        return tensor.view(tensor.size(0), *self.tensor_size[1:])
 # ============================================================================ #
 
 
@@ -87,6 +110,7 @@ class PGGAN(nn.Module):
 
         ** Known issue - retains unused parameters
     """
+
     def __init__(self,
                  n_embedding   = 600,
                  levels        = 4,
@@ -118,20 +142,29 @@ class PGGAN(nn.Module):
         # gather all generator modules
         self.g_modules = nn.ModuleDict()
         tensor_size = (1, n_embedding, 1, 1)
+        self.g_list = []
         for i in range(1, levels+1):
             # every level has one ConvolutionTranspose and to-RGB converter
             nc = (growth_rate*(2**(levels-i))) if pow_gr else (growth_rate*(levels-i+1))
-            self.g_modules.update({"level"+str(i):
-                ConvConvT("trans", tensor_size, l1_size if i == 1 else 3, nc,
-                          1 if i == 1 else 2)})
-            tensor_size = self.g_modules["level"+str(i)].tensor_size
+            if i == 1:
+                self.g_modules.update({"level"+str(i):
+                    nn.Sequential(Linear((1, n_embedding), int(nc*np.prod(l1_size)), "lklu", bias=True),
+                                  ReShape((1, nc, l1_size[0], l1_size[1])), PixelWise(),
+                                  ConvConvT("trans", (1, nc, l1_size[0], l1_size[1]), 3, nc, 1))})
+                tensor_size = self.g_modules["level"+str(i)][-1].tensor_size
+            else:
+                self.g_modules.update({"level"+str(i): ConvConvT("trans", tensor_size, 3, nc, 2)})
+                tensor_size = self.g_modules["level"+str(i)].tensor_size
             self.g_modules.update({"level"+str(i)+"_rgb":
                 ConvConvT("trans", tensor_size, 3, 3, 1, activation="sigm")})
+            self.g_list.append("level"+str(i))
+            self.g_list.append("level"+str(i)+"_rgb")
 
         # gather all discriminator modules
         self.d_modules = nn.ModuleDict()
         tensor_size = (1, 3, l1_size[0]*(2**(levels-1)), l1_size[1]*(2**(levels-1)))
         self.max_tensor_size = tensor_size
+        self.d_list = []
         for i in range(levels, 0, -1):
             # every level has one Convolution and from-RGB converter
             nc = (growth_rate*(2**(levels-i))) if pow_gr else (growth_rate*(levels-i+1))
@@ -140,20 +173,23 @@ class PGGAN(nn.Module):
             tensor_size = self.d_modules["level"+str(i)+"_rgb"].tensor_size
             self.d_modules.update({"level"+str(i): ConvConvT("conv", tensor_size, 3,
                                     nc*2 if pow_gr else (growth_rate*(levels-i+1+1)), 1 if i == 1 else 2)})
-            print(nc, nc*(2 if i > 0 else 1), (growth_rate*(levels-i+1)))
             # if pow_gr else (growth_rate*(levels-i+1))
             tensor_size = self.d_modules["level"+str(i)].tensor_size
+            self.d_list.append("level"+str(i)+"_rgb")
+            self.d_list.append("level"+str(i))
+
         # Average pool and linear layer answer fake or real
         self.d_modules.update({"decide":
             nn.Sequential(nn.AvgPool2d(l1_size, (1, 1)),
                           Linear((1, tensor_size[1], 1, 1), 1, "sigm", .2, bias=False))})
+        self.d_list.append("decide")
 
         # level 1 requirements
         self.current_level = 0
         self.updates(0)
         self.scale = lambda x, y: F.interpolate(x, scale_factor=y)
 
-    def updates(self, iteration):
+    def updates(self, iteration, force_update=False):
         """
             Using iteration find level, transition and alpha.
                 Update g_base, g_rgb, g_transit, d_base, d_rgb, d_transit &
@@ -170,51 +206,68 @@ class PGGAN(nn.Module):
             ittr = self.cumsum_iterations[i] - self.cumsum_iterations[i-1]
             self.alpha = float(iteration - self.cumsum_iterations[i-1]) / ittr
 
-        if level != self.current_level or transition != self.transition:
+        if level != self.current_level or transition != self.transition or force_update:
             if level == 1: transition = False
             self.transition = transition
             if level > self.levels: level = self.levels
 
             if level == 1:
-                self.g_base = nn.Sequential(self.g_modules["level1"])
-                self.g_rgb = nn.Sequential(self.g_modules["level1_rgb"])
+                self.g_base = ["level1"]
+                self.g_rgb = ["level1_rgb"]
                 self.g_transit = None
 
-                self.d_rgb = nn.Sequential(self.d_modules["level1_rgb"])
-                self.d_base = nn.Sequential(self.d_modules["level1"], self.d_modules["decide"])
+                self.d_rgb = ["level1_rgb"]
+                self.d_base = ["level1", "decide"]
                 self.d_transit = None
             else:
                 modules = ["level"+str(i) for i in range(1, level+1)] + ["level"+str(level)+"_rgb"]
-                self.g_base = nn.Sequential(*[self.g_modules[x] for x in modules[:-2]])
-                self.g_rgb = nn.Sequential(*[self.g_modules[x] for x in modules[-2:]])
-                self.g_transit = self.g_modules["level"+str(level-1)+"_rgb"] if transition else None
+                self.g_base = modules[:-2]
+                self.g_rgb = modules[-2:]
+                self.g_transit = ["level"+str(level-1)+"_rgb"] if transition else None
 
                 modules = ["level"+str(level)+"_rgb"] + ["level"+str(i) for i in range(level, 0, -1)]\
                           + ["decide"]
-                self.d_rgb = nn.Sequential(*[self.d_modules[x] for x in modules[:2]])
-                self.d_base = nn.Sequential(*[self.d_modules[x] for x in modules[2:]])
-                self.d_transit = self.d_modules["level"+str(level-1)+"_rgb"] if transition else None
+                self.d_rgb = modules[:2]
+                self.d_base = modules[2:]
+                self.d_transit = ["level"+str(level-1)+"_rgb"] if transition else None
 
-            self.tensor_size = self.g_rgb[-1].tensor_size
+            self.tensor_size = self.g_modules[self.g_rgb[-1]].tensor_size
             self.current_level = level
 
     def forward(self, tensor):
         if tensor.dim() == 2: # generate
             tensor = tensor.view(tensor.size(0), tensor.size(1), 1, 1)
             if self.g_transit is None:
-                return self.g_rgb(self.g_base(tensor))
-            base = self.g_base(tensor)
-            return self.g_rgb(base).mul(self.alpha) + \
-                self.scale(self.g_transit(base), 2).mul(1 - self.alpha)
+                for i in self.g_base + self.g_rgb:
+                    tensor = self.g_modules[i](tensor)
+                return tensor
+
+            for i in self.g_base:
+                tensor = self.g_modules[i](tensor)
+            last_rgb = self.scale(self.g_modules[self.g_transit[0]](tensor), 2)
+            this_rgb = tensor
+            for i in self.g_rgb:
+                this_rgb = self.g_modules[i](this_rgb)
+
+            return this_rgb.mul(self.alpha) + last_rgb.mul(1 - self.alpha)
         else: # discriminate
             tensor = F.interpolate(tensor, size=self.tensor_size[2:])
             if self.d_transit is None:
-                return self.d_base(self.d_rgb(tensor))
-            return self.d_base(self.d_rgb(tensor).mul(self.alpha) +
-                self.d_transit(self.scale(tensor, .5)).mul(1-self.alpha))
+                for i in self.d_rgb + self.d_base:
+                    tensor = self.d_modules[i](tensor)
+                return tensor
+            last_2base = self.d_modules[self.d_transit[0]](self.scale(tensor, 0.5))
+            for i in self.d_rgb:
+                tensor = self.d_modules[i](tensor)
+            tensor = tensor.mul(self.alpha) + last_2base.mul(1 - self.alpha)
+            for i in self.d_base:
+                tensor = self.d_modules[i](tensor)
+            return tensor
+
 
 # from core.NeuralLayers import *
-# test = PGGAN(pow_gr = True, l1_iterations = 100)
+# from core.NeuralLayers.normalizations import PixelWise
+# test = PGGAN(growth_rate=128, pow_gr = True, l1_iterations = 100)
 # test.cumsum_iterations
 # test.updates(99)
 # test.alpha

@@ -6,13 +6,29 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .activations import Activations
+from .normalizations import Normalizations
 # ============================================================================ #
 
 
 class Convolution(nn.Module):
+    """
+        Parameters/Inputs
+            tensor_size = (None/any integer >0, channels, height, width)
+            filter_size = list(length=2)/tuple(length=2)/integer
+            out_channels = return tensor.size(1)
+            strides = list(length=2)/tuple(length=2)/integer
+            pad = True/False
+            activation = "relu"/"relu6"/"lklu"/"tanh"/"sigm"/"maxo"/"rmxo"/"swish"
+            dropout = 0.-1.
+            normalization = None/"batch"/"group"/"instance"/"layer"/"pixelwise"
+            pre_nm = True/False
+            groups = 1, ... out_channels
+            weight_nm = True/False -- https://arxiv.org/pdf/1602.07868.pdf
+            equalized = True/False -- https://arxiv.org/pdf/1710.10196.pdf
+    """
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1),
-                 pad=True, activation="relu", dropout=0., batch_nm=False,
-                 pre_nm=False, groups=1, weight_nm=False, *args, **kwargs):
+                 pad=True, activation="relu", dropout=0., normalization=None,
+                 pre_nm=False, groups=1, weight_nm=False, equalized=False, **kwargs):
         super(Convolution, self).__init__()
         # Checks
         assert len(tensor_size) == 4 and type(tensor_size) in [list, tuple], \
@@ -31,59 +47,71 @@ class Convolution(nn.Module):
         assert len(strides) == 2, "Convolution -- strides length must be 2"
         assert isinstance(pad, bool), "Convolution -- pad must be boolean"
         assert isinstance(dropout, float), "Convolution -- dropout must be float"
+        assert normalization in [None, "batch", "group", "instance", "layer", "pixelwise"], \
+            "Convolution's normalization must be None/'batch'/'group'/'instance'/'layer'/'pixelwise'"
+        assert isinstance(equalized, bool), "Convolution -- equalized must be boolean"
+        self.equalized = equalized
         activation = activation.lower()
+        dilation = kwargs["dilation"] if "dilation" in kwargs.keys() else (1, 1)
+
         # Modules
         padding = (filter_size[0]//2, filter_size[1]//2) if pad else 0
         if dropout > 0.:
             self.dropout = nn.Dropout2d(dropout)
         pre_expansion, pst_expansion = 1, 1
-        if pre_nm and activation in ("maxo", "rmxo"):
-            pre_expansion = 2
-        if not pre_nm and activation in ("maxo", "rmxo"):
-            pst_expansion = 2
+        if activation in ("maxo", "rmxo"):
+            if pre_nm: pre_expansion = 2
+            if not pre_nm: pst_expansion = 2
         if pre_nm:
-            if batch_nm:
-                self.Normalization = nn.BatchNorm2d(tensor_size[1])
-            act = Activations(activation)
-            if act is not None:
-                self.Activation = act
+            if normalization is not None:
+                self.Normalization = Normalizations(tensor_size, normalization, **kwargs)
+            if activation in ["relu", "relu6", "lklu", "tanh", "sigm", "maxo", "rmxo", "swish"]:
+                self.Activation = Activations(activation)
         if weight_nm:
-            """ https://arxiv.org/pdf/1602.07868.pdf """
-            self.Convolution = nn.utils.weight_norm(nn.Conv2d(tensor_size[1]//pre_expansion, out_channels*pst_expansion, filter_size,
-                                                              strides, padding, bias=False, groups=groups), name='weight')
+            self.Convolution = nn.utils.weight_norm(nn.Conv2d(tensor_size[1]//pre_expansion,
+                                                              out_channels*pst_expansion, filter_size, strides,
+                                                              padding, bias=False, groups=groups, dilation=dilation),
+                                                    name='weight')
         else:
-            self.Convolution = nn.Conv2d(tensor_size[1]//pre_expansion, out_channels*pst_expansion, filter_size, strides, padding, bias=False, groups=groups)
-            torch.nn.init.orthogonal_(self.Convolution.weight)
-        if not pre_nm:
-            if batch_nm:
-                self.Normalization = nn.BatchNorm2d(out_channels*pst_expansion)
-            act = Activations(activation)
-            if act is not None:
-                self.Activation = act
-        self.pre_nm = pre_nm
+            self.Convolution = nn.Conv2d(tensor_size[1]//pre_expansion, out_channels*pst_expansion,
+                                         filter_size, strides, padding, bias=False, groups=groups, dilation=dilation)
+            nn.init.kaiming_normal_(self.Convolution.weight, nn.init.calculate_gain("conv2d"))
+            if equalized:
+                import numpy as np
+                gain = kwargs["gain"] if "gain" in kwargs.keys() else np.sqrt(2)
+                fan_in = tensor_size[1] * out_channels * filter_size[0]
+                self.scale = gain / np.sqrt(fan_in)
+                self.Convolution.weight.data.mul_(self.scale)
+            # nn.init.orthogonal_(self.Convolution.weight)
         # out tensor size
         self.tensor_size = (tensor_size[0], out_channels,
                             int(1+(tensor_size[2] + (filter_size[0]//2 * 2 if pad else 0) - filter_size[0])/strides[0]),
                             int(1+(tensor_size[3] + (filter_size[1]//2 * 2 if pad else 0) - filter_size[1])/strides[1]))
+        if not pre_nm:
+            if normalization is not None:
+                self.Normalization = Normalizations((self.tensor_size[0], out_channels*pst_expansion,
+                    self.tensor_size[2], self.tensor_size[3]), normalization, **kwargs)
+            if activation in ["relu", "relu6", "lklu", "tanh", "sigm", "maxo", "rmxo", "swish"]:
+                self.Activation = Activations(activation)
+        self.pre_nm = pre_nm
 
     def forward(self, tensor):
         if hasattr(self, "dropout"):
             tensor = self.dropout(tensor)
         if self.pre_nm:
-            if hasattr(self, "Normalization"):
-                tensor = self.Normalization(tensor)
-            if hasattr(self, "Activation"):
-                tensor = self.Activation(tensor)
+            if hasattr(self, "Normalization"): tensor = self.Normalization(tensor)
+            if hasattr(self, "Activation"): tensor = self.Activation(tensor)
             tensor = self.Convolution(tensor)
+            if self.equalized: tensor = tensor.mul(self.scale)
         else:
             tensor = self.Convolution(tensor)
-            if hasattr(self, "Normalization"):
-                tensor = self.Normalization(tensor)
-            if hasattr(self, "Activation"):
-                tensor = self.Activation(tensor)
+            if self.equalized: tensor = tensor.mul(self.scale)
+            if hasattr(self, "Normalization"): tensor = self.Normalization(tensor)
+            if hasattr(self, "Activation"): tensor = self.Activation(tensor)
         return tensor
 
 
-# x = torch.rand(3,3,10,10)
-# test = Convolution((1,3,10,10), (3,3), 16, (2,2), False, "rmxo", 0., True, False)
+# from core.NeuralLayers import Activations, Normalizations
+# x = torch.rand(3,8,10,10)
+# test = Convolution((1,8,10,10), (3,3), 16, (2,2), True, "maxo", 0., "pixelwise", True)
 # test(x).size()

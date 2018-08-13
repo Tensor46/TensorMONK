@@ -62,8 +62,7 @@ def Models(Architecture):
         embedding_net_kwargs = {"type": "ser152"}
     elif Architecture == "inceptionv4":
         embedding_net = InceptionV4
-        embedding_net_kwargs = {}
-        tensor_size = (1, 3, 299, 299)
+        embedding_net_kwargs = {"tensor_size": (1, 3, 299, 299)}
     elif Architecture == "mobilev1":
         embedding_net = MobileNetV1
         embedding_net_kwargs = {}

@@ -6,6 +6,7 @@ import numpy as np
 from ..NeuralLayers import *
 #==============================================================================#
 
+
 class MobileNetV2(nn.Module):
     """
         Implemented https://arxiv.org/pdf/1801.04381.pdf
@@ -13,9 +14,16 @@ class MobileNetV2(nn.Module):
         To replicate the paper, use default parameters
         Works fairly well, for tensor_size's of min(height, width) >= 128
     """
-    def __init__(self, tensor_size=(6, 3, 224, 224), activation="relu",
-                 batch_nm=True, pre_nm=False, weight_nm=False,
-                 embedding=False, n_embedding=256, *args, **kwargs):
+    def __init__(self,
+                 tensor_size = (6, 3, 224, 224),
+                 activation = "relu",
+                 normalization = "batch",
+                 pre_nm = False,
+                 weight_nm = False,
+                 equalized = False,
+                 embedding = False,
+                 n_embedding = 256,
+                 *args, **kwargs):
         super(MobileNetV2, self).__init__()
 
         self.Net46 = nn.Sequential()
@@ -28,14 +36,19 @@ class MobileNetV2(nn.Module):
 
         print("Input", tensor_size)
         self.Net46 = nn.Sequential()
-        self.Net46.add_module("Convolution", Convolution(tensor_size, 3, 32, 2, True, activation, 0., batch_nm, False, 1, weight_nm))
+        self.Net46.add_module("Convolution", Convolution(tensor_size, 3, 32, 2, True, activation, 0., normalization,
+                                                         False, 1, weight_nm, equalized, **kwargs))
         print("Convolution", self.Net46[-1].tensor_size)
 
         for i, (oc, s, t) in enumerate(block_params):
-            self.Net46.add_module("ResidualInverted"+str(i), ResidualInverted(self.Net46[-1].tensor_size, 3, oc, s, True, activation, 0., batch_nm, pre_nm, 1, weight_nm, t=t))
+            self.Net46.add_module("ResidualInverted"+str(i),
+                ResidualInverted(self.Net46[-1].tensor_size, 3, oc, s, True, activation, 0.,
+                                 normalization, pre_nm, 1, weight_nm, equalized, t=t, **kwargs))
             print("ResidualInverted"+str(i), self.Net46[-1].tensor_size)
 
-        self.Net46.add_module("ConvolutionLast", Convolution(self.Net46[-1].tensor_size, 1, 1280, 1, True, activation, 0., batch_nm, pre_nm, 1, weight_nm))
+        self.Net46.add_module("ConvolutionLast",
+            Convolution(self.Net46[-1].tensor_size, 1, 1280, 1, True, activation, 0.,
+                        normalization, pre_nm, 1, weight_nm, equalized, **kwargs))
         print("ConvolutionLast", self.Net46[-1].tensor_size)
         self.Net46.add_module("AveragePool", nn.AvgPool2d(self.Net46[-1].tensor_size[2:]))
         print("AveragePool", (1, 1280, 1, 1))

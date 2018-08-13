@@ -14,12 +14,15 @@ class SimpleNet(nn.Module):
     """
     def __init__(self, tensor_size=(6, 1, 28, 28), *args, **kwargs):
         super(SimpleNet, self).__init__()
-        activation, batch_nm, pre_nm = "relu", False, False
+        activation, normalization, pre_nm = "relu", None, False
 
         self.Net46 = nn.Sequential()
-        self.Net46.add_module("conv1", Convolution(tensor_size, 5, 16, 2, True, activation, 0., batch_nm, False))
-        self.Net46.add_module("conv2", Convolution(self.Net46[-1].tensor_size, 5, 32, 2, True, activation, 0., batch_nm, False))
-        self.Net46.add_module("conv3", Convolution(self.Net46[-1].tensor_size, 3, 64, 2, True, activation, 0., batch_nm, False))
+        self.Net46.add_module("conv1", Convolution(tensor_size, 5, 16, 2, True, activation,
+                                                   0., normalization, False))
+        self.Net46.add_module("conv2", Convolution(self.Net46[-1].tensor_size, 5, 32, 2, True,
+                                                   activation, 0., normalization, False))
+        self.Net46.add_module("conv3", Convolution(self.Net46[-1].tensor_size, 3, 64, 2, True,
+                                                   activation, 0., normalization, False))
         self.linear = nn.Linear(np.prod(self.Net46[-1].tensor_size), 64, bias=True)
 
         self.tensor_size = (6, 64)

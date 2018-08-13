@@ -24,7 +24,7 @@ Ignore the replicate_paper argument to create a deep architecture (with few resi
 
 ### [Progressive Growing of GANs](https://arxiv.org/pdf/1710.10196.pdf)
 
-Trained on CIFAR10
+Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 
 ![Generator at 4x4](https://github.com/Tensor46/TensorMONK/blob/develop/models/pggan-cifar10-level1.gif)
 ![Generator at 8x8](https://github.com/tensor46/TensorMONK/blob/develop/models/pggan-cifar10-level2.gif)
@@ -43,6 +43,7 @@ Trained on CIFAR10
 * [LinearVAE](https://arxiv.org/pdf/1312.6114v10.pdf)
 * [ConvolutionalVAE](https://arxiv.org/pdf/1312.6114v10.pdf)
 * SimpleNet
+* [PGGAN](https://arxiv.org/pdf/1710.10196.pdf)
 
 ### NeuralEssentials
 * BaseModel -- A base class that contains networks (embedding, loss or any), meters (loss, accuracy etc), fileName, isCUDA
@@ -66,10 +67,12 @@ Trained on CIFAR10
   * pad = True/False (True essentially delivers same output size when strides = 1, and False returns valid convolution)
   * activation = relu/relu6/lklu(leaky relu)/tanh/sigm/[maxo](https://arxiv.org/pdf/1302.4389.pdf)/[swish](https://arxiv.org/pdf/1710.05941v1.pdf)
   * dropout = 0. to 1. (adds dropout layer)
-  * batch_nm = True/False (adds batch normalization when True)
-  * pre_nm = True/False (when True along with batch_nm -- batch normalization + activation + convolution else convolution + batch normalization + activation)
+  * normalization = None/"batch"/"group"/"instance"/"layer"/"pixelwise"
+  * pre_nm = True/False (when True along with normalization = "batch" -- batch normalization + activation + convolution else convolution + batch normalization + activation)
   * groups = 1 (default)
   * [weight_nm](https://arxiv.org/pdf/1602.07868.pdf) = True/False
+  * [equalized](https://arxiv.org/pdf/1710.10196.pdf) = True/False
+
 
 * ConvolutionTranspose -- A convolution transpose layer with parameters same as Convolution layer
 

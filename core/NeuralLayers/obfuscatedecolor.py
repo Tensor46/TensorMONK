@@ -64,7 +64,8 @@ class ObfuscateDecolor(nn.Module):
                 if self.n_decolor == self.p_decolor.size(0):
                     self.n_decolor = 0
                 if self.p_decolor[self.n_decolor] == 1:
-                    tensor[i,] = F.conv2d(tensor[i,].unsqueeze(0), self.grey_code.cuda() if tensor.is_cuda else self.grey_code).expand(-1, 3, -1, -1)
+                    tensor[i,] = F.conv2d(tensor[i,].unsqueeze(0), self.grey_code.cuda() if 
+                                          tensor.is_cuda else self.grey_code).expand(-1, 3, -1, -1)
                 self.n_decolor += 1
 
         random_shit = torch.rand(1, *tensor.size()[1:])

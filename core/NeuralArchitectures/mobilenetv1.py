@@ -14,9 +14,16 @@ class MobileNetV1(nn.Module):
         To replicate the paper, use default parameters
         Works fairly well, for tensor_size of min(height, width) >= 128
     """
-    def __init__(self, tensor_size=(6, 3, 224, 224), activation="relu",
-                 batch_nm=True, pre_nm=False, weight_nm=False,
-                 embedding=False, n_embedding=256, *args, **kwargs):
+    def __init__(self,
+                 tensor_size = (6, 3, 224, 224),
+                 activation = "relu",
+                 normalization = "batch",
+                 pre_nm = False,
+                 weight_nm = False,
+                 equalized = False,
+                 embedding = False,
+                 n_embedding = 256,
+                 *args, **kwargs):
         super(MobileNetV1, self).__init__()
 
         self.Net46 = nn.Sequential()
@@ -33,7 +40,8 @@ class MobileNetV1(nn.Module):
         _tensor_size = tensor_size
         for i, (k, oc, s, g) in enumerate(block_params):
             self.Net46.add_module("Mobile"+str(i), Convolution(_tensor_size, k, oc, s,
-                                  True, activation, 0., batch_nm, False if i == 0 else pre_nm, g, weight_nm))
+                                  True, activation, 0., normalization, False if i == 0
+                                  else pre_nm, g, weight_nm, equalized))
             _tensor_size = self.Net46[-1].tensor_size
             print("Mobile"+str(i), _tensor_size)
 
