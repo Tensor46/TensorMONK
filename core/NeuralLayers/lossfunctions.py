@@ -82,7 +82,9 @@ class CategoricalLoss(nn.Module):
         BSZ = features.size(0)
 
         if self.distance == "cosine" or self.type == "lmcl":
-            responses = features.mm(self.weight).div( ((features**2).sum(1,keepdim=True)**.5) * ((self.weight**2).sum(0,keepdim=True)**.5) )
+            self.weight.data = self.weight.data.div(self.weight.pow(2).sum(0, True).pow(.5).add(1e-8))
+            features = features.div(features.pow(2).sum(1, True).pow(.5).add(1e-8))
+            responses = features.mm(self.weight).div( ((features**2).sum(1, True)**.5) * ((self.weight**2).sum(0, True)**.5) )
             responses = responses.clamp(-1., 1.)
         else:
             responses = features.mm(self.weight)
