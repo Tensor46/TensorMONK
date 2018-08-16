@@ -2,7 +2,7 @@
 
 __all__ = ["CapsuleNet", "SimpleNet", "ShuffleNet", "MobileNetV1", "MobileNetV2",
            "ResidualNet", "InceptionV4", "LinearVAE", "ConvolutionalVAE", "PGGAN",
-           "ContextNet",
+           "ContextNet", "FeatureNet", "FeatureCapNet", "PointNet", "UNet", "UNetPatch",
            "Models"]
 
 from .capsulenet import CapsuleNet
@@ -16,7 +16,13 @@ from .linearvae import LinearVAE
 from .convolutionalvae import ConvolutionalVAE
 from .pggan import PGGAN
 from .contextnet import ContextNet
+from .featurenet import FeatureNet, FeatureCapNet
+from .pointnet import PointNet
+from .unet import UNet, UNetPatch
 
+del unet
+del pointnet
+del featurenet
 del contextnet
 del pggan
 del capsulenet

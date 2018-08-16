@@ -8,6 +8,63 @@ import numpy as np
 #==============================================================================#
 
 
+def hardest_negative(lossValues,margin):
+    return lossValues.max(2)[0].max(1)[0].mean()
+def semihard_negative(lossValues, margin):
+    lossValues = torch.where((torch.ByteTensor(lossValues>0.) & torch.ByteTensor(lossValues<margin)), lossValues, torch.zeros(lossValues.size()))
+    return lossValues.max(2)[0].max(1)[0].mean()
+
+class TripletLoss(nn.Module):
+    def __init__(self, margin, negative_selection_fn='hardest_negative', samples_per_class = 2, *args, **kwargs):
+        super(TripletLoss, self).__init__()
+        self.tensor_size = (1,)
+        self.margin = margin
+        self.negative_selection_fn = negative_selection_fn
+        self.sqrEuc = lambda x : (x.unsqueeze(0) - x.unsqueeze(1)).pow(2).sum(2).div(x.size(1))
+        self.perclass = samples_per_class
+
+    def forward(self, embeddings, labels):
+        InClass     = labels.reshape(-1,1) == labels.reshape(1,-1)
+        Consider    = torch.eye(labels.size(0)).mul(-1).add(1).type(InClass.type())
+        Scores      = self.sqrEuc(embeddings)
+        Gs          = Scores.view(-1, 1)[(InClass*Consider).view(-1, 1)].reshape(-1, self.perclass-1)
+        Is          = Scores.view(-1, 1)[(InClass == 0).view(-1, 1)].reshape(-1, embeddings.size(0)-self.perclass)
+        lossValues = Gs.view(embeddings.size(0), -1, 1) - Is.view(embeddings.size(0), 1, -1) + self.margin
+        lossValues = lossValues.clamp(0.)
+        if self.negative_selection_fn == "hardest_negative":
+            return hardest_negative(lossValues, self.margin), Gs, Is
+        elif self.negative_selection_fn == "semihard_negative":
+            return semihard_negative(lossValues, self.margin), Gs, Is
+        else:
+            raise NotImplementedError
+#==============================================================================#
+
+class DiceLoss(nn.Module):
+    """
+    Implemented from https://arxiv.org/pdf/1803.11078.pdf
+    """
+    def __init__(self, type = "tversky", *args, **kwargs):
+        self.tensor_size = (1,)
+        if type == "tversky":
+            self.beta = 2.0
+        elif type == "dice":
+            self.beta = 1.0         # below Eq(6)
+        else:
+            raise NotImplementedError
+    def forward(self, prediction, targets):
+        top1, top5 = 0., 0.
+        p_i = prediction
+        p_j = prediction.mul(-1).add(1)
+
+        g_i = targets
+        g_j = targets.mul(-1).add(1)
+
+        num = (p_i*g_i).sum(1).sum(1).mul((1 + self.beta**2))   # eq(5)
+        den = num.add((p_i*g_j).sum(1).sum(1).mul((self.beta**2))).add((p_j*g_i).sum(1).sum(1).mul((self.beta)))    # eq(5)
+        loss = num/den
+        return loss.mean(), (top1, top5)
+#==============================================================================#
+
 class CapsuleLoss(nn.Module):
     def __init__(self, n_labels, *args, **kwargs):
         super(CapsuleLoss, self).__init__()
