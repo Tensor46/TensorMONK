@@ -8,11 +8,12 @@ from .carryresidue import ResidualInverted, ResidualShuffle, ResidualNeXt
 from .carryresidue import SEResidualComplex, SEResidualNeXt
 from .carryresidue import SimpleFire, CarryModular
 from .carryresidue import Stem2, InceptionA, InceptionB, InceptionC, ReductionA, ReductionB
+from .carryresidue import ContextNet_Bottleneck
 from .primarycapsule import PrimaryCapsule
 from .routingcapsule import RoutingCapsule
 
 from .detailpooling import DetailPooling
-from .lossfunctions import CapsuleLoss, CategoricalLoss
+from .lossfunctions import CapsuleLoss, CategoricalLoss, TripletLoss, DiceLoss
 from .obfuscatedecolor import ObfuscateDecolor
 
 from .activations import Activations

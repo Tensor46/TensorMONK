@@ -16,7 +16,7 @@ def train():
     args = parse_args()
     tensor_size = (1, 3, 224, 224)
     file_name = "./models/" + args.Architecture.lower()
-    embedding_net, embedding_net_kwargs = NeuralArchitectures.Models("resnext50")
+    embedding_net, embedding_net_kwargs = NeuralArchitectures.Models(args.Architecture.lower())
 
     train_loader, n_labels = NeuralEssentials.FolderITTR(args.trainDataPath, args.BSZ, tensor_size, args.cpus,
                                                          functions=[], random_flip=True)

@@ -4,7 +4,8 @@ __all__ = ["ResidualOriginal", "ResidualComplex", "ResidualComplex2", "ResidualI
            "ResidualShuffle", "ResidualNeXt",
            "SEResidualComplex", "SEResidualNeXt",
            "SimpleFire", "CarryModular",
-           "Stem2", "InceptionA", "InceptionB", "InceptionC", "ReductionA", "ReductionB"]
+           "Stem2", "InceptionA", "InceptionB", "InceptionC", "ReductionA", "ReductionB",
+           "ContextNet_Bottleneck"]
 
 import torch
 import torch.nn as nn
@@ -558,7 +559,7 @@ class InceptionC(nn.Module):
                                   pre_nm, groups, weight_nm, equalized, **kwargs)
         self.path4 = nn.Sequential(Convolution(tensor_size, 1, 384, 1, True, activation, 0., normalization,
                                                pre_nm, groups, weight_nm, equalized, **kwargs),
-                                   Convolution((1, 384, H, W), (1, 3), 448, 1, True, activation, 0., normalization, 
+                                   Convolution((1, 384, H, W), (1, 3), 448, 1, True, activation, 0., normalization,
                                                pre_nm, groups, weight_nm, equalized, **kwargs),
                                    Convolution((1, 448, H, W), (3, 1), 512, 1, True, activation, 0., normalization,
                                                pre_nm, groups, weight_nm, equalized, **kwargs))
@@ -575,6 +576,25 @@ class InceptionC(nn.Module):
         return torch.cat((self.path1(tensor), self.path2(tensor), self.path3a(path3),
                           self.path3b(path3), self.path4a(path4), self.path4b(path4)), 1)
 
+class ContextNet_Bottleneck(nn.Module):
+    """ bottleneck for contextnet - https://arxiv.org/pdf/1805.04554.pdf - Table 1 """
+    def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
+    activation="relu", dropout=0., normalization="batch", pre_nm=False,
+    groups=1, weight_nm=False, expansion = 1, *args, **kwargs):
+        super(ContextNet_Bottleneck, self).__init__()
+        self.network = nn.Sequential()
+        self.network.add_module("Block1x1_t",    Convolution(tensor_size, 1, tensor_size[1]*expansion, 1,  True, activation, 0., normalization, pre_nm, groups))
+        self.network.add_module("Block3x3_DW11", Convolution(self.network[-1].tensor_size, filter_size, tensor_size[1]*expansion,  strides, True, activation, 0., normalization, pre_nm, groups = tensor_size[1]))
+        self.network.add_module("Block3x3_DW12", Convolution(self.network[-1].tensor_size, 1, tensor_size[1]*expansion, 1,True, activation, 0., normalization, pre_nm, groups))
+        self.network.add_module("Block1x1",      Convolution(self.network[-1].tensor_size, 1, out_channels, 1,  True, " ", 0., normalization, pre_nm, groups))
+        self.tensor_size = self.network[-1].tensor_size
+
+        if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) or tensor_size[1] != out_channels:
+            # _filter_size = (3, 3) if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) else (1, 1)
+            self.edit_residue = Convolution(tensor_size, 1, out_channels, strides, True, "", 0., normalization, pre_nm, groups)
+    def forward(self, tensor):
+        residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") else tensor
+        return self.network(tensor) + residue
 
 # from core.NeuralLayers import Convolution, Activations
 # tensor_size = (3,3,299,299)
