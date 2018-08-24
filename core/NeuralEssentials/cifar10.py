@@ -10,7 +10,10 @@ def CIFAR10(data_path="./data/CIFAR10", tensor_size = (6, 3, 32, 32), BSZ=64, cp
             normalize_01=False):
     n_labels = 10
     if normalize_01:
-        transform = transforms.Compose([transforms.ToTensor(),])
+        transform = transforms.Compose([transforms.ColorJitter(.5, .5, .2),
+                                        transforms.RandomGrayscale(p=.16),
+                                        transforms.RandomVerticalFlip(p=0.46),
+                                        transforms.ToTensor(),])
     else:
         transform = transforms.Compose([transforms.ToTensor(),
                                         transforms.Normalize((0.4914, 0.4822, 0.4465),
