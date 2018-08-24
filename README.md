@@ -4,7 +4,7 @@ A collection of deep learning architectures (a PyTorch implementation).
 
 ## Dependencies
 * python 3.6
-* PyTorch 0.4
+* PyTorch 0.4.1
 * torchvision
 * visdom
 
@@ -44,10 +44,10 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 * [ConvolutionalVAE](https://arxiv.org/pdf/1312.6114v10.pdf)
 * SimpleNet
 * [PGGAN](https://arxiv.org/pdf/1710.10196.pdf)
-* [ContextNet] (https://arxiv.org/pdf/1805.04554.pdf) (bottleneck layer of ContextNet is implemented in NeuralLayers/CarryResidue/)
-* [PointNet] (http://openaccess.thecvf.com/content_cvpr_2017/papers/Zhang_Learning_Discriminative_and_CVPR_2017_paper.pdf)
-* [UNet] (https://arxiv.org/pdf/1505.04597.pdf)
-  * [UNetPatch] -- Works on small patches.
+* [ContextNet](https://arxiv.org/pdf/1805.04554.pdf) (bottleneck layer of ContextNet is implemented in NeuralLayers/CarryResidue/)
+* [PointNet](http://openaccess.thecvf.com/content_cvpr_2017/papers/Zhang_Learning_Discriminative_and_CVPR_2017_paper.pdf)
+* [UNet](https://arxiv.org/pdf/1505.04597.pdf)
+  * UNetPatch -- Works on small patches.
 
 ### NeuralEssentials
 * BaseModel -- A base class that contains networks (embedding, loss or any), meters (loss, accuracy etc), fileName, isCUDA
@@ -100,12 +100,9 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 
 * [PrimaryCapsule](https://arxiv.org/pdf/1710.09829.pdf)
 * [RoutingCapsule](https://arxiv.org/pdf/1710.09829.pdf)
-* [DetailPooling](https://arxiv.org/pdf/1804.04076.pdf) -- Use asymmetric and lite to switch between different implementations.
-  * asymmetric - True (equation 6)/False (equation 5)
-  * lite - True (trainable weights - full-DPP) / False (linearly downscale)
 
 * LossFunctions
   * [CapsuleLoss](https://arxiv.org/pdf/1710.09829.pdf)
   * CategoricalLoss -- Cross entropy / softmax / [taylor softmax](https://arxiv.org/pdf/1511.05042.pdf) / [large margin cosine loss](https://arxiv.org/pdf/1801.09414.pdf)
-  * [TripletLoss]
-  * [DiceLoss/ Tversky Loss] (https://arxiv.org/abs/1706.05721)
+  * TripletLoss
+  * [DiceLoss/ Tversky Loss](https://arxiv.org/abs/1706.05721)
