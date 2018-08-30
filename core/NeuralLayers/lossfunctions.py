@@ -7,12 +7,13 @@ from torch.autograd  import Variable
 import numpy as np
 #==============================================================================#
 
-
 def hardest_negative(lossValues,margin):
     return lossValues.max(2)[0].max(1)[0].mean()
+
 def semihard_negative(lossValues, margin):
     lossValues = torch.where((torch.ByteTensor(lossValues>0.) & torch.ByteTensor(lossValues<margin)), lossValues, torch.zeros(lossValues.size()))
     return lossValues.max(2)[0].max(1)[0].mean()
+
 
 class TripletLoss(nn.Module):
     def __init__(self, margin, negative_selection_fn='hardest_negative', samples_per_class = 2, *args, **kwargs):
@@ -39,6 +40,7 @@ class TripletLoss(nn.Module):
             raise NotImplementedError
 #==============================================================================#
 
+
 class DiceLoss(nn.Module):
     """
     Implemented from https://arxiv.org/pdf/1803.11078.pdf
@@ -64,6 +66,7 @@ class DiceLoss(nn.Module):
         loss = num/den
         return loss.mean(), (top1, top5)
 #==============================================================================#
+
 
 class CapsuleLoss(nn.Module):
     def __init__(self, n_labels, *args, **kwargs):
@@ -121,17 +124,21 @@ class CategoricalLoss(nn.Module):
     def __init__(self, tensor_size=128, n_labels=10, type="entr",
                  distance="dot", center=False, *args, **kwargs):
         super(CategoricalLoss, self).__init__()
+
         if isinstance(tensor_size, list) or isinstance(tensor_size, tuple):
             if len(tensor_size)>1: # batch size is not required
-                tensor_size = tensor_size[1:]
+                tensor_size = np.prod(tensor_size[1:])
+            else:
+                tensor_size = tensor_size[0]
+        n_embedding = tensor_size
 
         self.type = type.lower()
         self.distance = distance.lower()
         self.center = center
 
         self.n_labels = n_labels
-        self.weight = nn.Parameter(torch.Tensor(int(np.prod(tensor_size)),n_labels))
-        nn.init.orthogonal_(self.weight, gain=1./np.sqrt(np.prod(tensor_size)))
+        self.weight = nn.Parameter(torch.Tensor(n_labels, int(np.prod(n_embedding))))
+        nn.init.orthogonal_(self.weight, gain=1./np.sqrt(np.prod(n_embedding)))
         self.m, self.s = .3, 10
         self.tensor_size = (1,)
 
@@ -139,12 +146,12 @@ class CategoricalLoss(nn.Module):
         BSZ = features.size(0)
 
         if self.distance == "cosine" or self.type == "lmcl":
-            self.weight.data = self.weight.data.div(self.weight.pow(2).sum(0, True).pow(.5).add(1e-8))
+            self.weight.data = self.weight.data.div(self.weight.pow(2).sum(1, True).pow(.5).add(1e-8))
             features = features.div(features.pow(2).sum(1, True).pow(.5).add(1e-8))
-            responses = features.mm(self.weight).div( ((features**2).sum(1, True)**.5) * ((self.weight**2).sum(0, True)**.5) )
+            responses = features.mm(self.weight.t()).div( ((features**2).sum(1, True)**.5) * ((self.weight.t()**2).sum(0, True)**.5) )
             responses = responses.clamp(-1., 1.)
         else:
-            responses = features.mm(self.weight)
+            responses = features.mm(self.weight.t())
 
         predicted = responses.topk(5, 1, True, True)[1]
         predicted = predicted.t()
