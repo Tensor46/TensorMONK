@@ -395,9 +395,13 @@ class DenseBlock(nn.Module):
         self.blocks = nn.ModuleDict()
         for n in range(1, n_blocks+1):
             self.blocks.update({"block-"+str(n):
-                block(tensor_size, filter_size, growth_rate, 1, True,
-                activation, 0., normalization, pre_nm, groups, weight_nm,
-                equalized, **kwargs)})
+                nn.Sequential(block(tensor_size, 1, growth_rate, 1,
+                                    True, activation, 0., normalization, pre_nm,
+                                    groups, weight_nm, equalized, **kwargs),
+                              block((1, growth_rate, tensor_size[2], tensor_size[3]),
+                                    filter_size, growth_rate, 1,
+                                    True, activation, 0., normalization, pre_nm,
+                                    groups, weight_nm, equalized, **kwargs))})
             tensor_size[1] += growth_rate
         self.tensor_size = (tensor_size[0], out_channels, tensor_size[2],
             tensor_size[3])
