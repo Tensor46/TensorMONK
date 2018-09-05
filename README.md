@@ -90,6 +90,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
   * [ResidualInverted](https://arxiv.org/pdf/1801.04381.pdf)
   * [ResidualShuffle](https://arxiv.org/pdf/1707.01083.pdf)
   * [SimpleFire](https://arxiv.org/pdf/1602.07360.pdf)
+  * [DenseBlock](https://arxiv.org/pdf/1608.06993.pdf)
   * [Stem2](https://arxiv.org/pdf/1602.07261.pdf)
   * [InceptionA](https://arxiv.org/pdf/1602.07261.pdf)
   * [InceptionB](https://arxiv.org/pdf/1602.07261.pdf)
