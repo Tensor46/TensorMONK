@@ -76,13 +76,13 @@ class CudaModel(nn.Module):
 
                 # ignore normalization weights (gamma's & beta's) and bias
                 newid = p.replace("NET46.", "").replace("network.", "")
-                if p.data.ndimension() == 4:
-                    if p.data.size(2) > 3 and p.data.size(3) > 3:
-                        ws = p.data.cpu()
-                        if not (p.data.size(1) == 1 or p.data.size(1) == 3):
+                ws = self.NET46.state_dict()[p].data.cpu()
+                if ws.ndimension() == 4:
+                    if ws.size(2) > 3 and ws.size(3) > 3:
+                        if not (ws.size(1) == 1 or ws.size(1) == 3):
                             ws = ws.view(-1, 1, ws.size(2), ws.size(3))
                         visplots.image(ws, opts={"title": "Ws-"+newid},
                             win="Ws-"+newid)
-                param = self.NET46.state_dict()[p].data.cpu().view(-1)
-                visplots.histogram(X=param,
+                ws = ws.view(-1)
+                visplots.histogram(X=ws,
                     opts={"numbins": 20, "title":newid}, win=newid)
