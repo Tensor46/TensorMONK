@@ -25,10 +25,23 @@ class Convolution(nn.Module):
             groups = 1, ... out_channels
             weight_nm = True/False -- https://arxiv.org/pdf/1602.07868.pdf
             equalized = True/False -- https://arxiv.org/pdf/1710.10196.pdf
+            shift = True/False -- https://arxiv.org/pdf/1711.08141.pdf
     """
-    def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1),
-                 pad=True, activation="relu", dropout=0., normalization=None,
-                 pre_nm=False, groups=1, weight_nm=False, equalized=False, **kwargs):
+    def __init__(self,
+                 tensor_size,
+                 filter_size,
+                 out_channels,
+                 strides        = (1, 1),
+                 pad            = True,
+                 activation     = "relu",
+                 dropout        = 0.,
+                 normalization  = None,
+                 pre_nm         = False,
+                 groups         = 1,
+                 weight_nm      = False,
+                 equalized      = False,
+                 shift          = False,
+                 **kwargs):
         super(Convolution, self).__init__()
         # Checks
         assert len(tensor_size) == 4 and type(tensor_size) in [list, tuple], \
@@ -50,7 +63,9 @@ class Convolution(nn.Module):
         assert normalization in [None, "batch", "group", "instance", "layer", "pixelwise"], \
             "Convolution's normalization must be None/'batch'/'group'/'instance'/'layer'/'pixelwise'"
         assert isinstance(equalized, bool), "Convolution -- equalized must be boolean"
+        assert isinstance(shift, bool), "Convolution -- shift must be boolean"
         self.equalized = equalized
+        self.shift = shift
         activation = activation.lower()
         dilation = kwargs["dilation"] if "dilation" in kwargs.keys() else (1, 1)
 
@@ -110,6 +125,9 @@ class Convolution(nn.Module):
             if hasattr(self, "Activation"): tensor = self.Activation(tensor)
         return tensor
 
+    def shift_zero_op(self, tensor):
+
+        return tensor
 
 # from core.NeuralLayers import Activations, Normalizations
 # x = torch.rand(3,8,10,10)
