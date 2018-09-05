@@ -48,9 +48,9 @@ class CudaModel(nn.Module):
                         p.data.clamp_(-1, 1)
                 elif p.data.ndimension() == 3:
                     # routing capsule
-                    pass
-                    # l2 = p.data.pow(2).sum(1).pow(.5).add(1e-8)
-                    # p.data.div_(l2.unsqueeze(1))
+                    # pass
+                    l2 = p.data.pow(2).sum(2).sum(1).pow(.5).add(1e-8)
+                    p.data.div_(l2.unsqueeze(1).unsqueeze(2))
                 elif p.data.ndimension() == 2:
                     # fully-connected and lossfunctions
                     l2 = p.data.pow(2).sum(1).pow(.5).add(1e-8)
@@ -76,6 +76,13 @@ class CudaModel(nn.Module):
 
                 # ignore normalization weights (gamma's & beta's) and bias
                 newid = p.replace("NET46.", "").replace("network.", "")
+                if p.data.ndimension() == 4:
+                    if p.data.size(2) > 3 and p.data.size(3) > 3:
+                        ws = p.data.cpu()
+                        if not (p.data.size(1) == 1 or p.data.size(1) == 3):
+                            ws = ws.view(-1, 1, ws.size(2), ws.size(3))
+                        visplots.image(ws, opts={"title": "Ws-"+newid},
+                            win="Ws-"+newid)
                 param = self.NET46.state_dict()[p].data.cpu().view(-1)
                 visplots.histogram(X=param,
                     opts={"numbins": 20, "title":newid}, win=newid)
