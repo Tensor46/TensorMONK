@@ -9,6 +9,7 @@ __all__ = ["ResidualOriginal", "ResidualComplex", "ResidualComplex2", "ResidualI
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from .convolution import Convolution
 from .activations import Activations
 # ============================================================================ #
@@ -367,6 +368,50 @@ class CarryModular(nn.Module):
 # ============================================================================ #
 
 
+class DenseBlock(nn.Module):
+    def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1),
+                 pad=True, activation="relu", dropout=0., normalization=None,
+                 pre_nm=False, groups=1, weight_nm=False, equalized=False,
+                 growth_rate=16, block=Convolution, n_blocks=4, *args, **kwargs):
+        super(DenseBlock, self).__init__()
+
+        assert out_channels == tensor_size[1]+growth_rate*n_blocks, \
+            "DenseBlock -- out_channels != tensor_size[1]+growth_rate*n_blocks"
+
+        pad = True
+        pool_input = (strides > 1 if isinstance(strides, int) else
+            (strides[0] > 1 or strides[1] > 1))
+        if pool_input:
+            tensor_size = list(F.avg_pool2d(torch.rand(*tensor_size), 3, 2, 1).size())
+        if dropout > 0. and not pool_input:
+            self.pre_network = nn.Dropout2d(dropout)
+        elif dropout == 0. and pool_input:
+            self.pre_network = nn.AvgPool2d(3, 2, padding=1)
+        elif dropout > 0. and pool_input:
+            self.pre_network = nn.Sequential(nn.Dropout2d(dropout),
+                nn.AvgPool2d(3, 2, padding=1))
+
+        tensor_size = list(tensor_size)
+        self.blocks = nn.ModuleDict()
+        for n in range(1, n_blocks+1):
+            self.blocks.update({"block-"+str(n):
+                block(tensor_size, filter_size, growth_rate, 1, True,
+                activation, 0., normalization, pre_nm, groups, weight_nm,
+                equalized, **kwargs)})
+            tensor_size[1] += growth_rate
+        self.tensor_size = (tensor_size[0], out_channels, tensor_size[2],
+            tensor_size[3])
+
+    def forward(self, tensor):
+        if hasattr(self, "pre_network"): # for dropout and strides
+            tensor = self.pre_network(tensor)
+
+        for module in self.blocks.values():
+            tensor = torch.cat((tensor, module(tensor)), 1)
+        return tensor
+# ============================================================================ #
+
+
 class Stem2(nn.Module):
     """ For InceptionV4 and InceptionResNetV2 - https://arxiv.org/pdf/1602.07261.pdf """
     def __init__(self, tensor_size=(1, 3, 299, 299), activation="relu", normalization="batch",
@@ -575,6 +620,8 @@ class InceptionC(nn.Module):
         path4 = self.path4(tensor)
         return torch.cat((self.path1(tensor), self.path2(tensor), self.path3a(path3),
                           self.path3b(path3), self.path4a(path4), self.path4b(path4)), 1)
+# ============================================================================ #
+
 
 class ContextNet_Bottleneck(nn.Module):
     """ bottleneck for contextnet - https://arxiv.org/pdf/1805.04554.pdf - Table 1 """
@@ -583,10 +630,20 @@ class ContextNet_Bottleneck(nn.Module):
     groups=1, weight_nm=False, expansion = 1, *args, **kwargs):
         super(ContextNet_Bottleneck, self).__init__()
         self.network = nn.Sequential()
-        self.network.add_module("Block1x1_t",    Convolution(tensor_size, 1, tensor_size[1]*expansion, 1,  True, activation, 0., normalization, pre_nm, groups))
-        self.network.add_module("Block3x3_DW11", Convolution(self.network[-1].tensor_size, filter_size, tensor_size[1]*expansion,  strides, True, activation, 0., normalization, pre_nm, groups = tensor_size[1]))
-        self.network.add_module("Block3x3_DW12", Convolution(self.network[-1].tensor_size, 1, tensor_size[1]*expansion, 1,True, activation, 0., normalization, pre_nm, groups))
-        self.network.add_module("Block1x1",      Convolution(self.network[-1].tensor_size, 1, out_channels, 1,  True, " ", 0., normalization, pre_nm, groups))
+        self.network.add_module("Block1x1_t",
+            Convolution(tensor_size, 1, tensor_size[1]*expansion, 1,  True,
+            activation, 0., normalization, pre_nm, groups))
+        self.network.add_module("Block3x3_DW11",
+            Convolution(self.network[-1].tensor_size, filter_size,
+            tensor_size[1]*expansion,  strides, True, activation, 0.,
+            normalization, pre_nm, groups = tensor_size[1]))
+        self.network.add_module("Block3x3_DW12",
+            Convolution(self.network[-1].tensor_size, 1,
+            tensor_size[1]*expansion, 1,True, activation, 0.,
+            normalization, pre_nm, groups))
+        self.network.add_module("Block1x1",
+            Convolution(self.network[-1].tensor_size, 1, out_channels, 1,  True,
+            " ", 0., normalization, pre_nm, groups))
         self.tensor_size = self.network[-1].tensor_size
 
         if (strides > 1 if isinstance(strides, int) else (strides[0] > 1 or strides[1] > 1)) or tensor_size[1] != out_channels:
@@ -640,5 +697,8 @@ class ContextNet_Bottleneck(nn.Module):
 # test(x).size()
 # %timeit test(x).size()
 # test = SEResidualNeXt(tensor_size, 3, 64, 2, False, "relu", 0., "batch", False)
+# test(x).size()
+# %timeit test(x).size()
+# test = DenseBlock(tensor_size, 3, 128, 1, True, "relu", 0., "batch", False)
 # test(x).size()
 # %timeit test(x).size()
