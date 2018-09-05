@@ -3,12 +3,10 @@
 from .linear import Linear
 from .convolution import Convolution
 from .convolutiontranspose import ConvolutionTranspose
-from .carryresidue import ResidualOriginal, ResidualComplex, ResidualComplex2
-from .carryresidue import ResidualInverted, ResidualShuffle, ResidualNeXt
-from .carryresidue import SEResidualComplex, SEResidualNeXt
-from .carryresidue import SimpleFire, CarryModular
-from .carryresidue import Stem2, InceptionA, InceptionB, InceptionC, ReductionA, ReductionB
-from .carryresidue import ContextNet_Bottleneck
+from .carryresidue import ResidualOriginal, ResidualComplex, ResidualComplex2, \
+    ResidualInverted, ResidualShuffle, ResidualNeXt, SEResidualComplex,
+    SEResidualNeXt, SimpleFire, CarryModular, DenseBlock, Stem2, InceptionA,
+    InceptionB, InceptionC, ReductionA, ReductionB,ContextNet_Bottleneck
 from .primarycapsule import PrimaryCapsule
 from .routingcapsule import RoutingCapsule
 
