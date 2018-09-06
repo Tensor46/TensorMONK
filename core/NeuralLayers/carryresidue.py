@@ -372,7 +372,8 @@ class DenseBlock(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1),
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 growth_rate=16, block=Convolution, n_blocks=4, *args, **kwargs):
+                 growth_rate=16, block=Convolution, n_blocks=4, multiplier=4,
+                 *args, **kwargs):
         super(DenseBlock, self).__init__()
 
         assert out_channels == tensor_size[1]+growth_rate*n_blocks, \
@@ -395,10 +396,10 @@ class DenseBlock(nn.Module):
         self.blocks = nn.ModuleDict()
         for n in range(1, n_blocks+1):
             self.blocks.update({"block-"+str(n):
-                nn.Sequential(block(tensor_size, 1, growth_rate, 1,
+                nn.Sequential(block(tensor_size, 1, growth_rate*multiplier, 1,
                                     True, activation, 0., normalization, pre_nm,
                                     groups, weight_nm, equalized, **kwargs),
-                              block((1, growth_rate, tensor_size[2], tensor_size[3]),
+                              block((1, growth_rate*multiplier, tensor_size[2], tensor_size[3]),
                                     filter_size, growth_rate, 1,
                                     True, activation, 0., normalization, pre_nm,
                                     groups, weight_nm, equalized, **kwargs))})

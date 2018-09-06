@@ -1,7 +1,8 @@
 """ TensorMONK's :: NeuralArchitectures                                      """
 
 __all__ = ["CapsuleNet", "SimpleNet", "ShuffleNet", "MobileNetV1", "MobileNetV2",
-           "ResidualNet", "InceptionV4", "LinearVAE", "ConvolutionalVAE", "PGGAN",
+           "ResidualNet", "InceptionV4", "DenseNet",
+           "LinearVAE", "ConvolutionalVAE", "PGGAN",
            "ContextNet", "FeatureNet", "FeatureCapNet", "PointNet", "UNet", "UNetPatch",
            "Models"]
 
@@ -11,6 +12,7 @@ from .shufflenet import ShuffleNet
 from .mobilenetv1 import MobileNetV1
 from .mobilenetv2 import MobileNetV2
 from .residualnet import ResidualNet
+from .densenet import DenseNet
 from .inceptionv4 import InceptionV4
 from .linearvae import LinearVAE
 from .convolutionalvae import ConvolutionalVAE
@@ -73,6 +75,18 @@ def Models(Architecture):
     elif Architecture == "inceptionv4":
         embedding_net = InceptionV4
         embedding_net_kwargs = {"tensor_size": (1, 3, 299, 299)}
+    elif Architecture == "dense121":
+        embedding_net = DenseNet
+        embedding_net_kwargs = {"type": "d121"}
+    elif Architecture == "dense169":
+        embedding_net = DenseNet
+        embedding_net_kwargs = {"type": "d169"}
+    elif Architecture == "dense201":
+        embedding_net = DenseNet
+        embedding_net_kwargs = {"type": "d201"}
+    elif Architecture == "dense264":
+        embedding_net = DenseNet
+        embedding_net_kwargs = {"type": "d264"}
     elif Architecture == "mobilev1":
         embedding_net = MobileNetV1
         embedding_net_kwargs = {}
