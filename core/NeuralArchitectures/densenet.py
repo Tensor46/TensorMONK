@@ -21,7 +21,6 @@ def map_pretrained(state_dict, type):
     else:
         print(" ... pretrained weights are not avaiable for {}".format(type))
         return state_dict
-    state_dict = test.state_dict()
 
     # download is not in models
     filename = os.path.join(".../models" if os.path.isdir(".../models") else
