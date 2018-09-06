@@ -116,6 +116,9 @@ class ResidualNet(nn.Module):
             rn152/ser50/ser101/ser152/sern50/sern101/sern152"""
 
         self.pretrained = pretrained
+        if self.pretrained:
+            assert tensor_size[1] == 1 or tensor_size[1] == 3, """ResidualNet ::
+                rgb(preferred)/grey image is required for pretrained"""
         self.type = type
         self.in_tensor_size = tensor_size
 
@@ -219,7 +222,7 @@ class ResidualNet(nn.Module):
         if self.in_tensor_size[1] == 1 or self.in_tensor_size[1] == 3:
             self.load_state_dict(map_pretrained(self.state_dict(), self.type))
         else:
-            print(" ... pretrained only available for rgb/grey inputs")
+            print(" ... pretrained not available")
             self.pretrained = False
 
 # from core.NeuralLayers import *
