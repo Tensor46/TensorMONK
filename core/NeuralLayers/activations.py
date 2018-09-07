@@ -60,6 +60,6 @@ def Activations(activation):
     return None
 
 
-x = torch.rand(3,3,10,10)
-test = Activations("sigm")
-test(x).max()
+# x = torch.rand(3,3,10,10)
+# test = Activations("sigm")
+# test(x).max()
