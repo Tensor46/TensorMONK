@@ -66,27 +66,3 @@ class CudaModel(nn.Module):
                 for p in self.NET46.parameters():
                     if p.data.ndimension() in [2, 3, 4]:
                         p.data.clamp_(-clip, clip)
-
-    def show_weights(self, visplots=None):
-        for p in self.NET46.state_dict().keys():
-            if isinstance(visplots, visdom.Visdom) and "weight" in p and \
-               "weight_g" not in p and "Normalization" not in p and \
-               "bias" not in p:
-
-                # ignore normalization weights (gamma's & beta's) and bias
-                newid = p.replace("NET46.", "").replace("network.", "")
-                ws = self.NET46.state_dict()[p].data.cpu()
-                sz = ws.size()
-                if ws.ndimension() == 4:
-                    if sz[2] > 3 and sz[3] > 3:
-                        if not (sz[1] == 1 or sz[1] == 3):
-                            ws = ws.view(-1, 1, sz[2], sz[3])
-                            sz = ws.size()
-                        if sz[0] <= 2*10:
-                            min_ws = ws.min(2, True)[0].min(3, True)[0]
-                            max_ws = ws.max(2, True)[0].max(3, True)[0]
-                            visplots.images((ws-min_ws) / (max_ws-min_ws),
-                                opts={"title": "Ws-"+newid}, win="Ws-"+newid)
-                ws = ws.view(-1)
-                visplots.histogram(X=ws,
-                    opts={"numbins": 20, "title":newid}, win=newid)
