@@ -19,20 +19,25 @@ import torch.optim as neuralOptimizer
 def trainMONK():
     args = parse_args()
     tensor_size = (1, 1, 28, 28)
-    trDataLoader, teDataLoader, n_labels = core.NeuralEssentials.MNIST(args.trainDataPath,  tensor_size, args.BSZ, args.cpus)
+    trDataLoader, teDataLoader, n_labels = core.NeuralEssentials.MNIST(args.trainDataPath,
+        tensor_size, args.BSZ, args.cpus)
     file_name = "./models/" + args.Architecture.lower()
-    Model = core.NeuralEssentials.MakeCNN(file_name, tensor_size, n_labels,
-                                       embedding_net=core.NeuralArchitectures.SimpleNet,
-                                       embedding_net_kwargs={},
-                                       loss_net=core.NeuralLayers.CategoricalLoss,
-                                       loss_net_kwargs={"type" : args.loss_type, "distance" : args.loss_distance},
-                                       default_gpu=args.default_gpu, gpus=args.gpus,
-                                       ignore_trained=args.ignore_trained)
+    visplots = core.NeuralEssentials.VisPlots(file_name)
+    Model = core.NeuralEssentials.MakeModel(file_name, tensor_size, n_labels,
+                                            embedding_net=core.NeuralArchitectures.SimpleNet,
+                                            embedding_net_kwargs={},
+                                            loss_net=core.NeuralLayers.CategoricalLoss,
+                                            loss_net_kwargs={"type": args.loss_type,
+                                                             "distance": args.loss_distance},
+                                            default_gpu=args.default_gpu,
+                                            gpus=args.gpus,
+                                            ignore_trained=args.ignore_trained)
     params = list(Model.netEmbedding.parameters()) + list(Model.netLoss.parameters())
+
     if args.optimizer.lower() == "adam":
-        Optimizer = neuralOptimizer.Adam(params)
+        Optimizer = neuralOptimizer.Adam(params, amsgrad=True)
     elif args.optimizer.lower() == "sgd":
-        Optimizer = neuralOptimizer.SGD(params, lr= args.learningRate)
+        Optimizer = neuralOptimizer.SGD(params, lr=args.learningRate)
     else:
         raise NotImplementedError
 
@@ -54,12 +59,15 @@ def trainMONK():
             Optimizer.step()
 
             # updating all meters
-            Model.meterTop1.append(float(top1.cpu().data.numpy() if torch.__version__.startswith("0.4") else top1.cpu().data.numpy()[0]))
-            Model.meterTop5.append(float(top5.cpu().data.numpy() if torch.__version__.startswith("0.4") else top5.cpu().data.numpy()[0]))
-            Model.meterLoss.append(float(loss.cpu().data.numpy() if torch.__version__.startswith("0.4") else loss.cpu().data.numpy()[0]))
-
+            Model.meterTop1.append(float(top1.cpu().data.numpy()))
+            Model.meterTop5.append(float(top5.cpu().data.numpy()))
+            Model.meterLoss.append(float(loss.cpu().data.numpy()))
             Model.meterSpeed.append(int(float(args.BSZ)/(timeit.default_timer()-Timer)))
             Timer = timeit.default_timer()
+
+            # weight visualization
+            if i % 50 == 0:
+                visplots.show_weights(Model.netEmbedding.state_dict(), png_name="./models/ws")
 
             print("... {:6d} :: Cost {:2.3f} :: Top1/Top5 - {:3.2f}/{:3.2f} :: {:4d} I/S         ".format(Model.meterIterations,
                 Model.meterLoss[-1], Model.meterTop1[-1], Model.meterTop5[-1], Model.meterSpeed[-1]),end="\r")

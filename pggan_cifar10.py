@@ -10,18 +10,6 @@ import core
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
-
-import visdom
-import torchvision.utils as tutils
-visplots = visdom.Visdom(env="pggan-cifar10")
-import imageio
-# ============================================================================ #
-
-
-def MakeGIF(list_images, file_name):
-    if not file_name.endswith(".gif"):
-        file_name += ".gif"
-    imageio.mimsave(file_name, [imageio.imread(x) for x in list_images])
 # ============================================================================ #
 
 
@@ -37,6 +25,7 @@ def train():
 
     # build model and set pggan updater
     file_name = "./models/pggan-cifar10"
+    visplots = core.NeuralEssentials.VisPlots(file_name)
     Model = core.NeuralEssentials.MakeModel(file_name, tensor_size, n_labels,
                                             embedding_net=core.NeuralArchitectures.PGGAN,
                                             embedding_net_kwargs={"n_embedding": args.n_embedding,
@@ -102,28 +91,18 @@ def train():
                 g_optimizer.step()
 
             # Visdom visualization + gifs
-            if Model.meterIterations % 100 == 0:
-                for p in Model.netEmbedding.state_dict().keys():
-                    if "weight" in p and "weight_g" not in p:
-                        newid = p.replace("NET46.", "").replace("network.", "")
-                        newid = newid.replace("g_modules", "G").replace("d_modules", "D")
-                        newid = newid.replace("level", "l").replace("weight_v", "weight")
-                        newid = newid.replace("FullyConnected", "").replace("..", ".")
-                        visplots.histogram(X=Model.netEmbedding.state_dict()[p].data.cpu().view(-1),
-                            opts={"numbins": 20, "title":newid}, win=newid)
-                visplots.images(fake.data.cpu(), opts={"title": "level" + str(Model.netEmbedding.NET46.current_level)},
-                               win = "level" + str(Model.netEmbedding.NET46.current_level))
-                visplots.images(tensor.data.cpu(), opts={"title": "real"}, win="real")
-                level_id = "level" + str(Model.netEmbedding.NET46.current_level)
+            if Model.meterIterations % 20 == 0:
                 if png_count == 20:
                     list_images = [os.path.join("./models", x) for x in
-                        next(os.walk("./models"))[2] if level_id in x and ".png" in x]
-                    MakeGIF(list_images, file_name+"-"+level_id+".gif")
+                        next(os.walk("./models"))[2] if level_id in x and x.endswith(".png")]
+                    core.NeuralEssentials.MakeGIF(list_images, file_name+"-"+level_id+".gif")
                     png_count = 0
-                tutils.save_image(F.interpolate(fake if fake.size(0) < 64 else fake[:64,],
-                    size=tensor_size[2:]).cpu().data,
-                    file_name+"-"+level_id+"_"+str(png_count)+".png")
+                visplots.show_weights(Model.netEmbedding.state_dict())
+                name = "level" + str(Model.netEmbedding.NET46.current_level)
+                visplots.show_images(fake.data.cpu(), name,
+                    file_name+"-"+name+"_"+str(png_count)+".png")
                 png_count += 1
+                visplots.show_images(tensor.data.cpu(), "real")
 
             # updating all meters
             Model.meterLoss.append(float(g_loss.cpu().data.numpy()))
