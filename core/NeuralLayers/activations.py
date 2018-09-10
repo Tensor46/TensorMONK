@@ -18,14 +18,12 @@ class MaxOut(nn.Module):
 # ============================================================================ #
 
 
-class ReluMaxOut(nn.Module):
+class ReluMaxOut(nn.Sequential):
     """ maxout(relu(x)) """
     def __init__(self):
         super(ReluMaxOut, self).__init__()
-
-    def forward(self, tensor):
-        tensor = F.relu(tensor)
-        return torch.max(*tensor.split(tensor.size(1)//2, 1))
+        self.add_module("relu", nn.ReLU())
+        self.add_module("maxo", MaxOut())
 # ============================================================================ #
 
 

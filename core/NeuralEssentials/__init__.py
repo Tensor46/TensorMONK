@@ -8,6 +8,7 @@ from .makemodel import MakeCNN, MakeAE, MakeModel
 # make MakeModel more flexible and remove (MakeCNN & MakeAE)
 from .mnist import MNIST
 from .cifar10 import CIFAR10
+from .visuals import MakeGIF, VisPlots
 
 del basemodel
 del savemodel
@@ -16,3 +17,4 @@ del folderittr
 del makemodel
 del mnist
 del cifar10
+del visuals

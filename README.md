@@ -35,7 +35,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 
 ### NeuralArchitectures
 * ResidualNet -- use type = [r18/r34/r50/r101/r152](https://arxiv.org/pdf/1512.03385.pdf) or [rn50/rn101/rn152 for ResNeXt](https://arxiv.org/pdf/1611.05431.pdf) or [ser50/ser101/ser152 for Squeeze-and-Excitation Networks](https://arxiv.org/pdf/1709.01507.pdf) or sern50/sern101/sern152 (ResNeXt + Squeeze-and-Excitation Networks). Pretrained weights are available for r18, r34, r50, r101, & r152.
-* DenseNet -- use type = [Table 1 - d121/d169/d201/d264](https://arxiv.org/pdf/1608.06993.pdf). Pretrained weights are available for d121, d169, & d201.
+* [DenseNet](https://arxiv.org/pdf/1608.06993.pdf) -- use type (see Table 1 in paper) - d121/d169/d201/d264. Pretrained weights are available for d121, d169, & d201.
 * [InceptionV4](https://arxiv.org/pdf/1602.07261.pdf)
 * [MobileNetV1](https://arxiv.org/pdf/1704.04861.pdf)
 * [MobileNetV2](https://arxiv.org/pdf/1801.04381.pdf)
@@ -59,8 +59,11 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
   * MakeCNN -- Creates a CNN (netEmbedding) and loss layer (netLoss)
   * MakeAE -- Creates an auto-encoder/vae in netAE
 * FolderITTR -- PyTorch image folder iterator with few extras.
-* MNIST -- MNIST train and test dataset loader.
-* CIFAR10 -- CIFAR10 train and test dataset loader.
+* MNIST -- MNIST train and test dataset loader
+* CIFAR10 -- CIFAR10 train and test dataset loader
+* MakeGIF -- Given a list of images creates a gif
+* VisPlots -- Visdom wrapper to visualize weight histograms, responses, and weights (see SimpleMNIST.py)
+
 
 ### NeuralLayers
 
