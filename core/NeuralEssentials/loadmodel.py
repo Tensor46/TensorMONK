@@ -13,8 +13,12 @@ def LoadModel(Model):
     dict_stuff = torch.load(file_name)
     what2load = [x for x in dir(Model) if x.startswith("net") or x.startswith("meter")]
     for x in what2load:
-        if "net" in x.lower() and getattr(Model, x) is not None:
-            eval("Model."+x+'.load_state_dict(dict_stuff["'+x+'"])')
+        if "net" in x.lower():
+            if getattr(Model, x) is not None:
+                # setattr(Model, x,
+                #     getattr(Model, x).load_state_dict(dict_stuff[x]))
+                eval("Model."+x+'.load_state_dict(dict_stuff["'+x+'"])')
         else:
-            if dict_stuff[x] is not None: setattr(Model,x,dict_stuff[x])
+            if dict_stuff[x] is not None:
+                setattr(Model, x, dict_stuff[x])
     return Model
