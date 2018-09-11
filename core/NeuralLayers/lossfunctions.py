@@ -69,6 +69,9 @@ class DiceLoss(nn.Module):
 
 
 class CapsuleLoss(nn.Module):
+    """
+        Implemented  https://arxiv.org/pdf/1710.09829.pdf
+    """
     def __init__(self, n_labels, *args, **kwargs):
         super(CapsuleLoss, self).__init__()
 
@@ -93,6 +96,55 @@ class CapsuleLoss(nn.Module):
         top5 = correct[:5].view(-1).float().sum().mul_(100.0/features.size(0))
 
         return loss.sum(1).mean(), (top1, top5)
+#==============================================================================#
+
+
+class CenterLoss(nn.Module):
+    """
+        Implemented https://ydwen.github.io/papers/WenECCV16.pdf
+    """
+    def __init__(self,
+                 tensor_size = 46,
+                 n_labels    = 10,
+                 distance    = "euclidean",
+                 **kwargs):
+        super(CenterLoss, self).__init__()
+
+        distance = distance.lower()
+        assert distance in ["cosine", "euclidean"], \
+            "CenterLoss :: Distance must be cosine/euclidean"
+
+        if isinstance(tensor_size, list) or isinstance(tensor_size, tuple):
+            if len(tensor_size)>1: # batch size is not required
+                tensor_size = np.prod(tensor_size[1:])
+            else:
+                tensor_size = tensor_size[0]
+        n_embedding = tensor_size
+        self.distance = distance.lower()
+
+        self.n_labels = n_labels
+        self.weight = nn.Parameter(torch.Tensor(n_labels, int(np.prod(n_embedding))))
+        nn.init.orthogonal_(self.weight, gain=1./np.sqrt(np.prod(n_embedding)))
+        self.weight.data.div_(self.weight.pow(2).sum(1, True))
+        self.tensor_size = (1,)
+
+    def forward(self, tensor, targets):
+        # onehot targets
+        identity = torch.eye(self.n_labels).to(tensor.device)
+        onehot = identity.index_select(dim=0, index=targets.view(-1))
+        idx = onehot.view(-1).nonzero()
+
+        if self.distance == "cosine":
+            # l2 weights and features
+            self.weight.data.div_(self.weight.pow(2).sum(1, True))
+            tensor = tensor.div(tensor.pow(2).sum(1, True))
+            distances = tensor.mm(self.weight.t()).clamp(-1., 1.)
+            loss = 1 - distances.view(-1)[idx].mean()
+        else: # euclidean
+            distances = (tensor.unsqueeze(1) - self.weight.unsqueeze(0))
+            distances = distances.pow(2).sum(2).add(1e-6).pow(0.5)
+            loss = distances.view(-1)[idx].mean()
+        return loss
 #==============================================================================#
 
 
@@ -124,7 +176,7 @@ class CategoricalLoss(nn.Module):
     def __init__(self, tensor_size=128, n_labels=10, type="entr",
                  distance="dot", center=False, *args, **kwargs):
         super(CategoricalLoss, self).__init__()
-
+        distance = distance.lower()
         if isinstance(tensor_size, list) or isinstance(tensor_size, tuple):
             if len(tensor_size)>1: # batch size is not required
                 tensor_size = np.prod(tensor_size[1:])
@@ -133,8 +185,10 @@ class CategoricalLoss(nn.Module):
         n_embedding = tensor_size
 
         self.type = type.lower()
-        self.distance = distance.lower()
-        self.center = center
+        self.distance = distance
+        if center:
+            self.center = CenterLoss(n_embedding, n_labels,
+                "cosine" if distance == "cosine" else "euclidean")
 
         self.n_labels = n_labels
         self.weight = nn.Parameter(torch.Tensor(n_labels, int(np.prod(n_embedding))))
@@ -148,7 +202,7 @@ class CategoricalLoss(nn.Module):
         if self.distance == "cosine" or self.type == "lmcl":
             self.weight.data = self.weight.data.div(self.weight.pow(2).sum(1, True).pow(.5).add(1e-8))
             features = features.div(features.pow(2).sum(1, True).pow(.5).add(1e-8))
-            responses = features.mm(self.weight.t()).div( ((features**2).sum(1, True)**.5) * ((self.weight.t()**2).sum(0, True)**.5) )
+            responses = features.mm(self.weight.t())
             responses = responses.clamp(-1., 1.)
         else:
             responses = features.mm(self.weight.t())
@@ -186,6 +240,9 @@ class CategoricalLoss(nn.Module):
             loss = - torch.log(responses.view(-1)[genuineIDX] / responses.sum(1)).sum() / BSZ
         else:
             raise NotImplementedError
+
+        if hasattr(self, "center"):
+            loss += self.center(features, targets)
 
         return loss, (top1, top5)
 
