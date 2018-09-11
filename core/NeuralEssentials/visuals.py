@@ -58,7 +58,7 @@ class VisPlots(object):
             if normalize:
                 _min = data.min(2, True)[0].min(3, True)[0]
                 _max = data.max(2, True)[0].max(3, True)[0]
-                data.sub_(_min).div(_max-_min)
+                data.add_(-_min).div(_max-_min)
             # adjust 4d tensor and reduce samples when too many
             sz = data.size()
             multiplier = 1
