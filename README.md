@@ -49,6 +49,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 * [PointNet](http://openaccess.thecvf.com/content_cvpr_2017/papers/Zhang_Learning_Discriminative_and_CVPR_2017_paper.pdf)
 * [UNet](https://arxiv.org/pdf/1505.04597.pdf)
   * UNetPatch -- Works on small patches.
+* [NeuralDecisionForest](https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Kontschieder_Deep_Neural_Decision_ICCV_2015_paper.pdf)
 
 ### NeuralEssentials
 * BaseModel -- A base class that contains networks (embedding, loss or any), meters (loss, accuracy etc), fileName, isCUDA

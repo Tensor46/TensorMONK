@@ -21,7 +21,9 @@ from .contextnet import ContextNet
 from .featurenet import FeatureNet, FeatureCapNet
 from .pointnet import PointNet
 from .unet import UNet, UNetPatch
+from .trees import NeuralDecisionForest
 
+del trees
 del unet
 del pointnet
 del featurenet
