@@ -3,7 +3,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd  import Variable
 import numpy as np
 #==============================================================================#
 
@@ -79,7 +78,7 @@ class CapsuleLoss(nn.Module):
         self.tensor_size = (1,)
 
     def forward(self, features, targets):
-        identity = Variable(torch.eye(self.n_labels))
+        identity = torch.eye(self.n_labels)
         if targets.is_cuda:
             identity = identity.cuda()
         onehot_targets = identity.index_select(dim=0, index=targets.view(-1))
@@ -221,7 +220,7 @@ class CategoricalLoss(nn.Module):
             loss = F.cross_entropy(responses,targets.view(-1))
 
         elif self.type.endswith("smax"):
-            identity = Variable(torch.eye(self.n_labels))
+            identity = torch.eye(self.n_labels)
             if targets.is_cuda:
                 identity = identity.cuda()
             onehot_targets = identity.index_select(dim=0, index=targets.view(-1))
@@ -230,7 +229,7 @@ class CategoricalLoss(nn.Module):
 
         elif self.type == "lmcl":
             m, s = 0.35, 10  # From https://arxiv.org/pdf/1801.09414.pdf
-            genuineIDX = Variable(torch.from_numpy(np.arange(BSZ)))
+            genuineIDX = torch.from_numpy(np.arange(BSZ))
             if targets.is_cuda: genuineIDX = genuineIDX.cuda()
             genuineIDX = targets.view(-1) + genuineIDX * self.n_labels
             responses = responses.view(-1)
