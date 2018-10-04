@@ -11,6 +11,9 @@ class NeuralTree(nn.Module):
     """
         A neural tree!
         --------------
+
+        Parameters
+        ----------
         tensor_size = 2D or 4D
                       2D - (None/any integer >0, features)
                       4D - (None/any integer >0, channels, height, width)
@@ -80,8 +83,11 @@ class NeuralTree(nn.Module):
 
 class NeuralDecisionForest(nn.Module):
     """
-        A neural decision forest!
-        -------------------------
+        Neural Decision Forest
+        ----------------------
+
+        Parameters
+        ----------
         tensor_size = check NeuralTree
         n_labels = check NeuralTree
         n_trees = number of trees
@@ -95,7 +101,7 @@ class NeuralDecisionForest(nn.Module):
         super(NeuralDecisionForest, self).__init__()
 
         assert depth > 0, \
-            "NeuralTree :: depth must be > 0, given {}".format(depth)
+            "NeuralDecisionForest :: depth must be > 0, given {}".format(depth)
 
         self.trees = nn.ModuleList([NeuralTree(tensor_size, n_labels, depth,
             dropout, network) for i in range(n_trees)])
