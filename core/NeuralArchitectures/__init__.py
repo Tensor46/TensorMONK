@@ -34,6 +34,7 @@ del simplenet
 del shufflenet
 del mobilenetv1
 del mobilenetv2
+del densenet
 del residualnet
 del inceptionv4
 del linearvae
