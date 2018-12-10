@@ -1,6 +1,6 @@
 """ TensorMONK's :: utils                                                    """
 
-__all__ = ["uitls"]
+__all__ = ["utils"]
 
 import torch
 import torch.nn as nn
@@ -26,7 +26,7 @@ class HessianBlob(nn.Module):
     """
         Hessian Blob!
     """
-    def __init__(self, min_width:int=3, max_width:int=15):
+    def __init__(self, min_width:int=3, max_width:int=15, blur_w:int=0):
         super(HessianBlob, self).__init__()
         if min_width%2 == 0:
             min_width += 1
@@ -36,12 +36,18 @@ class HessianBlob(nn.Module):
             max_width += 1
         self.max_width = max_width
 
+        if blur_w >= 3:
+            self.blur = GaussianBlur(0., blur_w)
+
     def forward(self, tensor):
         t_size = tensor.shape
 
+        if hasattr(self, "blur"):
+            blur = self.blur(tensor)
         blob_tensor = torch.zeros(*t_size).to(tensor.device)
         for width in range(self.min_width, self.max_width, 2):
-            blob_tensor = blob_tensor + DoH(tensor, width)
+            blob_tensor = blob_tensor + DoH(blur if width > 3 and \
+                hasattr(self, "blur") else tensor, width)
         return blob_tensor
 
 
@@ -133,6 +139,7 @@ def corr_1d(tensor_a:torch.Tensor, tensor_b:torch.Tensor):
     return (tensor_a.mul(tensor_b).mean(1) - tensor_a.mean(1)*tensor_b.mean(1))/\
         ((tensor_a.pow(2).mean(1) - tensor_a.mean(1).pow(2)).pow(0.5) *
          (tensor_b.pow(2).mean(1) - tensor_b.mean(1).pow(2)).pow(0.5))
+
 
 def xcorr_1d(tensor:torch.Tensor):
     assert tensor.dim() == 2, "xcorr_1d :: tensor must be 2D"
