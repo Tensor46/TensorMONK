@@ -6,6 +6,101 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import scipy.interpolate as interp
+
+
+def roc(genuine_or_scorematrix,
+        impostor_or_labels,
+        filename       = None,
+        semilog        = False,
+        lower_triangle = True):
+    """
+
+        genuine_or_scorematrix -- genuine scores or all scores (square matrix)
+            when genuine scores, impostor_or_labels must be impostor scores
+            when all scores, impostor_or_labels must be labels
+            accepted types - list/tuple/numpy.ndarray/torch.Tensor
+        impostor_or_labels --  impostor scores or labels
+            when impostor scores, genuine_or_scorematrix must be genuine scores
+            when labels, genuine_or_scorematrix must be all scores
+            accepted types - list/tuple/numpy.ndarray/torch.Tensor
+                             list & tuple can have strings
+        filename:str -- fullpath of image to save
+        semilog:bool -- When True plots the roc on semilog
+        lower_triangle -- To avoid duplicates in score matrix
+    """
+    # convert to numpy
+    def to_numpy(x):
+        if isinstance(x, torch.Tensor):
+            return x.cpu().numpy()
+        elif isinstance(x, np.ndarray):
+            return x
+        elif isinstance(x, list) or isinstance(x, tuple):
+            assert type(x[0]) in (int, float, str), \
+                "list/tuple of int/float/str are accepted, given {}".format(type(x[0]))
+            if isinstance(x[0], str):
+                classes = sorted(list(set(x)))
+                x = [classes.index(y) for y in x]
+            return np.array(x)
+        else:
+            raise NotImplementedError
+    gs = to_numpy(genuine_or_scorematrix)
+    il = to_numpy(impostor_or_labels)
+
+    # get genuine and impostor scores if score matrix and labels are provided
+    if gs.ndim == 2:
+        if gs.shape[0] == gs.shape[1] and gs.shape[0] == il.size:
+            # genuine_or_scorematrix is a score matrix
+            if lower_triangle:
+                indices = il.reshape((-1,1))
+                indices = np.concatenate([indices]*indices.shape[0], 1)
+                indices = (indices == indices.T).astype(np.int) + 1
+                indices = np.tril(indices,-1).flatten()
+                genuine = gs.flatten()[indices == 2]
+                impostor = gs.flatten()[indices == 1]
+            else:
+                indices = np.expand_dims(il, 1) == np.expand_dims(il, 0)
+                genuine = gs.flatten()[indices.flatten()]
+                impostor = gs.flatten()[indices.flatten() == False]
+    if "genuine" not in locals():
+        genuine = gs.flatten()
+        impostor = il.flatten()
+
+    # convert to float32
+    genuine, impostor = genuine.astype(np.float32), impostor.astype(np.float32)
+    # min and max
+    min_score = min(genuine.min(), impostor.min())
+    max_score = max(genuine.max(), impostor.max())
+    # find histogram bins and then count
+    bins = np.arange(min_score, max_score, (max_score-min_score)/4646)
+    genuine_bin_count = np.histogram(genuine, density=False, bins=bins)[0]
+    impostor_bin_count = np.histogram(impostor, density=False, bins=bins)[0]
+    genuine_bin_count = genuine_bin_count.astype(np.float32) / genuine.size
+    impostor_bin_count = impostor_bin_count.astype(np.float32) / impostor.size
+    if genuine.mean() < impostor.mean(): # distance bins to similarity bins
+        genuine_bin_count = genuine_bin_count[::-1]
+        impostor_bin_count = impostor_bin_count[::-1]
+    # compute frr & grr, then far = 100 - grr & gar = 100 - frr
+    gar = 1 - (1. * np.cumsum(genuine_bin_count))
+    far = 1 - (1. * np.cumsum(impostor_bin_count))
+    # Find gars on log scale -- 0.00001 - 1
+    samples = [gar[np.argmin(np.abs(far - 10**x))] for x in range(-5, 1)]
+    print(("gar@far (0.00001-1.) :: "+"/".join(["{:1.3f}"]*6)).format(*samples))
+    # interpolate and shirnk gar & far to 600 samples, for ploting
+    _gar = interp.interp1d(np.arange(gar.size), gar)
+    gar = _gar(np.linspace(0, gar.size-1, 599))
+    _far = interp.interp1d(np.arange(far.size), far)
+    far = _far(np.linspace(0, far.size-1, 599))
+
+    gar = np.concatenate((np.array([100]), gar), axis=0)
+    far = np.concatenate((np.array([100]), far), axis=0)
+
+    if filename is not None:
+        if not filename.endswith((".png", ".jpeg", "jpg")):
+            filename += ".png"
+        # need some work seaborn vs matplot?
+
+    return {"gar": gar, "far": far, "auc": abs(np.trapz(gar, far))}
 
 
 def DoH(tensor:torch.Tensor, width:int=3):
@@ -160,3 +255,5 @@ class utils:
     GaussianKernel = GaussianKernel
     DoG = DoG
     DoGBlob = DoGBlob
+
+    roc = roc

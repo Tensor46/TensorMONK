@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from torch.autograd.function import Function
 #==============================================================================#
 
 def hardest_negative(lossValues,margin):
@@ -105,45 +106,51 @@ class CenterLoss(nn.Module):
     def __init__(self,
                  tensor_size = 46,
                  n_labels    = 10,
-                 distance    = "euclidean",
+                 alpha       = 0.5,
                  **kwargs):
         super(CenterLoss, self).__init__()
-
-        distance = distance.lower()
-        assert distance in ["cosine", "euclidean"], \
-            "CenterLoss :: Distance must be cosine/euclidean"
-
         if isinstance(tensor_size, list) or isinstance(tensor_size, tuple):
             if len(tensor_size)>1: # batch size is not required
                 tensor_size = np.prod(tensor_size[1:])
             else:
                 tensor_size = tensor_size[0]
-        n_embedding = tensor_size
-        self.distance = distance.lower()
+        self.register_buffer("alpha", torch.Tensor([alpha]).sum())
 
-        self.n_labels = n_labels
-        self.weight = nn.Parameter(torch.Tensor(n_labels, int(np.prod(n_embedding))))
-        nn.init.orthogonal_(self.weight, gain=1./np.sqrt(np.prod(n_embedding)))
-        self.weight.data.div_(self.weight.pow(2).sum(1, True))
+        self.weight = nn.Parameter(
+            F.normalize(torch.randn(n_labels, tensor_size), p=2, dim=1))
         self.tensor_size = (1,)
 
-    def forward(self, tensor, targets):
-        # onehot targets
-        identity = torch.eye(self.n_labels).to(tensor.device)
-        onehot = identity.index_select(dim=0, index=targets.view(-1))
-        idx = onehot.view(-1).nonzero()
+        self.function = CenterFunction.apply
 
-        if self.distance == "cosine":
-            # l2 weights and features
-            self.weight.data.div_(self.weight.pow(2).sum(1, True))
-            tensor = tensor.div(tensor.pow(2).sum(1, True))
-            distances = tensor.mm(self.weight.t()).clamp(-1., 1.)
-            loss = 1 - distances.view(-1)[idx].mean()
-        else: # euclidean
-            distances = (tensor.unsqueeze(1) - self.weight.unsqueeze(0))
-            distances = distances.pow(2).sum(2).add(1e-6).pow(0.5)
-            loss = distances.view(-1)[idx].mean()
-        return loss
+    def forward(self, tensor, targets):
+
+        return self.function(F.normalize(tensor, p=2, dim=1),
+            targets.long(), self.weight, self.alpha)
+
+
+class CenterFunction(Function):
+
+    @staticmethod
+    def forward(ctx, tensor, targets, centers, alpha):
+        ctx.save_for_backward(tensor, targets, centers, alpha)
+        target_centers = centers.index_select(0, targets)
+        return 0.5 * (tensor - target_centers).pow(2).sum()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+
+        tensor, targets, centers, alpha = ctx.saved_variables
+        grad_tensor = grad_targets = grad_centers = None
+        grad_centers = torch.zeros(centers.size()).to(tensor.device)
+
+        grad_tensor = tensor - centers.index_select(0, targets.long())
+
+        unique = torch.unique(targets.long())
+        for j in unique:
+            grad_centers[j] += centers[j] - \
+                tensor.data[targets == j].mean(0).mul(alpha)
+
+        return grad_tensor * grad_output, None, grad_centers, None
 #==============================================================================#
 
 
@@ -152,28 +159,30 @@ class CategoricalLoss(nn.Module):
 
         Parameters
         ----------
-        type         :: entr/smax/tsmax/tentr/lmcl
-                        entr  - categorical cross entropy
-                        smax  - softmax
-                        tsmax - taylor softmax
-                                https://arxiv.org/pdf/1511.05042.pdf
-                        tentr - taylor entropy
-                        lmcl  - large margin cosine loss
-                                https://arxiv.org/pdf/1801.09414.pdf
+        type          :: entr/smax/tsmax/tentr/lmcl
+                         entr  - categorical cross entropy
+                         smax  - softmax
+                         tsmax - taylor softmax
+                                 https://arxiv.org/pdf/1511.05042.pdf
+                         tentr - taylor entropy
+                         lmcl  - large margin cosine loss
+                                 https://arxiv.org/pdf/1801.09414.pdf
 
-        distance     :: cosine/dot
-                        cosine similarity / matrix dot product
-        center       :: True/False
-                        https://ydwen.github.io/papers/WenECCV16.pdf
+        distance      :: cosine/dot
+                         cosine similarity / matrix dot product
+        center        :: True/False
+                         https://ydwen.github.io/papers/WenECCV16.pdf
+        center_lambda :: factor of center loss added to categorical loss
 
         Other inputs
         ------------
-        tensor_size         :: feature length
-        n_labels            :: number of output labels
+        tensor_size   :: feature length
+        n_labels      :: number of output labels
 
     """
     def __init__(self, tensor_size=128, n_labels=10, type="entr",
-                 distance="dot", center=False, *args, **kwargs):
+                 distance="dot", center=False, center_lambda=0.5,
+                 *args, **kwargs):
         super(CategoricalLoss, self).__init__()
         distance = distance.lower()
         if isinstance(tensor_size, list) or isinstance(tensor_size, tuple):
@@ -185,9 +194,9 @@ class CategoricalLoss(nn.Module):
 
         self.type = type.lower()
         self.distance = distance
+        self.center_lambda = center_lambda
         if center:
-            self.center = CenterLoss(n_embedding, n_labels,
-                "cosine" if distance == "cosine" else "euclidean")
+            self.center = CenterLoss(n_embedding, n_labels)
 
         self.n_labels = n_labels
         self.weight = nn.Parameter(torch.Tensor(n_labels, int(np.prod(n_embedding))))
@@ -241,7 +250,7 @@ class CategoricalLoss(nn.Module):
             raise NotImplementedError
 
         if hasattr(self, "center"):
-            loss += self.center(features, targets)
+            loss = loss + self.center(features, targets)*self.center_lambda
 
         return loss, (top1, top5)
 

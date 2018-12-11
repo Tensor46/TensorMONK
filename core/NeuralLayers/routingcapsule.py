@@ -38,9 +38,9 @@ class RoutingCapsule(nn.Module):
         u = tensor.view(batch_size, -1, 1, n_primary_capsules).matmul(self.weight)
         u = u.view(*((batch_size, primary_capsule_length, h, w) + self.tensor_size[1:]))
 
-        bias = Variable(torch.zeros(batch_size, primary_capsule_length, h, w, self.tensor_size[1]))
+        bias = torch.zeros(batch_size, primary_capsule_length, h, w, self.tensor_size[1])
         if tensor.is_cuda:
-            bias = bias.to(tensor.device) if torch.__version__.startswith("0.4") else bias.cuda()
+            bias = bias.to(tensor.device)
 
         # routing
         for i in range(self.iterations):
