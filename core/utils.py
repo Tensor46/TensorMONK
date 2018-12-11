@@ -12,7 +12,7 @@ import scipy.interpolate as interp
 def roc(genuine_or_scorematrix,
         impostor_or_labels,
         filename       = None,
-        semilog        = False,
+        semilog        = True,
         lower_triangle = True):
     """
 
@@ -63,6 +63,7 @@ def roc(genuine_or_scorematrix,
                 genuine = gs.flatten()[indices.flatten()]
                 impostor = gs.flatten()[indices.flatten() == False]
     if "genuine" not in locals():
+        # genuine_or_scorematrix is an array of genuine scores
         genuine = gs.flatten()
         impostor = il.flatten()
 
@@ -92,15 +93,16 @@ def roc(genuine_or_scorematrix,
     _far = interp.interp1d(np.arange(far.size), far)
     far = _far(np.linspace(0, far.size-1, 599))
 
-    gar = np.concatenate((np.array([100]), gar), axis=0)
-    far = np.concatenate((np.array([100]), far), axis=0)
+    gar = np.concatenate((np.array([1.]), gar), axis=0)
+    far = np.concatenate((np.array([1.]), far), axis=0)
 
     if filename is not None:
         if not filename.endswith((".png", ".jpeg", "jpg")):
             filename += ".png"
         # need some work seaborn vs matplot?
 
-    return {"gar": gar, "far": far, "auc": abs(np.trapz(gar, far))}
+    return {"gar": gar, "far": far, "auc": abs(np.trapz(gar, far)),
+        "gar_samples": samples}
 
 
 def DoH(tensor:torch.Tensor, width:int=3):
