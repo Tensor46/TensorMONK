@@ -11,7 +11,8 @@ from .primarycapsule import PrimaryCapsule
 from .routingcapsule import RoutingCapsule
 
 from .detailpooling import DetailPooling
-from .lossfunctions import CapsuleLoss, CategoricalLoss, TripletLoss, DiceLoss
+from .lossfunctions import CapsuleLoss, CategoricalLoss, TripletLoss, \
+    DiceLoss, CenterLoss
 from .obfuscatedecolor import ObfuscateDecolor
 
 from .activations import Activations
