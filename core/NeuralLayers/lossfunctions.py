@@ -123,9 +123,7 @@ class CenterLoss(nn.Module):
         self.function = CenterFunction.apply
 
     def forward(self, tensor, targets):
-
-        return self.function(F.normalize(tensor, p=2, dim=1),
-            targets.long(), self.weight, self.alpha)
+        return self.function(tensor, targets.long(), self.weight, self.alpha)
 
 
 class CenterFunction(Function):
