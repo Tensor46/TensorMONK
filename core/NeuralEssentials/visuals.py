@@ -71,7 +71,7 @@ class VisPlots(object):
                 data = data[:samples]
             # resize image when height is not None
             if height is not None:
-                data = F.interpolate(data, size=(height, int(float(height)*sz[2]/sz[3])))
+                data = F.interpolate(data, size=(height, int(float(height)*sz[3]/sz[2])))
 
             self.visplots.images(data, nrow=max(4, int(data.size(0)**0.5)),
                 opts={"title": vis_name}, win=vis_name)
