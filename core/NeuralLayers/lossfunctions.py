@@ -44,26 +44,44 @@ class TripletLoss(nn.Module):
 class DiceLoss(nn.Module):
     """
     Implemented from https://arxiv.org/pdf/1803.11078.pdf
+    https://arxiv.org/pdf/1706.05721.pdf has same equation but with alpha and beta controlling FP and FN.
+    works for both softmax predicted output [batchx2xH,W] or sigmoid output [batchx1xH,W
+    p_i * g_i --> True Positives  (TP)
+    p_i * g_j --> False Positives (FP)
+    p_j * g_i --> False Negatives (FN)
     """
     def __init__(self, type = "tversky", *args, **kwargs):
         self.tensor_size = (1,)
         if type == "tversky":
             self.beta = 2.0
+            # for https://arxiv.org/pdf/1706.05721.pdf,
+            # beta of 2 results in alpha of 0.2 and beta of 0.8
         elif type == "dice":
             self.beta = 1.0         # below Eq(6)
         else:
             raise NotImplementedError
     def forward(self, prediction, targets):
         top1, top5 = 0., 0.
-        p_i = prediction
-        p_j = prediction.mul(-1).add(1)
-
-        g_i = targets
-        g_j = targets.mul(-1).add(1)
-
-        num = (p_i*g_i).sum(1).sum(1).mul((1 + self.beta**2))   # eq(5)
-        den = num.add((p_i*g_j).sum(1).sum(1).mul((self.beta**2))).add((p_j*g_i).sum(1).sum(1).mul((self.beta)))    # eq(5)
-        loss = num/den
+        if prediction.shape[1] == 1:
+            p_i = prediction
+            p_j = prediction.mul(-1).add(1)
+            g_i = targets
+            g_j = targets.mul(-1).add(1)
+            # the above is similar to one hot encoding of targets
+            num = (p_i*g_i).sum(1).sum(1).mul((1 + self.beta**2))   # eq(5)
+            den = num.add((p_i*g_j).sum(1).sum(1).mul((self.beta**2))).add((p_j*g_i).sum(1).sum(1).mul((self.beta)))    # eq(5)
+            loss = num/den
+        elif prediction.shape[1] == 2:
+            p_i = prediction[:,0,:,:]
+            p_j = prediction[:,1,:,:]
+            g_i = targets
+            g_j = targets.mul(-1).add(1)
+            # the above is similar to one hot encoding of targets
+            num = (p_i*g_i).sum(1).sum(1).mul((1 + self.beta**2))   # eq(5)
+            den = num.add((p_i*g_j).sum(1).sum(1).mul((self.beta**2))).add((p_j*g_i).sum(1).sum(1).mul((self.beta)))    # eq(5)
+            loss = num/den
+        else:
+            raise NotImplementedError
         return loss.mean(), (top1, top5)
 #==============================================================================#
 
