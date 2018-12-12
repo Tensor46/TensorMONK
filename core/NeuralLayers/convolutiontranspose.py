@@ -53,7 +53,7 @@ class ConvolutionTranspose(nn.Module):
         activation = activation.lower()
         dilation = kwargs["dilation"] if "dilation" in kwargs.keys() else (1, 1)
         # Modules
-        padding = (filter_size[0]//2, filter_size[1]//2) if pad else 0
+        padding = (filter_size[0]//2, filter_size[1]//2) if pad else (0,0)
         if dropout > 0.:
             self.dropout = nn.Dropout2d(dropout)
         pre_expansion, pst_expansion = 1, 1
