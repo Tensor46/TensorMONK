@@ -96,7 +96,6 @@ class UNet(nn.Module):
         super(UNet, self).__init__()
         self.downnet1   = BaseConv(tensor_size, out_channels, pad=True)
         self.downnet2   = Down(self.downnet1.tensor_size, out_channels*1, out_channels*2, pad=True)
-
         self.downnet3   = Down(self.downnet2.tensor_size, out_channels*2, out_channels*4, pad=True)
         self.downnet4   = Down(self.downnet3.tensor_size, out_channels*4, out_channels*8, pad=True)
         self.downnet5   = Down(self.downnet4.tensor_size, out_channels*8, out_channels*16, pad=True)
