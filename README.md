@@ -109,7 +109,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 
 * LossFunctions
   * [CapsuleLoss](https://arxiv.org/pdf/1710.09829.pdf)
-  * CategoricalLoss -- Cross entropy / softmax / [taylor softmax](https://arxiv.org/pdf/1511.05042.pdf) / [large margin cosine loss](https://arxiv.org/pdf/1801.09414.pdf)
+  * CategoricalLoss -- Cross entropy / softmax / [taylor softmax](https://arxiv.org/pdf/1511.05042.pdf) / [large margin cosine loss](https://arxiv.org/pdf/1801.09414.pdf) / [large-margin Gaussian Mixture](https://arxiv.org/pdf/1803.02988.pdf)
   * [CenterLoss](https://ydwen.github.io/papers/WenECCV16.pdf)
   * TripletLoss
   * [DiceLoss / Tversky Loss](https://arxiv.org/abs/1706.05721)

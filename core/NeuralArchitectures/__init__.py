@@ -20,7 +20,7 @@ from .pggan import PGGAN
 from .contextnet import ContextNet
 from .featurenet import FeatureNet, FeatureCapNet
 from .pointnet import PointNet
-from .unet import UNet, UNetPatch
+from .unet import UNet, UNetMini
 from .trees import NeuralDecisionForest
 
 del trees
