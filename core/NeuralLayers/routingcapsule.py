@@ -8,7 +8,12 @@ import torch.nn.functional as F
 
 class RoutingCapsule(nn.Module):
     """ https://arxiv.org/pdf/1710.09829.pdf """
-    def __init__(self, tensor_size, n_capsules=10, capsule_length=32, iterations=3, *args, **kwargs):
+    def __init__(self,
+                 tensor_size,
+                 n_capsules = 10,
+                 capsule_length = 32,
+                 iterations = 3, 
+                 *args, **kwargs):
         super(RoutingCapsule, self).__init__()
         import numpy as np
         self.iterations = iterations
@@ -17,7 +22,8 @@ class RoutingCapsule(nn.Module):
         #   weight_size = (tensor_size[1]*tensor_size[2]*tensor_size[3], \
         #                  tensor_size[4], n_capsules*capsule_length)
         #               = (32*6*6, 8 , 10*16)
-        weight_size = (int(np.prod(tensor_size[1:-1])), tensor_size[-1], n_capsules*capsule_length)
+        weight_size = (int(np.prod(tensor_size[1:-1])), tensor_size[-1], \
+            n_capsules*capsule_length)
         self.weight = nn.Parameter(torch.Tensor(*weight_size))
         nn.init.xavier_normal_(self.weight, gain=0.01)
         # nn.init.orthogonal_(self.weight, gain=1./np.sqrt(tensor_size[-1]))
@@ -59,7 +65,8 @@ class RoutingCapsule(nn.Module):
             v = (sum_squares/(1+sum_squares)) * s / (sum_squares**0.5)
             # bias update -- size = _ x 32 x 6 x 6 x 10
             if i < self.iterations-1:
-                bias = bias + (u * v.view(batch_size, 1, 1, 1, self.tensor_size[1], self.tensor_size[2])).sum(5)
+                bias = bias + (u * v.view(batch_size, 1, 1, 1, \
+                    self.tensor_size[1], self.tensor_size[2])).sum(5)
 
         return v
 

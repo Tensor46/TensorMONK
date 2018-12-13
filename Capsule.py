@@ -18,14 +18,15 @@ import torch.optim as neuralOptimizer
 def trainMONK():
     args = parse_args()
     tensor_size = (1, 1, 28, 28)
-    trDataLoader, teDataLoader, n_labels = NeuralEssentials.MNIST(args.trainDataPath,  tensor_size, args.BSZ, args.cpus)
+    trDataLoader, teDataLoader, n_labels = NeuralEssentials.MNIST(args.trainDataPath,
+        tensor_size, args.BSZ, args.cpus)
     file_name = "./models/" + args.Architecture.lower()
     Model = NeuralEssentials.MakeModel(file_name, tensor_size, n_labels,
-                                       embedding_net=NeuralArchitectures.CapsuleNet,
-                                       embedding_net_kwargs={"replicate_paper" : args.replicate_paper},
-                                       loss_net=NeuralLayers.CapsuleLoss, loss_net_kwargs={},
-                                       default_gpu=args.default_gpu, gpus=args.gpus,
-                                       ignore_trained=args.ignore_trained)
+        embedding_net=NeuralArchitectures.CapsuleNet,
+        embedding_net_kwargs={"replicate_paper" : args.replicate_paper},
+        loss_net=NeuralLayers.CapsuleLoss, loss_net_kwargs={},
+        default_gpu=args.default_gpu, gpus=args.gpus,
+        ignore_trained=args.ignore_trained)
     params = list(Model.netEmbedding.parameters()) + list(Model.netLoss.parameters())
     if args.optimizer.lower() == "adam":
         Optimizer = neuralOptimizer.Adam(params)
@@ -53,9 +54,9 @@ def trainMONK():
             Optimizer.step()
 
             # updating all meters
-            Model.meterTop1.append(float(top1.cpu().data.numpy() if torch.__version__.startswith("0.4") else top1.cpu().data.numpy()[0]))
-            Model.meterTop5.append(float(top5.cpu().data.numpy() if torch.__version__.startswith("0.4") else top5.cpu().data.numpy()[0]))
-            Model.meterLoss.append(float(loss.cpu().data.numpy() if torch.__version__.startswith("0.4") else loss.cpu().data.numpy()[0]))
+            Model.meterTop1.append(float(top1.cpu().data.numpy()))
+            Model.meterTop5.append(float(top5.cpu().data.numpy()))
+            Model.meterLoss.append(float(loss.cpu().data.numpy()))
 
             Model.meterSpeed.append(int(float(args.BSZ)/(timeit.default_timer()-Timer)))
             Timer = timeit.default_timer()
@@ -79,8 +80,8 @@ def trainMONK():
             features, rec_tensor, rec_loss = Model.netEmbedding( (Variable(tensor), Variable(targets)) )
             margin_loss, (top1, top5) = Model.netLoss( (features, Variable(targets)) )
 
-            test_top1.append(float(top1.cpu().data.numpy() if torch.__version__.startswith("0.4") else top1.cpu().data.numpy()[0]))
-            test_top5.append(float(top5.cpu().data.numpy() if torch.__version__.startswith("0.4") else top5.cpu().data.numpy()[0]))
+            test_top1.append(float(top1.cpu().data.numpy()))
+            test_top5.append(float(top5.cpu().data.numpy()))
         print("... Test accuracy - {:3.2f}/{:3.2f} ".format(np.mean(test_top1), np.mean(test_top5)))
         Model.netEmbedding.train()
         Model.netLoss.train()

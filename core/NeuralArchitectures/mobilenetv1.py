@@ -22,6 +22,7 @@ class MobileNetV1(nn.Module):
                  weight_nm = False,
                  equalized = False,
                  embedding = False,
+                 shift = False,
                  n_embedding = 256,
                  *args, **kwargs):
         super(MobileNetV1, self).__init__()
@@ -39,9 +40,9 @@ class MobileNetV1(nn.Module):
         print("Input", tensor_size)
         _tensor_size = tensor_size
         for i, (k, oc, s, g) in enumerate(block_params):
-            self.Net46.add_module("Mobile"+str(i), Convolution(_tensor_size, k, oc, s,
-                                  True, activation, 0., normalization, False if i == 0
-                                  else pre_nm, g, weight_nm, equalized))
+            self.Net46.add_module("Mobile"+str(i), Convolution(_tensor_size, k,
+                oc, s, True, activation, 0., normalization, False if i == 0
+                else pre_nm, g, weight_nm, equalized, shift))
             _tensor_size = self.Net46[-1].tensor_size
             print("Mobile"+str(i), _tensor_size)
 

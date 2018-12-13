@@ -23,12 +23,14 @@ class ShuffleNet(nn.Module):
                  pre_nm = False,
                  weight_norm = False,
                  equalized = False,
+                 shift = False,
                  embedding = False,
                  n_embedding = 256,
                  *args, **kwargs):
         super(ShuffleNet, self).__init__()
 
-        assert type.lower() in ("g1", "g2", "g3", "g4", "g8"), "ShuffleNet -- type must be g1/g2/g3/g4/g8"
+        assert type.lower() in ("g1", "g2", "g3", "g4", "g8"), \
+            "ShuffleNet -- type must be g1/g2/g3/g4/g8"
 
         if type.lower() == "g1":
             groups = 1
@@ -66,13 +68,13 @@ class ShuffleNet(nn.Module):
             print("Initial convolution strides changed from 2 to 1, as min(tensor_size[2], tensor_size[3]) <  64")
         self.Net46.add_module("Convolution",
             Convolution(tensor_size, 3, 24, s, True, activation, 0., normalization,
-                        False, 1, weight_norm, equalized, **kwargs))
+            False, 1, weight_norm, equalized, shift, **kwargs))
         print("Convolution",self.Net46[-1].tensor_size)
 
         if min(tensor_size[2], tensor_size[3]) > 128:
             self.Net46.add_module("MaxPool", nn.MaxPool2d((3, 3), stride=(2, 2), padding=1))
             _tensor_size = (self.Net46[-2].tensor_size[0], self.Net46[-2].tensor_size[1],
-                            self.Net46[-2].tensor_size[2]//2, self.Net46[-2].tensor_size[3]//2)
+                self.Net46[-2].tensor_size[2]//2, self.Net46[-2].tensor_size[3]//2)
             print("MaxPool", _tensor_size)
         else: # Addon -- To make it flexible for other tensor_size's
             print("MaxPool is ignored if min(tensor_size[2], tensor_size[3]) <=  128")
@@ -81,7 +83,7 @@ class ShuffleNet(nn.Module):
         for i, (oc, s) in enumerate(block_params):
             self.Net46.add_module("Shuffle"+str(i),
                 ResidualShuffle(_tensor_size, 3, oc, s, True, activation, 0., normalization,
-                                pre_nm, groups, weight_norm, equalized, **kwargs))
+                pre_nm, groups, weight_norm, equalized, shift, **kwargs))
             _tensor_size = self.Net46[-1].tensor_size
             print("Shuffle"+str(i), _tensor_size)
 

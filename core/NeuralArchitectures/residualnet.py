@@ -104,6 +104,7 @@ class ResidualNet(nn.Module):
                  weight_nm = False,
                  equalized = False,
                  embedding = False,
+                 shift = False,
                  n_embedding = 256,
                  pretrained = False,
                  *args, **kwargs):
@@ -119,6 +120,8 @@ class ResidualNet(nn.Module):
         if self.pretrained:
             assert tensor_size[1] == 1 or tensor_size[1] == 3, """ResidualNet ::
                 rgb(preferred)/grey image is required for pretrained"""
+            activation, normalization, pre_nm = "relu", "batch", True
+            groups, weight_nm, equalized, shift = 1, False, False, False
         self.type = type
         self.in_tensor_size = tensor_size
 
