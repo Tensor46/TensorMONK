@@ -22,6 +22,7 @@ class MobileNetV2(nn.Module):
                  weight_nm = False,
                  equalized = False,
                  embedding = False,
+                 shift = False,
                  n_embedding = 256,
                  *args, **kwargs):
         super(MobileNetV2, self).__init__()
@@ -36,19 +37,21 @@ class MobileNetV2(nn.Module):
 
         print("Input", tensor_size)
         self.Net46 = nn.Sequential()
-        self.Net46.add_module("Convolution", Convolution(tensor_size, 3, 32, 2, True, activation, 0., normalization,
-                                                         False, 1, weight_nm, equalized, **kwargs))
+        self.Net46.add_module("Convolution", Convolution(tensor_size, 3, 32, 2,
+            True, activation, 0., normalization, False, 1, weight_nm,
+            equalized, shift, **kwargs))
         print("Convolution", self.Net46[-1].tensor_size)
 
         for i, (oc, s, t) in enumerate(block_params):
             self.Net46.add_module("ResidualInverted"+str(i),
-                ResidualInverted(self.Net46[-1].tensor_size, 3, oc, s, True, activation, 0.,
-                                 normalization, pre_nm, 1, weight_nm, equalized, t=t, **kwargs))
+                ResidualInverted(self.Net46[-1].tensor_size, 3, oc, s, True,
+                activation, 0., normalization, pre_nm, 1, weight_nm, equalized,
+                shift, t=t, **kwargs))
             print("ResidualInverted"+str(i), self.Net46[-1].tensor_size)
 
         self.Net46.add_module("ConvolutionLast",
             Convolution(self.Net46[-1].tensor_size, 1, 1280, 1, True, activation, 0.,
-                        normalization, pre_nm, 1, weight_nm, equalized, **kwargs))
+            normalization, pre_nm, 1, weight_nm, equalized, shift, **kwargs))
         print("ConvolutionLast", self.Net46[-1].tensor_size)
         self.Net46.add_module("AveragePool", nn.AvgPool2d(self.Net46[-1].tensor_size[2:]))
         print("AveragePool", (1, 1280, 1, 1))
