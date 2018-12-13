@@ -18,18 +18,18 @@ def train():
     file_name = "./models/" + args.Architecture.lower()
     embedding_net, embedding_net_kwargs = NeuralArchitectures.Models(args.Architecture.lower())
 
-    train_loader, n_labels = NeuralEssentials.FolderITTR(args.trainDataPath, args.BSZ, tensor_size, args.cpus,
-                                                         functions=[], random_flip=True)
-    test_loader, n_labels = NeuralEssentials.FolderITTR(args.testDataPath, args.BSZ, tensor_size, args.cpus,
-                                                        functions=[], random_flip=False)
+    train_loader, n_labels = NeuralEssentials.FolderITTR(args.trainDataPath,
+        args.BSZ, tensor_size, args.cpus, functions=[], random_flip=True)
+    test_loader, n_labels = NeuralEssentials.FolderITTR(args.testDataPath,
+        args.BSZ, tensor_size, args.cpus, functions=[], random_flip=False)
 
     Model = NeuralEssentials.MakeModel(file_name, tensor_size, n_labels,
-                                       embedding_net=embedding_net,
-                                       embedding_net_kwargs=embedding_net_kwargs,
-                                       loss_net=NeuralLayers.CategoricalLoss,
-                                       loss_net_kwargs={"type": args.loss_type, "distance": args.loss_distance},
-                                       default_gpu=args.default_gpu, gpus=args.gpus,
-                                       ignore_trained=args.ignore_trained)
+        embedding_net=embedding_net,
+        embedding_net_kwargs=embedding_net_kwargs,
+        loss_net=NeuralLayers.CategoricalLoss,
+        loss_net_kwargs={"type": args.loss_type, "distance": args.loss_distance},
+        default_gpu=args.default_gpu, gpus=args.gpus,
+        ignore_trained=args.ignore_trained)
     params = list(Model.netEmbedding.parameters()) + list(Model.netLoss.parameters())
     if args.optimizer.lower() == "adam":
         optimizer = neural_optimizer.Adam(params)
@@ -57,12 +57,9 @@ def train():
             optimizer.step()
 
             # updating all meters
-            Model.meterTop1.append(float(top1.cpu().data.numpy() if torch.__version__.startswith("0.4")
-                                         else top1.cpu().data.numpy()[0]))
-            Model.meterTop5.append(float(top5.cpu().data.numpy() if torch.__version__.startswith("0.4")
-                                         else top5.cpu().data.numpy()[0]))
-            Model.meterLoss.append(float(loss.cpu().data.numpy() if torch.__version__.startswith("0.4")
-                                         else loss.cpu().data.numpy()[0]))
+            Model.meterTop1.append(float(top1.cpu().data.numpy()))
+            Model.meterTop5.append(float(top5.cpu().data.numpy()))
+            Model.meterLoss.append(float(loss.cpu().data.numpy()))
 
             Model.meterSpeed.append(int(float(args.BSZ)/(timeit.default_timer()-timer)))
             timer = timeit.default_timer()
@@ -88,10 +85,8 @@ def train():
             features = Model.netEmbedding(Variable(tensor))
             loss, (top1, top5) = Model.netLoss((features, Variable(targets)))
 
-            test_top1.append(float(top1.cpu().data.numpy() if torch.__version__.startswith("0.4")
-                             else top1.cpu().data.numpy()[0]))
-            test_top5.append(float(top5.cpu().data.numpy() if torch.__version__.startswith("0.4")
-                             else top5.cpu().data.numpy()[0]))
+            test_top1.append(float(top1.cpu().data.numpy()))
+            test_top5.append(float(top5.cpu().data.numpy()))
         print("... Test accuracy - {:3.2f}/{:3.2f} ".format(np.mean(test_top1), np.mean(test_top5)))
         Model.netEmbedding.train()
         Model.netLoss.train()
