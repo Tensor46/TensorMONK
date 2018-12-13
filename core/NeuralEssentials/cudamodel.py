@@ -36,7 +36,7 @@ class CudaModel(nn.Module):
     def regularize_weights(self, clip=0., only_convs=False):
         if self.training:
             self.clip_weights(clip)
-            for p in self.NET46.parameters():
+            for name,p in self.NET46.named_parameters():
                 if p.data.ndimension() == 4:
                     # convolution
                     if p.data.size(2)*p.data.size(3) > 1:
@@ -51,11 +51,12 @@ class CudaModel(nn.Module):
                     l2 = p.data.pow(2).sum(2).sum(1).pow(.5).add(1e-8)
                     p.data.div_(l2.unsqueeze(1).unsqueeze(2))
                 elif p.data.ndimension() == 2 and not only_convs:
+                    if name.endswith("centers"): # avoid centers
+                        continue
                     # fully-connected and lossfunctions
                     l2 = p.data.pow(2).sum(1).pow(.5).add(1e-8)
                     p.data.div_(l2.unsqueeze(1))
-                else:
-                    # bias, gamma, beta are excluded
+                else: # bias, gamma, beta are excluded
                     pass
 
     def clip_weights(self, clip):
