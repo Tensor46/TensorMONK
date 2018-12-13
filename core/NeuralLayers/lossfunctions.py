@@ -255,8 +255,8 @@ class CategoricalLoss(nn.Module):
     def forward(self, tensor, targets):
 
         if self.type == "lmgm":
-            # mahalanobis with identity covariance per paper
-            # -- does euclidean
+            # mahalanobis with identity covariance per paper = squared euclidean
+            # -- does euclidean for stability
             responses = (tensor.unsqueeze(1) - self.weight.unsqueeze(0))
             responses = responses.pow(2).sum(2).pow(0.5)
             onehot_targets = one_hot(targets, self.n_labels)
