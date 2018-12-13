@@ -7,19 +7,38 @@ from .convolution import Convolution
 
 class PrimaryCapsule(nn.Module):
     """ https://arxiv.org/pdf/1710.09829.pdf """
-    def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1), pad=True,
-                 activation="relu", dropout=0., normalization=None, pre_nm=False, groups=1, weight_nm=False,
-                 equalized=False, growth_rate=32, block=Convolution, n_capsules=8, capsule_length=32, *args, **kwargs):
+    def __init__(self,
+                tensor_size,
+                filter_size,
+                out_channels,
+                strides = 1,
+                pad = True,
+                activation = "relu",
+                dropout = 0.,
+                normalization = None,
+                pre_nm = False,
+                groups = 1,
+                weight_nm = False,
+                equalized = False,
+                shift = False,
+                growth_rate = 32,
+                block = Convolution,
+                n_capsules = 8,
+                capsule_length=32,
+                *args, **kwargs):
         super(PrimaryCapsule, self).__init__()
-        assert out_channels == n_capsules*capsule_length, "PrimaryCapsule -- out_channels!=n_capsules*capsule_length"
-        self.primaryCapsules = block(tensor_size, filter_size, out_channels, strides, pad, activation,
-                                     dropout, normalization, pre_nm, groups, weight_nm, equalized,
-                                     growth_rate=growth_rate, **kwargs)
-        self.tensor_size = (6, capsule_length) + self.primaryCapsules.tensor_size[2:] + (n_capsules,)
+        assert out_channels == n_capsules*capsule_length, \
+            "PrimaryCapsule -- out_channels!=n_capsules*capsule_length"
+        self.primaryCapsules = block(tensor_size, filter_size, out_channels,
+            strides, pad, activation, dropout, normalization, pre_nm, groups,
+            weight_nm, equalized, shift, growth_rate=growth_rate, **kwargs)
+        self.tensor_size = (6, capsule_length) + \
+            self.primaryCapsules.tensor_size[2:] + (n_capsules,)
 
     def forward(self, tensor):
         tensor = self.primaryCapsules(tensor)
-        tensor = tensor.view(-1, self.tensor_size[1], self.tensor_size[4], self.tensor_size[2], self.tensor_size[3])
+        tensor = tensor.view(-1, self.tensor_size[1], self.tensor_size[4], \
+            self.tensor_size[2], self.tensor_size[3])
         return tensor.permute(0, 1, 3, 4, 2).contiguous()
 
 # import torch
