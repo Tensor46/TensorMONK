@@ -78,7 +78,7 @@ class Convolution(nn.Module):
         if shift: filter_size = (1, 1)
         self.shift = shift
 
-        activation = activation.lower()
+        if activation is not None: activation = activation.lower()
         dilation = kwargs["dilation"] if "dilation" in kwargs.keys() else (1, 1)
 
         # Modules
