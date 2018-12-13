@@ -8,8 +8,12 @@ import torch.nn.functional as F
 
 class RoutingCapsule(nn.Module):
     """ https://arxiv.org/pdf/1710.09829.pdf """
-    def __init__(self, tensor_size, n_capsules=10, capsule_length=32,
-            iterations=3, *args, **kwargs):
+    def __init__(self,
+                 tensor_size,
+                 n_capsules = 10,
+                 capsule_length = 32,
+                 iterations = 3, 
+                 *args, **kwargs):
         super(RoutingCapsule, self).__init__()
         import numpy as np
         self.iterations = iterations
