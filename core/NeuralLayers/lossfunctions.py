@@ -33,12 +33,13 @@ def one_hot(targets, n_labels):
 
 
 def nlog_likelihood(tensor, targets):
-    if targets.ndimension() == 2 and tensor.shape[1] == targets.shape[1]:
-        onehot_targets = targets
-    else:
-        onehot_targets = one_hot(targets, tensor.shape[1])
-    tensor = tensor.exp()
-    return - (tensor.mul(onehot_targets).sum(1) / tensor.sum(1)).log().mean()
+    return F.nll_loss(tensor.log_softmax(1), targets)
+    # if targets.ndimension() == 2 and tensor.shape[1] == targets.shape[1]:
+    #     onehot_targets = targets
+    # else:
+    #     onehot_targets = one_hot(targets, tensor.shape[1])
+    # tensor = tensor.exp()
+    # return - (tensor.mul(onehot_targets).sum(1) / tensor.sum(1)).log().mean()
 # ============================================================================ #
 
 def hardest_negative(lossValues,margin):
@@ -259,10 +260,14 @@ class CategoricalLoss(nn.Module):
             # -- does euclidean for stability
             responses = (tensor.unsqueeze(1) - self.weight.unsqueeze(0))
             responses = responses.pow(2).sum(2).pow(0.5)
-            onehot_targets = one_hot(targets, self.n_labels)
-            margins = onehot_targets.mul(self.alpha) + 1
-            loss = nlog_likelihood(- responses * margins, onehot_targets) + \
-                self.scale * (responses * onehot_targets).sum(1).mean()
+            true_idx = targets.view(-1) + \
+                torch.arange(0, tensor.size(0)).to(targets.device) * self.n_labels
+            margins = torch.ones(*responses.shape).to(tensor.device)
+            margins = margins.view(-1)
+            margins[true_idx] = margins[true_idx] + self.alpha
+            margins = margins.view(tensor.size(0), -1)
+            loss = nlog_likelihood(- responses * margins, targets) + \
+                self.scale * (responses.view(-1)[true_idx]).mean()
             (top1, top5) = compute_top15(- responses.data, targets.data)
             return loss, (top1, top5)
 
@@ -284,10 +289,13 @@ class CategoricalLoss(nn.Module):
             loss = nlog_likelihood(responses, targets)
 
         elif self.type == "lmcl":
-            onehot_targets = one_hot(targets, self.n_labels)
             m, s = min(0.5, self.margin), max(self.scale, 1.)
-            loss = nlog_likelihood((responses - m*onehot_targets) * s, onehot_targets)
-
+            true_idx = targets.view(-1) + \
+                torch.arange(0, tensor.size(0)).to(targets.device) * self.n_labels
+            responses = responses.view(-1)
+            responses[true_idx] = responses[true_idx] - m
+            responses = (responses * s).view(tensor.size(0), -1)
+            loss = nlog_likelihood(responses, targets)
         else:
             raise NotImplementedError
 
