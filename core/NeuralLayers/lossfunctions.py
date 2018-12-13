@@ -7,6 +7,40 @@ import numpy as np
 from torch.autograd.function import Function
 #==============================================================================#
 
+
+def compute_n_embedding(tensor_size):
+    if isinstance(tensor_size, list) or isinstance(tensor_size, tuple):
+        if len(tensor_size)>1: # batch size is not required
+            tensor_size = np.prod(tensor_size[1:])
+        else:
+            tensor_size = tensor_size[0]
+    return int(tensor_size)
+
+
+def compute_top15(responses, targets):
+    predicted = responses.topk(5, 1, True, True)[1]
+    predicted = predicted.t()
+    correct = predicted.eq(targets.view(1,-1).expand_as(predicted))
+    top1 = correct[:1].view(-1).float().sum().mul_(100.0 / responses.size(0))
+    top5 = correct[:5].view(-1).float().sum().mul_(100.0 / responses.size(0))
+    return top1, top5
+
+
+def one_hot(targets, n_labels):
+    identity = torch.eye(n_labels).to(targets.device)
+    onehot_targets = identity.index_select(dim=0, index=targets.long().view(-1))
+    return onehot_targets.requires_grad_()
+
+
+def nlog_likelihood(tensor, targets):
+    if targets.ndimension() == 2 and tensor.shape[1] == targets.shape[1]:
+        onehot_targets = targets
+    else:
+        onehot_targets = one_hot(targets, tensor.shape[1])
+    tensor = tensor.exp()
+    return - (tensor.mul(onehot_targets).sum(1) / tensor.sum(1)).log().mean()
+# ============================================================================ #
+
 def hardest_negative(lossValues,margin):
     return lossValues.max(2)[0].max(1)[0].mean()
 
@@ -38,7 +72,7 @@ class TripletLoss(nn.Module):
             return semihard_negative(lossValues, self.margin), Gs, Is
         else:
             raise NotImplementedError
-#==============================================================================#
+# ============================================================================ #
 
 
 class DiceLoss(nn.Module):
@@ -83,7 +117,7 @@ class DiceLoss(nn.Module):
         else:
             raise NotImplementedError
         return loss.mean(), (top1, top5)
-#==============================================================================#
+# ============================================================================ #
 
 
 class CapsuleLoss(nn.Module):
@@ -92,29 +126,20 @@ class CapsuleLoss(nn.Module):
     """
     def __init__(self, n_labels, *args, **kwargs):
         super(CapsuleLoss, self).__init__()
-
         self.n_labels = n_labels
         self.tensor_size = (1,)
 
-    def forward(self, features, targets):
-        identity = torch.eye(self.n_labels)
-        if targets.is_cuda:
-            identity = identity.cuda()
-        onehot_targets = identity.index_select(dim=0, index=targets.view(-1))
+    def forward(self, tensor, targets):
+        onehot_targets = one_hot(targets, n_labels)
         # L2
-        predictions = features.pow(2).sum(2).pow(.5)
+        predictions = tensor.pow(2).sum(2).add(1e-6).pow(.5)
         # m+, m-, lambda, Tk all set per paper
         loss = onehot_targets*((.9-predictions).clamp(0, 1e6)**2) + \
                (1-onehot_targets)*.5*((predictions-.1).clamp(0, 1e6)**2)
 
-        predicted = predictions.topk(5, 1, True, True)[1]
-        predicted = predicted.t()
-        correct = predicted.eq(targets.view(1,-1).expand_as(predicted))
-        top1 = correct[:1].view(-1).float().sum().mul_(100.0/features.size(0))
-        top5 = correct[:5].view(-1).float().sum().mul_(100.0/features.size(0))
-
+        (top1, top5) = compute_top15(predictions.data, targets.data)
         return loss.sum(1).mean(), (top1, top5)
-#==============================================================================#
+# ============================================================================ #
 
 
 class CenterLoss(nn.Module):
@@ -127,21 +152,15 @@ class CenterLoss(nn.Module):
                  alpha       = 0.5,
                  **kwargs):
         super(CenterLoss, self).__init__()
-        if isinstance(tensor_size, list) or isinstance(tensor_size, tuple):
-            if len(tensor_size)>1: # batch size is not required
-                tensor_size = np.prod(tensor_size[1:])
-            else:
-                tensor_size = tensor_size[0]
+        n_embedding = compute_n_embedding(tensor_size)
         self.register_buffer("alpha", torch.Tensor([alpha]).sum())
-
-        self.weight = nn.Parameter(
-            F.normalize(torch.randn(n_labels, tensor_size), p=2, dim=1))
+        self.centers = nn.Parameter(
+            F.normalize(torch.randn(n_labels, n_embedding), p=2, dim=1))
         self.tensor_size = (1,)
-
         self.function = CenterFunction.apply
 
     def forward(self, tensor, targets):
-        return self.function(tensor, targets.long(), self.weight, self.alpha)
+        return self.function(tensor, targets.long(), self.centers, self.alpha)
 
 
 class CenterFunction(Function):
@@ -158,7 +177,6 @@ class CenterFunction(Function):
         tensor, targets, centers, alpha = ctx.saved_variables
         grad_tensor = grad_targets = grad_centers = None
         grad_centers = torch.zeros(centers.size()).to(tensor.device)
-
         grad_tensor = tensor - centers.index_select(0, targets.long())
 
         unique = torch.unique(targets.long())
@@ -167,7 +185,7 @@ class CenterFunction(Function):
                 tensor.data[targets == j].mean(0).mul(alpha)
 
         return grad_tensor * grad_output, None, grad_centers, None
-#==============================================================================#
+# ============================================================================ #
 
 
 class CategoricalLoss(nn.Module):
@@ -175,98 +193,106 @@ class CategoricalLoss(nn.Module):
 
         Parameters
         ----------
-        type          :: entr/smax/tsmax/tentr/lmcl
+        type          :: entr/smax/tsmax/lmcl
                          entr  - categorical cross entropy
                          smax  - softmax
                          tsmax - taylor softmax
                                  https://arxiv.org/pdf/1511.05042.pdf
-                         tentr - taylor entropy
                          lmcl  - large margin cosine loss
-                                 https://arxiv.org/pdf/1801.09414.pdf
-
-        distance      :: cosine/dot
+                                 https://arxiv.org/pdf/1801.09414.pdf  eq-4
+                         lmgm  - large margin Gaussian Mixture
+                                 https://arxiv.org/pdf/1803.02988.pdf  eq-17
+        measure       :: cosine/dot
                          cosine similarity / matrix dot product
         center        :: True/False
                          https://ydwen.github.io/papers/WenECCV16.pdf
-        center_lambda :: factor of center loss added to categorical loss
 
         Other inputs
         ------------
-        tensor_size   :: feature length
+        tensor_size   :: feature length or tensor.shape
         n_labels      :: number of output labels
 
     """
-    def __init__(self, tensor_size=128, n_labels=10, type="entr",
-                 distance="dot", center=False, center_lambda=0.5,
+    def __init__(self,
+                 tensor_size   = 128,
+                 n_labels      = 10,
+                 type          = "entr",# entr/smax/tsmax/lmcl/lmgm
+                 measure       = "dot", # dot/cosine
+                 center        = False, # activates center loss
+                 scale         = 0.5,   # lambda in center loss / lmgm / s in lcml
+                 margin        = 0.3,   # margin for lcml
+                 alpha         = 0.5,   # center or lmgm
+                 defaults      = False, # deafults center, lcml, & lmgm params
                  *args, **kwargs):
         super(CategoricalLoss, self).__init__()
-        distance = distance.lower()
-        if isinstance(tensor_size, list) or isinstance(tensor_size, tuple):
-            if len(tensor_size)>1: # batch size is not required
-                tensor_size = np.prod(tensor_size[1:])
-            else:
-                tensor_size = tensor_size[0]
-        n_embedding = tensor_size
 
+        n_embedding = compute_n_embedding(tensor_size)
         self.type = type.lower()
-        self.distance = distance
-        self.center_lambda = center_lambda
-        if center:
-            self.center = CenterLoss(n_embedding, n_labels)
+        if "distance" in kwargs.keys(): # add future warning
+            measure = kwargs["distance"]
+        self.measure = measure.lower()
+        assert self.type in ("entr", "smax", "tsmax", "lmcl", "lmgm"), \
+            "CategoricalLoss :: type != entr/smax/tsmax/lmcl/lmgm"
+        assert self.measure in ("dot", "cosine"), \
+            "CategoricalLoss :: measure != dot/cosine"
 
+        if defaults:
+            if self.type == "lmcl": margin, scale = 0.35, 10
+            if center: scale, alpha = 0.5, 0.5
+            if self.type == "lmgm": alpha, scale = 0.01, 0.1
+
+        if center:
+            self.center = CenterLoss(n_embedding, n_labels, alpha)
+
+        self.scale = scale
+        self.margin = margin
+        self.alpha = alpha
         self.n_labels = n_labels
-        self.weight = nn.Parameter(torch.Tensor(n_labels, int(np.prod(n_embedding))))
-        nn.init.orthogonal_(self.weight, gain=1./np.sqrt(np.prod(n_embedding)))
-        self.m, self.s = .3, 10
+
+        self.weight = nn.Parameter(torch.randn(n_labels, n_embedding))
         self.tensor_size = (1,)
 
-    def forward(self, features, targets):
-        BSZ = features.size(0)
+    def forward(self, tensor, targets):
 
-        if self.distance == "cosine" or self.type == "lmcl":
+        if self.type == "lmgm":
+            # mahalanobis with identity covariance per paper
+            # -- does euclidean
+            responses = (tensor.unsqueeze(1) - self.weight.unsqueeze(0))
+            responses = responses.pow(2).sum(2).pow(0.5)
+            onehot_targets = one_hot(targets, self.n_labels)
+            margins = onehot_targets.mul(self.alpha) + 1
+            loss = nlog_likelihood(- responses * margins, onehot_targets) + \
+                self.scale * (responses * onehot_targets).sum(1).mean()
+            (top1, top5) = compute_top15(- responses.data, targets.data)
+            return loss, (top1, top5)
+
+        if self.measure == "cosine" or self.type == "lmcl":
             self.weight.data = F.normalize(self.weight.data, p=2, dim=1)
-            features = F.normalize(features, p=2, dim=1)
-            responses = features.mm(self.weight.t())
+            tensor = F.normalize(tensor, p=2, dim=1)
+        responses = tensor.mm(self.weight.t())
+        if self.measure == "cosine" or self.type == "lmcl":
             responses = responses.clamp(-1., 1.)
-        else:
-            responses = features.mm(self.weight.t())
+        (top1, top5) = compute_top15(responses.data, targets.data)
 
-        predicted = responses.topk(5, 1, True, True)[1]
-        predicted = predicted.t()
-        correct = predicted.eq(targets.view(1,-1).expand_as(predicted))
-        top1 = correct[:1].view(-1).float().sum().mul_(100.0/BSZ)
-        top5 = correct[:5].view(-1).float().sum().mul_(100.0/BSZ)
-
-        # Taylor series
-        if self.type == "tsmax" or self.type == "tentr":
+        if self.type == "tsmax": # Taylor series
             responses = 1 + responses + 0.5*(responses**2)
 
-        if self.type.endswith("entr"):
+        if self.type == "entr":
             loss = F.cross_entropy(responses,targets.view(-1))
 
-        elif self.type.endswith("smax"):
-            identity = torch.eye(self.n_labels)
-            if targets.is_cuda:
-                identity = identity.cuda()
-            onehot_targets = identity.index_select(dim=0, index=targets.view(-1))
-            responses = torch.exp(responses)
-            loss = -torch.log( (responses*onehot_targets).sum(1) / responses.sum(1) ).sum() / BSZ
+        elif self.type in ("smax", "tsmax"):
+            loss = nlog_likelihood(responses, targets)
 
         elif self.type == "lmcl":
-            m, s = 0.35, 10  # From https://arxiv.org/pdf/1801.09414.pdf
-            genuineIDX = torch.from_numpy(np.arange(BSZ))
-            if targets.is_cuda: genuineIDX = genuineIDX.cuda()
-            genuineIDX = targets.view(-1) + genuineIDX * self.n_labels
-            responses = responses.view(-1)
-            responses[genuineIDX] = responses[genuineIDX] - m
-            responses = responses.view(BSZ,-1)
-            responses = torch.exp(responses*s)
-            loss = - torch.log(responses.view(-1)[genuineIDX] / responses.sum(1)).sum() / BSZ
+            onehot_targets = one_hot(targets, self.n_labels)
+            m, s = min(0.5, self.margin), max(self.scale, 1.)
+            loss = nlog_likelihood((responses - m*onehot_targets) * s, onehot_targets)
+
         else:
             raise NotImplementedError
 
         if hasattr(self, "center"):
-            loss = loss + self.center(features, targets)*self.center_lambda
+            loss = loss + self.center(tensor, targets)*self.scale
 
         return loss, (top1, top5)
 
