@@ -32,13 +32,16 @@ class ConvolutionTranspose(nn.Module):
         # Checks
         assert len(tensor_size) == 4 and type(tensor_size) in [list, tuple], \
             "ConvolutionTranspose -- tensor_size must be of length 4 (tuple or list)"
-        assert type(filter_size) in [int, list, tuple], "Convolution -- filter_size must be int/tuple/list"
+        assert type(filter_size) in [int, list, tuple], \
+            "Convolution -- filter_size must be int/tuple/list"
         if isinstance(filter_size, int):
             filter_size = (filter_size, filter_size)
         if isinstance(filter_size, list):
             filter_size = tuple(filter_size)
-        assert len(filter_size) == 2, "ConvolutionTranspose -- filter_size length must be 2"
-        assert type(strides) in [int, list, tuple], "ConvolutionTranspose -- strides must be int/tuple/list"
+        assert len(filter_size) == 2, \
+            "ConvolutionTranspose -- filter_size length must be 2"
+        assert type(strides) in [int, list, tuple], \
+            "ConvolutionTranspose -- strides must be int/tuple/list"
         if isinstance(strides, int):
             strides = (strides, strides)
         if isinstance(strides, list):
@@ -47,10 +50,10 @@ class ConvolutionTranspose(nn.Module):
         assert isinstance(pad, bool), "ConvolutionTranspose -- pad must be boolean"
         assert isinstance(dropout, float), "ConvolutionTranspose -- dropout must be float"
         assert normalization in [None, "batch", "group", "instance", "layer", "pixelwise"], \
-            "Convolution's normalization must be None/'batch'/'group'/'instance'/'layer'/'pixelwise'"
+            "Convolution's normalization must be None/batch/group/instance/layer/pixelwise"
         assert isinstance(equalized, bool), "Convolution -- equalized must be boolean"
         self.equalized = equalized
-        activation = activation.lower()
+        if activation is not None: activation = activation.lower()
         dilation = kwargs["dilation"] if "dilation" in kwargs.keys() else (1, 1)
         # Modules
         padding = (filter_size[0]//2, filter_size[1]//2) if pad else 0
@@ -66,15 +69,16 @@ class ConvolutionTranspose(nn.Module):
             if activation in ["relu", "relu6", "lklu", "tanh", "sigm", "maxo", "rmxo", "swish"]:
                 self.Activation = Activations(activation)
         if weight_nm:
-            self.ConvolutionTranspose = nn.utils.weight_norm(nn.ConvTranspose2d(tensor_size[1]//pre_expansion,
-                                                                                out_channels*pst_expansion, filter_size,
-                                                                                strides, padding, bias=False,
-                                                                                dilation=dilation, groups=groups),
-                                                             name='weight')
+            self.ConvolutionTranspose = nn.utils.weight_norm(
+                nn.ConvTranspose2d(tensor_size[1]//pre_expansion,
+                out_channels*pst_expansion, filter_size, strides, padding,
+                bias=False, dilation=dilation, groups=groups), name='weight')
         else:
-            self.ConvolutionTranspose = nn.ConvTranspose2d(tensor_size[1]//pre_expansion, out_channels*pst_expansion,
-                                                           filter_size, strides, padding, bias=False, groups=groups)
-            nn.init.kaiming_normal_(self.ConvolutionTranspose.weight, nn.init.calculate_gain("conv2d"))
+            self.ConvolutionTranspose = nn.ConvTranspose2d(tensor_size[1]//pre_expansion,
+                out_channels*pst_expansion, filter_size, strides, padding,
+                bias=False, groups=groups)
+            nn.init.kaiming_normal_(self.ConvolutionTranspose.weight,
+                nn.init.calculate_gain("conv2d"))
             if equalized:
                 import numpy as np
                 gain = kwargs["gain"] if "gain" in kwargs.keys() else np.sqrt(2)
@@ -85,12 +89,13 @@ class ConvolutionTranspose(nn.Module):
         self.oc = self.ConvolutionTranspose.weight.data.size(0)
         # out tensor size
         self.tensor_size = (tensor_size[0], out_channels,
-                            (tensor_size[2] - 1)*strides[0] - 2*padding[0] + filter_size[0],
-                            (tensor_size[3] - 1)*strides[1] - 2*padding[1] + filter_size[1],)
+            (tensor_size[2] - 1)*strides[0] - 2*padding[0] + filter_size[0],
+            (tensor_size[3] - 1)*strides[1] - 2*padding[1] + filter_size[1],)
         if not pre_nm:
             if normalization is not None:
-                self.Normalization = Normalizations((self.tensor_size[0], out_channels*pst_expansion,
-                    self.tensor_size[2], self.tensor_size[3]), normalization, **kwargs)
+                self.Normalization = Normalizations((self.tensor_size[0],
+                    out_channels*pst_expansion, self.tensor_size[2],
+                    self.tensor_size[3]), normalization, **kwargs)
             if activation in ["relu", "relu6", "lklu", "tanh", "sigm", "maxo", "rmxo", "swish"]:
                 self.Activation = Activations(activation)
         self.pre_nm = pre_nm
