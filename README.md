@@ -4,7 +4,7 @@ A collection of deep learning architectures (a PyTorch implementation).
 
 ## Dependencies
 * python 3.6
-* PyTorch 0.4.1
+* PyTorch > 0.4.1
 * torchvision
 * visdom
 
@@ -81,6 +81,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
   * groups = 1 (default)
   * [weight_nm](https://arxiv.org/pdf/1602.07868.pdf) = True/False
   * [equalized](https://arxiv.org/pdf/1710.10196.pdf) = True/False
+  * [shift](https://arxiv.org/pdf/1711.08141.pdf) = True/False -- requires 3x3 kernel, and a minimum #channels of input >= 9
 
 
 * ConvolutionTranspose -- A convolution transpose layer with parameters same as Convolution layer
@@ -88,7 +89,6 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 * CarryResidue -- Has several layers that requires residual connections or concatenation
   * [ResidualOriginal](https://arxiv.org/pdf/1512.03385.pdf)
   * [ResidualComplex](https://arxiv.org/pdf/1512.03385.pdf)
-  * ResidualComplex2
   * [ResidualNeXt](https://arxiv.org/pdf/1611.05431.pdf)
   * [SEResidualComplex](https://arxiv.org/pdf/1709.01507.pdf)
   * SEResidualNeXt
@@ -110,5 +110,6 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 * LossFunctions
   * [CapsuleLoss](https://arxiv.org/pdf/1710.09829.pdf)
   * CategoricalLoss -- Cross entropy / softmax / [taylor softmax](https://arxiv.org/pdf/1511.05042.pdf) / [large margin cosine loss](https://arxiv.org/pdf/1801.09414.pdf)
+  * [CenterLoss](https://ydwen.github.io/papers/WenECCV16.pdf)
   * TripletLoss
   * [DiceLoss / Tversky Loss](https://arxiv.org/abs/1706.05721)
