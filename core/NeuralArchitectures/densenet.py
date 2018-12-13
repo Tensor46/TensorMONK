@@ -75,6 +75,7 @@ class DenseNet(nn.Module):
                  groups = 1,
                  weight_nm = False,
                  equalized = False,
+                 shift = False,
                  embedding = False,
                  n_embedding = 256,
                  pretrained = False,
@@ -87,10 +88,10 @@ class DenseNet(nn.Module):
 
         self.pretrained = pretrained
         if self.pretrained:
-            assert tensor_size[1] == 1 or tensor_size[1] == 3, """DenseNet ::
-                rgb(preferred)/grey image is required for pretrained"""
+            assert tensor_size[1] == 1 or tensor_size[1] == 3, \
+                "DenseNet :: rgb(preferred)/grey image is required for pretrained"
             activation, normalization, pre_nm = "relu", "batch", True
-            groups, weight_nm, equalized = 1, False, False
+            groups, weight_nm, equalized, shift = 1, False, False, False
 
         self.type = type
         self.in_tensor_size = tensor_size
@@ -115,7 +116,7 @@ class DenseNet(nn.Module):
                 as min(tensor_size[2], tensor_size[3]) <  64""")
         self.network.add_module("Convolution",
             Convolution(tensor_size, 7, 64, s, True, activation, 0., normalization,
-                        False, 1, weight_nm, equalized, **kwargs))
+                        False, 1, weight_nm, equalized, shift, **kwargs))
         print("Convolution", self.network[-1].tensor_size)
 
         if min(tensor_size[2], tensor_size[3]) > 128:
@@ -132,7 +133,7 @@ class DenseNet(nn.Module):
             self.network.add_module("DenseBlock-"+str(i),
                 DenseBlock(_tensor_size, 3, _tensor_size[1]+n_blocks*k, 1, True,
                 activation, 0., normalization, pre_nm, groups, weight_nm, equalized,
-                growth_rate=k, n_blocks=n_blocks, multiplier=4))
+                shift, growth_rate=k, n_blocks=n_blocks, multiplier=4))
             _tensor_size = self.network[-1].tensor_size
             print("DenseBlock-"+str(i), _tensor_size)
 
