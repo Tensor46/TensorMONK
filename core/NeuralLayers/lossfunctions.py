@@ -260,15 +260,14 @@ class CategoricalLoss(nn.Module):
             # -- does euclidean for stability
             responses = (tensor.unsqueeze(1) - self.weight.unsqueeze(0))
             responses = responses.pow(2).sum(2).pow(0.5)
+            (top1, top5) = compute_top15(- responses.data, targets.data)
+
             true_idx = targets.view(-1) + \
                 torch.arange(0, tensor.size(0)).to(targets.device) * self.n_labels
-            margins = torch.ones(*responses.shape).to(tensor.device)
-            margins = margins.view(-1)
-            margins[true_idx] = margins[true_idx] + self.alpha
-            margins = margins.view(tensor.size(0), -1)
-            loss = nlog_likelihood(- responses * margins, targets) + \
-                self.scale * (responses.view(-1)[true_idx]).mean()
-            (top1, top5) = compute_top15(- responses.data, targets.data)
+            responses = responses.view(-1)
+            loss = self.scale * (responses[true_idx]).mean()
+            responses[true_idx] = responses[true_idx] * (1 + self.alpha)
+            loss = loss + nlog_likelihood(- responses.view(tensor.size(0), -1), targets)
             return loss, (top1, top5)
 
         if self.measure == "cosine" or self.type == "lmcl":
