@@ -13,7 +13,8 @@ def roc(genuine_or_scorematrix,
         impostor_or_labels,
         filename       = None,
         semilog        = True,
-        lower_triangle = True):
+        lower_triangle = True,
+        print_show     = False):
     """
 
         genuine_or_scorematrix -- genuine scores or all scores (square matrix)
@@ -86,7 +87,8 @@ def roc(genuine_or_scorematrix,
     far = 1 - (1. * np.cumsum(impostor_bin_count))
     # Find gars on log scale -- 0.00001 - 1
     samples = [gar[np.argmin(np.abs(far - 10**x))] for x in range(-5, 1)]
-    print(("gar@far (0.00001-1.) :: "+"/".join(["{:1.3f}"]*6)).format(*samples))
+    if print_show:
+        print(("gar@far (0.00001-1.) :: "+"/".join(["{:1.3f}"]*6)).format(*samples))
     # interpolate and shirnk gar & far to 600 samples, for ploting
     _gar = interp.interp1d(np.arange(gar.size), gar)
     gar = _gar(np.linspace(0, gar.size-1, 599))
@@ -257,5 +259,4 @@ class utils:
     GaussianKernel = GaussianKernel
     DoG = DoG
     DoGBlob = DoGBlob
-
     roc = roc
