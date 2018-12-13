@@ -3,7 +3,7 @@
 from .linear import Linear
 from .convolution import Convolution
 from .convolutiontranspose import ConvolutionTranspose
-from .carryresidue import ResidualOriginal, ResidualComplex, ResidualComplex2, \
+from .carryresidue import ResidualOriginal, ResidualComplex, \
     ResidualInverted, ResidualShuffle, ResidualNeXt, SEResidualComplex, \
     SEResidualNeXt, SimpleFire, CarryModular, DenseBlock, Stem2, InceptionA, \
     InceptionB, InceptionC, ReductionA, ReductionB,ContextNet_Bottleneck
