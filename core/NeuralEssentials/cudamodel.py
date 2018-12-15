@@ -70,7 +70,7 @@ class CudaModel(nn.Module):
                             p.data.add_(l2.mul(l2_factor))
 
                 elif p.data.ndimension() == 3 and not only_convs:
-                    # routing capsule - has K MxN linears - we normalize M
+                    # routing capsule - has K MxN linears - normalize M
                     l2 = p.data.norm(2, 1, True)
                     p.data.div_(l2.add(1e-8))
                     if l2_factor != 0.:
