@@ -10,6 +10,7 @@ from .mnist import MNIST
 from .cifar10 import CIFAR10
 from .visuals import MakeGIF, VisPlots
 from .transforms import Transforms
+from .fewperlabel import FewPerLabel
 
 del basemodel
 del savemodel
@@ -20,3 +21,4 @@ del mnist
 del cifar10
 del visuals
 del transforms
+del fewperlabel
