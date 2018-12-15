@@ -33,31 +33,58 @@ class CudaModel(nn.Module):
             else:
                 return self.NET46(inputs)
 
-    def regularize_weights(self, clip=0., only_convs=False):
+    def regularize_weights(self, clip=0., only_convs=False, l2_factor=0.):
+        r"""Does several weight regulaizations. All the weights are renormalized
+        using l2 (exceptions - bias, gamma, beta)
+        For convolutions with kernel height*width > 1 -- l2-norm is done
+        on the dim-2 and dim-3 and divided by sqrt(number of input channels).
+        For convolutions with kernel height*width = 1 -- bounds are normalized
+        between -1 to 1 without sign change and divided by sqrt(number of input
+        channels).
+        For routing capsule weights which are 3D (N, I, O) i.e, we have N IxO
+        linear layers. l2-norm is done on dim-1.
+        For linear layer weights which are 2D (out_channels, in_channels) --
+        l2-norm is done on dim-1.
+
+        Args
+            clip: when > 0., does parameters.clip(-clip, clip) before l2-norm
+            only_convs: True/False l2-norm is restricted to convolutional layers
+            l2_factor: a factor of l2-norm added to weights
+        """
         if self.training:
             self.clip_weights(clip)
-            for name,p in self.NET46.named_parameters():
+            for name, p in self.NET46.named_parameters():
+
                 if p.data.ndimension() == 4:
                     # convolution
                     if p.data.size(2)*p.data.size(3) > 1:
-                        # ignore 1x1's
-                        l2 = p.data.pow(2).sum(3).sum(2).pow(.5).add(1e-8)
-                        p.data.div_(l2.unsqueeze(2).unsqueeze(3)).div_(p.size(1)**0.5)
+                        # ignore 1x1's -- does l2 and considers input channels
+                        l2 = p.data.norm(2, 2, True).norm(2, 3, True)
+                        p.data.div_(l2.add(1e-8)).div_(p.size(1)**0.5)
+                        if l2_factor != 0.:
+                            p.data.add_(l2.mul(l2_factor))
                     else:
                         p.data.div_(p.data.abs().max(1, True)[0]).div_(p.size(1)**0.5)
+                        if l2_factor != 0.:
+                            l2 = p.data.norm(2, 1, True)
+                            p.data.add_(l2.mul(l2_factor))
+
                 elif p.data.ndimension() == 3 and not only_convs:
-                    # routing capsule
-                    # pass
-                    l2 = p.data.pow(2).sum(2).sum(1).pow(.5).add(1e-8)
-                    p.data.div_(l2.unsqueeze(1).unsqueeze(2))
+                    # routing capsule - has K MxN linears - normalize M
+                    l2 = p.data.norm(2, 1, True)
+                    p.data.div_(l2.add(1e-8))
+                    if l2_factor != 0.:
+                        p.data.add_(l2.mul(l2_factor))
+
                 elif p.data.ndimension() == 2 and not only_convs:
                     if name.endswith("centers"): # avoid centers
                         continue
+
                     # fully-connected and lossfunctions
-                    l2 = p.data.pow(2).sum(1).pow(.5).add(1e-8)
-                    p.data.div_(l2.unsqueeze(1))
-                else: # bias, gamma, beta are excluded
-                    pass
+                    l2 = p.data.norm(2, 1, True)
+                    p.data.div_(l2.add(1e-8))
+                    if l2_factor != 0.:
+                        p.data.add_(l2.mul(l2_factor))
 
     def clip_weights(self, clip):
         if self.training:
