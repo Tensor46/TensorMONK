@@ -94,7 +94,7 @@ class VisPlots(object):
                     if sz[1] not in [1, 3]:
                         ws = ws.view(-1, 1, sz[2], sz[3])
                         sz = ws.size()
-                    if sz[0] <= 2**10:
+                    if 4 < sz[0] <= 2**10:
                         _min = ws.min(2, True)[0].min(3, True)[0]
                         _max = ws.max(2, True)[0].max(3, True)[0]
                         self.visplots.images((ws-_min)/(_max-_min),
