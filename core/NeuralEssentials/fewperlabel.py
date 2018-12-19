@@ -1,22 +1,23 @@
-""" TensorMONK's :: NeuralEssentials                                         """
+""" TensorMONK's :: NeuralEssentials                                        """
 
 import os
-import sys
 from random import shuffle
 from functools import reduce
 from PIL import Image as ImPIL
-import multiprocessing
 from tqdm import trange
 import numpy as np
-
-import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff")
 
-IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp")
-list_images = lambda folder: [os.path.join(folder, x) for x in \
-    next(os.walk(folder))[2] if x.lower().endswith(IMAGE_EXTENSIONS)]
+
+def list_images(folder):
+    images = []
+    for x in next(os.walk(folder))[2]:
+        if x.lower().endswith(IMAGE_EXTENSIONS):
+            images.append(os.path.join(folder, x))
+    return images
 
 
 class FewPerLabel(Dataset):
@@ -38,12 +39,13 @@ class FewPerLabel(Dataset):
         torch.LongTensor label
     """
     def __init__(self, path, tensor_size, n_consecutive, process_image=None,
-            augmentations=[], n_samples=int(1e6)):
+                 augmentations=[], n_samples=int(1e6)):
         # get all folders
-        if isinstance(path, str): path = [path]
+        if isinstance(path, str):
+            path = [path]
         folders = []
         for p in path:
-            for folder in next(os.walk(p))[1]: # only immediate folders
+            for folder in next(os.walk(p))[1]:  # only immediate folders
                 folders.append(os.path.join(p, folder))
         self.folders = sorted(folders)
 
@@ -61,13 +63,15 @@ class FewPerLabel(Dataset):
         self.n_consecutive = n_consecutive
         self.true_n_samples = np.sum(self.n_per_label)
         self.random_labels = self.get_random_list(self.n_labels, None,
-            self.n_consecutive)
+                                                  self.n_consecutive)
 
         # process_image
         self.tensor_size = tensor_size
         if process_image is None:
-            process_image = lambda x: ImPIL.open(x).resize(
-                (tensor_size[3], tensor_size[2]), ImPIL.BILINEAR)
+            def process_image(x):
+                x = ImPIL.open(x)
+                x = x.resize((tensor_size[3], tensor_size[2]), ImPIL.BILINEAR)
+                return x
         self.process_image = process_image
 
         # augmentations
@@ -92,7 +96,7 @@ class FewPerLabel(Dataset):
         if len(self.random_labels) == 0:
             # generates random order of labels
             self.random_labels = self.get_random_list(self.n_labels, label,
-                self.n_consecutive)
+                                                      self.n_consecutive)
         return self.to_tensor(image), label
 
     @staticmethod
@@ -107,17 +111,22 @@ class FewPerLabel(Dataset):
         return random_labels
 
 
-# trData = FewPerLabel("../data/test_folders",
-#     (1, 3, 128, 128), 3, process_image=None, augmentations=[], n_samples=int(1e6))
+# import core
+# import multiprocessing
+# trData = core.NeuralEssentials.FewPerLabel("../data/test_folders",
+#     (1, 3, 128, 128), 2, process_image=None,
+    # augmentations=[], n_samples=int(500))
 # trDataLoader = torch.utils.data.DataLoader(trData,
 #     batch_size=16, shuffle=True, num_workers=multiprocessing.cpu_count())
 #
 # for x, y in trDataLoader:
 #     break
 #
-# ImPIL.fromarray(x.mul(255)[0,].data.numpy().transpose(1, 2, 0).astype(np.uint8))
-# ImPIL.fromarray(x.mul(255)[1,].data.numpy().transpose(1, 2, 0).astype(np.uint8))
-# ImPIL.fromarray(x.mul(255)[2,].data.numpy().transpose(1, 2, 0).astype(np.uint8))
-# ImPIL.fromarray(x.mul(255)[3,].data.numpy().transpose(1, 2, 0).astype(np.uint8))
-# ImPIL.fromarray(x.mul(255)[4,].data.numpy().transpose(1, 2, 0).astype(np.uint8))
-# ImPIL.fromarray(x.mul(255)[5,].data.numpy().transpose(1, 2, 0).astype(np.uint8))
+# ImPIL.fromarray(x.mul(255)[0, ].data.numpy().transpose(1, 2,
+#                                                        0).astype(np.uint8))
+# ImPIL.fromarray(x.mul(255)[1, ].data.numpy().transpose(1, 2,
+#                                                        0).astype(np.uint8))
+# ImPIL.fromarray(x.mul(255)[2, ].data.numpy().transpose(1, 2,
+#                                                        0).astype(np.uint8))
+# ImPIL.fromarray(x.mul(255)[3, ].data.numpy().transpose(1, 2,
+#                                                        0).astype(np.uint8))
