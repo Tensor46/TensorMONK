@@ -173,7 +173,7 @@ class VisPlots(object):
     def _normalize_01(self, tensor):
         _min = tensor.min(2, True)[0].min(3, True)[0]
         _max = tensor.max(2, True)[0].max(3, True)[0]
-        return tensor.add_(-_min).div_(_max - _min + 1e-6)
+        return tensor.add(-_min).div(_max - _min + 1e-6)
 
     @staticmethod
     def _trim_name(name):
