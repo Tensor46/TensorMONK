@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 
-class CudaModel(nn.Module):
+class CudaModel(torch.nn.Module):
     """ Works on both CPU & GPU """
     def __init__(self, is_cuda, gpus, net, net_kwargs):
         super(CudaModel, self).__init__()
@@ -15,6 +15,20 @@ class CudaModel(nn.Module):
         self.tensor_size = self.NET46.tensor_size
 
     def forward(self, inputs):
+        inputs = self.check_precision_device(inputs)
+        if type(inputs) in [list, tuple]:
+            return self.NET46(*inputs)
+        else:
+            if self.is_cuda and self.gpus > 1:
+                return nn.parallel.data_parallel(self.NET46, inputs,
+                                                 range(self.gpus))
+            else:
+                return self.NET46(inputs)
+
+    def check_precision_device(self, inputs):
+        r"""Converts the inputs to float or half using parameter precision and
+        to cuda if is_cuda.
+        """
         if not hasattr(self, "precision"):
             for p in self.parameters():
                 break
@@ -23,16 +37,12 @@ class CudaModel(nn.Module):
             if self.is_cuda:
                 inputs = [x.type(self.precision).cuda() if self.is_cuda else
                           x.type(self.precision) for x in inputs]
-            return self.NET46(*inputs)
+            return inputs
         else:
             inputs = inputs.type(self.precision)
             if self.is_cuda:
                 inputs = inputs.cuda()
-            if self.is_cuda and self.gpus > 1:
-                return nn.parallel.data_parallel(self.NET46, inputs,
-                                                 range(self.gpus))
-            else:
-                return self.NET46(inputs)
+        return inputs
 
     def regularize_weights(self, clip=0., only_convs=False, l2_factor=0.):
         r"""Does several weight regulaizations. All the weights are renormalized
