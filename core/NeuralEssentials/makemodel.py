@@ -1,95 +1,131 @@
-""" TensorMONK's :: NeuralEssentials                                         """
+""" TensorMONK's :: NeuralEssentials                                        """
 
 import os
-import numpy as np
-from .basemodel import BaseModel
-from .cudamodel import CudaModel
-from .loadmodel import LoadModel
 import torch
+from .cudamodel import CudaModel
 is_cuda = torch.cuda.is_available()
-#==============================================================================#
 
 
-def MakeModel(file_name, tensor_size, n_labels,
-              embedding_net, embedding_net_kwargs,
-              loss_net=None, loss_net_kwargs={},
-              default_gpu=0, gpus=1, ignore_trained=False):
+class BaseModel:
+    netEmbedding = None
+    netLoss = None
+    netAdversarial = None
+    meterTop1 = []
+    meterTop5 = []
+    meterLoss = []
+    meterTeAC = []
+    meterSpeed = []
+    meterIterations = 0
+    fileName = None
+    isCUDA = False
+
+
+def MakeModel(file_name,
+              tensor_size,
+              n_labels,
+              embedding_net,
+              embedding_net_kwargs={},
+              loss_net=None,
+              loss_net_kwargs: dict = {},
+              default_gpu: int = 0,
+              gpus: int = 1,
+              ignore_trained: bool = False):
+    r"""Using BaseModel structure build CudaModel's for embedding_net and
+    loss_net.
+
+    Args:
+        file_name: full path + name of the file to save model
+        tensor_size: input tensor size to build embedding_net
+        n_labels: number of labels for loss_net, use None when loss_net is None
+        embedding_net: feature embedding network that requires input of size
+            tensor_size
+        embedding_net_kwargs: all the additional kwargs required to build the
+            embedding_net, default = {}
+        loss_net: loss network. default = None
+        loss_net_kwargs: all the additional kwargs required to build the
+            loss_net. When loss_net_kwargs["tensor_size"] and
+            loss_net_kwargs["n_labels"] are not available uses the
+            Model.netEmbedding.tensor_size and n_labels
+        default_gpu: gpus used when gpus = 1 and cuda is available, default = 0
+        gpus: numbers of gpus used for training - used by CudaModel for
+            multi-gpu support, default = 1
+        ignore_trained: when True, ignores the trained model
+    """
     Model = BaseModel()
     Model.file_name = file_name
+
     print("...... making PyTORCH model!")
     embedding_net_kwargs["tensor_size"] = tensor_size
-    Model.netEmbedding = CudaModel(is_cuda, gpus, embedding_net, embedding_net_kwargs)
-    loss_net_kwargs["tensor_size"] = Model.netEmbedding.tensor_size
-    loss_net_kwargs["n_labels"] = n_labels
+    Model.netEmbedding = CudaModel(is_cuda, gpus,
+                                   embedding_net, embedding_net_kwargs)
+
+    if "tensor_size" not in loss_net_kwargs.keys():
+        loss_net_kwargs["tensor_size"] = Model.netEmbedding.tensor_size
+    if "n_labels" not in loss_net_kwargs.keys():
+        loss_net_kwargs["n_labels"] = n_labels
     if loss_net is not None:
         Model.netLoss = CudaModel(is_cuda, gpus, loss_net, loss_net_kwargs)
 
-    if os.path.isfile(Model.file_name+("" if Model.file_name.endswith(".t7") else ".t7")) and not ignore_trained:
+    file_name = Model.file_name
+    if not file_name.endswith(".t7"):
+        file_name += ".t7"
+
+    if os.path.isfile(file_name) and not ignore_trained:
         print("...... loading pretrained Model!")
         Model = LoadModel(Model)
-    if is_cuda and gpus > 0:
+
+    for x in dir(Model):  # count parameters
+        if x.startswith("net") and getattr(Model, x) is not None:
+            count = 0
+            for p in getattr(Model, x).parameters():
+                count += p.cpu().data.numel()
+            print(" --- Total parameters in {} :: {} ---".format(x, count))
+
+    if is_cuda and gpus > 0:  # cuda models
         if gpus == 1:
             torch.cuda.set_device(default_gpu)
-        Model.netEmbedding = Model.netEmbedding.cuda()
-        if Model.netLoss is not None:
-            Model.netLoss = Model.netLoss.cuda()
-    print(" --- Total parameters in netEmbedding :: {} ---".format(np.sum([p.cpu().data.numel() \
-          for p in Model.netEmbedding.parameters()])))
-    if Model.netLoss is not None:
-        print(" --- Total parameters in netLoss      :: {} ---\n".format(np.sum([p.cpu().data.numel() \
-              for p in Model.netLoss.parameters()])))
-    Model.is_cuda = is_cuda
+        for x in dir(Model):
+            if x.startswith("net") and getattr(Model, x) is not None:
+                eval("Model." + x + ".cuda()")
+        Model.is_cuda = is_cuda
     return Model
-#==============================================================================#
 
 
-def MakeCNN(file_name, tensor_size, n_labels,
-              embedding_net, embedding_net_kwargs,
-              loss_net, loss_net_kwargs,
-              default_gpu=0, gpus=1, ignore_trained=False):
-    Model = BaseModel()
-    Model.file_name = file_name
-    print("...... making PyTORCH model!")
-    embedding_net_kwargs["tensor_size"] = tensor_size
-    Model.netEmbedding = CudaModel(is_cuda, gpus, embedding_net, embedding_net_kwargs)
-    loss_net_kwargs["tensor_size"] = Model.netEmbedding.tensor_size
-    loss_net_kwargs["n_labels"] = n_labels
-    Model.netLoss = CudaModel(is_cuda, gpus, loss_net, loss_net_kwargs)
+def LoadModel(Model):
+    r""" Loads the following from Model.file_name:
+        1. state_dict of any value whose key starts with "net" & value != None
+        2. values of keys that starts with "meter".
+    """
+    file_name = Model.file_name
+    if not file_name.endswith(".t7"):
+        file_name += ".t7"
+    dict_stuff = torch.load(file_name)
 
-    if os.path.isfile(Model.file_name+("" if Model.file_name.endswith(".t7") else ".t7")) and not ignore_trained:
-        print("...... loading pretrained Model!")
-        Model = LoadModel(Model)
-    if is_cuda:
-        if gpus == 1:
-            torch.cuda.set_device(default_gpu)
-        Model.netEmbedding = Model.netEmbedding.cuda()
-        Model.netLoss = Model.netLoss.cuda()
-    print(" --- Total parameters in netEmbedding :: {} ---".format(np.sum([p.cpu().data.numel() \
-          for p in Model.netEmbedding.parameters()])))
-    print(" --- Total parameters in netLoss      :: {} ---\n".format(np.sum([p.cpu().data.numel() \
-          for p in Model.netLoss.parameters()])))
-    Model.is_cuda = is_cuda
+    for x in dir(Model):
+        if x.startswith("net") and getattr(Model, x) is not None:
+            eval("Model."+x+'.load_state_dict(dict_stuff["'+x+'"])')
+        if x.startswith("meter") and dict_stuff[x] is not None:
+            setattr(Model, x, dict_stuff[x])
     return Model
-#==============================================================================#
 
 
-def MakeAE(file_name, tensor_size, n_labels,
-           autoencoder_net, autoencoder_net_kwargs,
-           default_gpu=0, gpus=1, ignore_trained=False):
-    Model = BaseModel()
-    Model.file_name = file_name
-    print("...... making PyTORCH model!")
-    autoencoder_net_kwargs["tensor_size"] = tensor_size
-    Model.netAE = CudaModel(is_cuda, gpus, autoencoder_net, autoencoder_net_kwargs)
+def SaveModel(Model):
+    r""" Saves the following to Model.file_name:
+        1. state_dict of any value whose key starts with "net" & value != None
+        2. values of keys that starts with "meter".
+    """
+    file_name = Model.file_name
+    if not file_name.endswith(".t7"):
+        file_name += ".t7"
+    dict_stuff = {}
 
-    if os.path.isfile(Model.file_name+("" if Model.file_name.endswith(".t7") else ".t7")) and not ignore_trained:
-        print("...... loading pretrained Model!")
-        Model = LoadModel(Model)
-    if is_cuda:
-        if gpus == 1:
-            torch.cuda.set_device(default_gpu)
-        Model.netAE = Model.netAE.cuda()
-    print(" --- Total parameters in netAE :: {} ---".format(np.sum([p.cpu().data.numel() \
-          for p in Model.netAE.parameters()])))
-    Model.is_cuda = is_cuda
-    return Model
+    for x in dir(Model):
+        if x.startswith("net") and getattr(Model, x) is not None:
+            state_dict = getattr(Model, x).state_dict()
+            for y in state_dict.keys():
+                state_dict[y] = state_dict[y].cpu()
+            dict_stuff.update({x: state_dict})
+        if x.startswith("meter"):
+            dict_stuff.update({x: getattr(Model, x)})
+
+    torch.save(dict_stuff, file_name)

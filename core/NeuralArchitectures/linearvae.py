@@ -1,4 +1,4 @@
-""" TensorMONK's :: NeuralArchitectures                                      """
+""" TensorMONK's :: NeuralArchitectures                                     """
 
 __all__ = ["LinearVAE", ]
 
@@ -6,9 +6,8 @@ __all__ = ["LinearVAE", ]
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..NeuralLayers import *
+from ..NeuralLayers import Linear
 import numpy as np
-#==============================================================================#
 
 
 class LinearVAE(nn.Module):
@@ -28,49 +27,47 @@ class LinearVAE(nn.Module):
 
     """
     def __init__(self,
-                 tensor_size = (6, 784),
-                 embedding_layers = [1024, 512,],
-                 n_latent = 128,
-                 decoder_final_activation = "tanh",
-                 activation = "relu",
-                 normalization = None,
-                 pre_nm = False,
-                 weight_nm = False,
-                 bias = False,
+                 tensor_size=(6, 784),
+                 embedding_layers=[1024, 512],
+                 n_latent=128,
+                 decoder_final_activation="tanh",
+                 activation="relu",
+                 bias=False,
                  *args, **kwargs):
         super(LinearVAE, self).__init__()
 
-        assert type(tensor_size) in [list, tuple], "LinearVAE -- tensor_size must be tuple or list"
-        assert len(tensor_size) > 1, "LinearVAE -- tensor_size must be of length > 1 (tensor_size[0] = BatchSize)"
-        if len(tensor_size) > 2: # In case, last was a convolution or 2D input
+        assert type(tensor_size) in [list, tuple], \
+            "LinearVAE -- tensor_size must be tuple or list"
+        if len(tensor_size) > 2:  # In case, tensor_size is in BCHW
             tensor_size = (tensor_size[0], int(np.prod(tensor_size[1:])))
         decoder_final_activation = decoder_final_activation.lower()
-        assert decoder_final_activation  in ("tanh", "sigm"), "LinearVAE -- decoder_final_activation must be sigm/tanh"
+        assert decoder_final_activation in ("tanh", "sigm"), \
+            "LinearVAE -- decoder_final_activation must be sigm/tanh"
+
+        kwargs["dropout"] = 0.
+        kwargs["bias"] = bias
 
         # encoder with Linear layers
         encoder = []
         _tensor_size = tensor_size
         for x in embedding_layers:
-            encoder.append(Linear(_tensor_size, x, activation, 0., normalization, pre_nm, weight_nm, bias, **kwargs))
+            encoder.append(Linear(_tensor_size, x, activation, **kwargs))
             _tensor_size = encoder[-1].tensor_size
+
         # One more linear layer to get to n_latent length vector
-        encoder.append(Linear(_tensor_size, n_latent, activation, 0., normalization, pre_nm, weight_nm, bias, **kwargs))
+        encoder.append(Linear(_tensor_size, n_latent, activation, **kwargs))
         _tensor_size = encoder[-1].tensor_size
         self.encoder = nn.Sequential(*encoder)
         # mu and log_var to synthesize Z
-        self.mu = Linear(_tensor_size, n_latent, "", 0., normalization, pre_nm, weight_nm, bias, **kwargs)
-        self.log_var = Linear(_tensor_size, n_latent, "", 0., normalization, pre_nm, weight_nm, bias, **kwargs)
+        self.mu = Linear(_tensor_size, n_latent, "", **kwargs)
+        self.log_var = Linear(_tensor_size, n_latent, "", **kwargs)
         # decoder - inverse of encoder
         decoder = []
         for x in embedding_layers[::-1]:
-            decoder.append(Linear(_tensor_size, x, activation, 0., normalization, pre_nm, weight_nm, bias, **kwargs))
+            decoder.append(Linear(_tensor_size, x, activation, **kwargs))
             _tensor_size = decoder[-1].tensor_size
-        decoder.append(Linear(_tensor_size, tensor_size[1], activation, 0., normalization, pre_nm, weight_nm, bias, **kwargs))
-        # Final normalization
-        if decoder_final_activation == "tanh":
-            decoder.append(nn.Tanh())
-        else:
-            decoder.append(nn.Sigmoid())
+        decoder.append(Linear(_tensor_size, tensor_size[1], "", **kwargs))
+        self.activation = decoder_final_activation
         self.decoder = nn.Sequential(*decoder)
 
         self.tensor_size = (6, n_latent)
@@ -83,21 +80,18 @@ class LinearVAE(nn.Module):
         mu, log_var = self.mu(encoded), self.log_var(encoded)
 
         std = log_var.mul(0.5).exp_()
-        if torch.__version__.startswith("0.3"):
-            _eps = torch.FloatTensor(std.size()).normal_()
-            if tensor.is_cuda:
-                _eps = _eps.cuda
-        else:
-            _eps = torch.FloatTensor(std.size()).normal_().to(tensor.device)
+        _eps = torch.FloatTensor(std.size()).normal_().to(tensor.device)
         # mutlivariate latent
         latent = _eps.mul(std).add_(mu)
-        kld = torch.mean(mu.pow(2).add_(log_var.exp()).mul_(-1).add_(1).add_(log_var)).mul_(-0.5)
+        kld = torch.mean(1 + log_var - (mu.pow(2) + log_var.exp())).mul(-0.5)
         decoded = self.decoder(latent)
+        decoded = torch.tanh(decoded) if self.activation == "tanh" else \
+            torch.sigmoid(decoded)
         mse = F.mse_loss(decoded, tensor)
 
         return encoded, mu, log_var, latent, decoded, kld, mse
 
-# from core.NeuralLayers import *
+# from core.NeuralLayers import Linear
 # tensor_size = (1, 1, 28, 28)
 # tensor = torch.rand(*tensor_size)
 # test = LinearVAE(tensor_size, [1024, 512], 64)

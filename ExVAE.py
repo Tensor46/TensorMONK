@@ -1,128 +1,134 @@
 """ tensorMONK's :: ExVAE                                                 """
 
-from __future__ import print_function,division
-import os
+from __future__ import print_function, division
 import sys
 import timeit
 import argparse
-import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.autograd import Variable
-import torchvision.utils as show_utils
-from core import *
-import torch.optim as neuralOptimizer
-#==============================================================================#
+import core
+from core.NeuralEssentials import DataSets, MakeModel, VisPlots, SaveModel
 
 
 def trainMONK():
     args = parse_args()
-    if args.Project.lower() == "mnist":
-        tensor_size = (1, 1, 28, 28)
-        trDataLoader, teDataLoader, n_labels = NeuralEssentials.MNIST(
-            "../data/MNIST", tensor_size, args.BSZ, args.cpus)
-    elif args.Project.lower() == "cifar10":
-        tensor_size = (1, 3, 32, 32)
-        trDataLoader, teDataLoader, n_labels = NeuralEssentials.CIFAR10(
-            "../data/CIFAR10", tensor_size, args.BSZ, args.cpus)
+    trData, vaData, teData, n_labels, tensor_size = \
+        DataSets(args.Project, data_path="../data", n_samples=args.BSZ)
+    args.Architecture = args.Architecture.lower()
     file_name = "./models/" + args.Architecture.lower()
-
+    visplots = VisPlots(file_name.split("/")[-1].split(".")[0])
     if args.Architecture.lower() == "cvae":
-        autoencoder_net = NeuralArchitectures.ConvolutionalVAE
-        autoencoder_net_kwargs = {"embedding_layers": [(3, 32, 2), (3, 64, 2), (3, 128, 2),],
-            "n_latent": 64, "decoder_final_activation": "tanh", "pad": True,
-            "activation": "relu", "normalization": None}
+        autoencoder_net = core.NeuralArchitectures.ConvolutionalVAE
+        autoencoder_net_kwargs = {"embedding_layers":
+                                  [(3, 32, 2), (3, 64, 2), (3, 128, 2)],
+                                  "n_latent": 64,
+                                  "decoder_final_activation": "tanh",
+                                  "pad": True,
+                                  "activation": "relu", "normalization": None}
     elif args.Architecture.lower() == "lvae":
-        autoencoder_net = NeuralArchitectures.LinearVAE
-        autoencoder_net_kwargs = {"embedding_layers": [1024, 512,], "n_latent": 32,
-            "decoder_final_activation": "tanh", "activation": "relu", }
+        autoencoder_net = core.NeuralArchitectures.LinearVAE
+        autoencoder_net_kwargs = {"embedding_layers": [1024, 512],
+                                  "n_latent": 32,
+                                  "decoder_final_activation": "tanh",
+                                  "activation": "relu"}
     else:
         raise NotImplementedError
 
-    Model = NeuralEssentials.MakeModel(file_name, tensor_size, n_labels,
-                                       autoencoder_net, autoencoder_net_kwargs,
-                                       default_gpu=args.default_gpu, gpus=args.gpus,
-                                       ignore_trained=args.ignore_trained)
+    Model = MakeModel(file_name, tensor_size, n_labels,
+                      autoencoder_net, autoencoder_net_kwargs,
+                      default_gpu=args.default_gpu, gpus=args.gpus,
+                      ignore_trained=args.ignore_trained)
 
     if args.optimizer.lower() == "adam":
-        Optimizer = neuralOptimizer.Adam(Model.netEmbedding.parameters())
+        Optimizer = torch.optim.Adam(Model.netEmbedding.parameters())
     elif args.optimizer.lower() == "sgd":
-        Optimizer = neuralOptimizer.SGD(Model.netEmbedding.parameters(), lr= args.learningRate)
+        Optimizer = torch.optim.SGD(Model.netEmbedding.parameters(),
+                                    lr=args.learningRate)
     else:
         raise NotImplementedError
 
     if args.meta_learning:
-        transformer = NeuralLayers.ObfuscateDecolor(tensor_size, 0.4, 0.6, 0.5)
+        transformer = core.NeuralLayers.ObfuscateDecolor(tensor_size,
+                                                         0.4, 0.6, 0.5)
 
     # Usual training
     for _ in range(args.Epochs):
-        Timer  = timeit.default_timer()
+        Timer = timeit.default_timer()
         Model.netEmbedding.train()
-        for i,(tensor, targets) in enumerate(trDataLoader):
+        for i, (tensor, targets) in enumerate(trData):
             Model.meterIterations += 1
 
             # forward pass and parameter update
             Model.netEmbedding.zero_grad()
             if args.meta_learning:
-                org_tensor = Variable(tensor)
+                org_tensor = tensor
                 tensor = transformer(org_tensor)
-                encoded, mu, log_var, latent, decoded, kld, mse = Model.netEmbedding((org_tensor, tensor))
+                encoded, mu, log_var, latent, decoded, kld, mse = \
+                    Model.netEmbedding((org_tensor, tensor))
             else:
-                encoded, mu, log_var, latent, decoded, kld, mse = Model.netEmbedding(Variable(tensor))
+                encoded, mu, log_var, latent, decoded, kld, mse = \
+                    Model.netEmbedding(tensor)
             loss = kld * 0.1 + mse
             loss.backward()
             Optimizer.step()
+            # l2 weights
+            Model.netEmbedding.regularize_weights()
 
             # updating all meters
             Model.meterLoss.append(float(loss.cpu().data.numpy()))
             kld = float(kld.cpu().data.numpy())
             mse = float(mse.cpu().data.numpy())
 
-            Model.meterSpeed.append(int(float(args.BSZ)/(timeit.default_timer()-Timer)))
+            Model.meterSpeed.append(int(float(args.BSZ) /
+                                        (timeit.default_timer()-Timer)))
             Timer = timeit.default_timer()
 
-            print("... {:6d} :: Cost {:2.3f}/{:2.3f}/{:2.3f} :: {:4d} I/S         ".format(Model.meterIterations,
-                  Model.meterLoss[-1], kld, mse, Model.meterSpeed[-1]),end="\r")
+            print("... {:6d} :: Cost {:2.3f}/{:2.3f}/{:2.3f} :: {:4d} I/S    ".
+                  format(Model.meterIterations, Model.meterLoss[-1], kld, mse,
+                         Model.meterSpeed[-1]), end="\r")
             sys.stdout.flush()
-            if i%100 == 0:
-                original = tensor[:min(32,tensor.size(0))].cpu()
-                reconstructed = decoded[:min(32,tensor.size(0))].cpu().data
 
-                if original.dim !=4 :
-                    original = original.view(original.size(0), *tensor_size[1:])
-                if reconstructed.dim !=4 :
-                    reconstructed = reconstructed.view(reconstructed.size(0), *tensor_size[1:])
+            # weight visualization
+            if i % 100 == 0:
+                visplots.show_weights(Model.netEmbedding.state_dict(),
+                                      png_name=file_name)
+                original = tensor[:min(32, tensor.size(0))].data.cpu()
+                reconstructed = decoded[:min(32, tensor.size(0))].cpu().data
 
-                original = (original - original.min(2, keepdim=True)[0].min(3, keepdim=True)[0]) / \
-                    (original.max(2, keepdim=True)[0].max(3, keepdim=True)[0] \
-                    - original.min(2, keepdim=True)[0].min(3, keepdim=True)[0])
-                reconstructed = (reconstructed - reconstructed.min(2, keepdim=True)[0].min(3, keepdim=True)[0]) / \
-                    (reconstructed.max(2, keepdim=True)[0].max(3, keepdim=True)[0] \
-                    - reconstructed.min(2, keepdim=True)[0].min(3, keepdim=True)[0])
+                if original.dim != 4:
+                    original = original.view(original.size(0),
+                                             *tensor_size[1:])
+                if reconstructed.dim != 4:
+                    reconstructed = reconstructed.view(reconstructed.size(0),
+                                                       *tensor_size[1:])
 
-                show_utils.save_image(torch.cat([original, reconstructed], 0),\
-                    "./models/CVAE_train.png", normalize=True)
+                visplots.show_images(torch.cat((original, reconstructed), 0),
+                                     vis_name="images",
+                                     png_name=file_name + ".png",
+                                     normalize=True)
 
         # save every epoch and print the average of epoch
-        print("... {:6d} :: Cost {:2.3f}/{:2.3f}/{:2.3f} :: {:4d} I/S         ".format(Model.meterIterations,
-              Model.meterLoss[-1], kld, mse, Model.meterSpeed[-1]))
-        NeuralEssentials.SaveModel(Model)
+        print("... {:6d} :: Cost {:2.3f}/{:2.3f}/{:2.3f} :: {:4d} I/S    ".
+              format(Model.meterIterations, Model.meterLoss[-1], kld, mse,
+                     Model.meterSpeed[-1]))
+        SaveModel(Model)
         Timer = timeit.default_timer()
 
     print("\nDone with training")
     return Model
 
-# ============================================================================ #
+
 def parse_args():
     parser = argparse.ArgumentParser(description="VAEs using tensorMONK!!!")
-    parser.add_argument("-A", "--Architecture", type=str, default="cvae", choices=["cvae", "lvae",])
-    parser.add_argument("-P", "--Project", type=str, default="mnist", choices=["mnist", "cifar10",])
+    parser.add_argument("-A", "--Architecture", type=str, default="cvae",
+                        choices=["cvae", "lvae"])
+    parser.add_argument("-P", "--Project", type=str, default="mnist",
+                        choices=["mnist", "cifar10"])
 
     parser.add_argument("-B", "--BSZ", type=int, default=32)
     parser.add_argument("-E", "--Epochs", type=int, default=6)
 
-    parser.add_argument("--optimizer", type=str, default="adam", choices=["adam", "sgd",])
+    parser.add_argument("--optimizer", type=str, default="adam",
+                        choices=["adam", "sgd"])
     parser.add_argument("--learningRate", type=float, default=0.01)
 
     parser.add_argument("--meta_learning", action="store_true")

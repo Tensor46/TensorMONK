@@ -32,7 +32,7 @@ class CudaModel(torch.nn.Module):
         if not hasattr(self, "precision"):
             for p in self.parameters():
                 break
-            self.precision = p.dtype
+            self.precision = p.dtype if "p" in locals() else torch.float32
         if type(inputs) in [list, tuple]:
             if self.is_cuda:
                 inputs = [x.type(self.precision).cuda() if self.is_cuda else
