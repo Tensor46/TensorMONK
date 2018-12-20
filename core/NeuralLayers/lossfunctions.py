@@ -131,7 +131,7 @@ class CapsuleLoss(nn.Module):
         self.tensor_size = (1,)
 
     def forward(self, tensor, targets):
-        onehot_targets = one_hot(targets, n_labels)
+        onehot_targets = one_hot(targets, self.n_labels)
         # L2
         predictions = tensor.pow(2).sum(2).add(1e-6).pow(.5)
         # m+, m-, lambda, Tk all set per paper
