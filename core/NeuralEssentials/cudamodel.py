@@ -1,37 +1,48 @@
-""" TensorMONK's :: NeuralEssentials                                         """
+""" TensorMONK's :: NeuralEssentials                                        """
 
 import torch
 import torch.nn as nn
-import visdom
-#==============================================================================#
 
 
-class CudaModel(nn.Module):
+class CudaModel(torch.nn.Module):
     """ Works on both CPU & GPU """
     def __init__(self, is_cuda, gpus, net, net_kwargs):
         super(CudaModel, self).__init__()
 
         self.gpus = gpus
         self.is_cuda = is_cuda
-        self.NET46 = net( **net_kwargs )
+        self.NET46 = net(**net_kwargs)
         self.tensor_size = self.NET46.tensor_size
 
     def forward(self, inputs):
-        if type(inputs) in [list,tuple]:
-            if self.is_cuda:
-                inputs = [x.cuda() if hasattr(x, "is_cuda") else x
-                          for x in inputs]
-            return self.NET46(*inputs)
-            if self.is_cuda:
-                inputs = [x.cuda() for x in inputs]
+        inputs = self.check_precision_device(inputs)
+        if type(inputs) in [list, tuple]:
             return self.NET46(*inputs)
         else:
-            if self.is_cuda:
-                inputs = inputs.cuda()
-            if self.is_cuda and self.gpus>1:
-                return nn.parallel.data_parallel(self.NET46, inputs, range(self.gpus))
+            if self.is_cuda and self.gpus > 1:
+                return nn.parallel.data_parallel(self.NET46, inputs,
+                                                 range(self.gpus))
             else:
                 return self.NET46(inputs)
+
+    def check_precision_device(self, inputs):
+        r"""Converts the inputs to float or half using parameter precision and
+        to cuda if is_cuda.
+        """
+        if not hasattr(self, "precision"):
+            for p in self.parameters():
+                break
+            self.precision = p.dtype if "p" in locals() else torch.float32
+        if type(inputs) in [list, tuple]:
+            if self.is_cuda:
+                inputs = [x.type(self.precision).cuda() if self.is_cuda else
+                          x.type(self.precision) for x in inputs]
+            return inputs
+        else:
+            inputs = inputs.type(self.precision)
+            if self.is_cuda:
+                inputs = inputs.cuda()
+        return inputs
 
     def regularize_weights(self, clip=0., only_convs=False, l2_factor=0.):
         r"""Does several weight regulaizations. All the weights are renormalized
@@ -48,8 +59,8 @@ class CudaModel(nn.Module):
 
         Args
             clip: when > 0., does parameters.clip(-clip, clip) before l2-norm
-            only_convs: True/False l2-norm is restricted to convolutional layers
-            l2_factor: a factor of l2-norm added to weights
+            only_convs: True/False l2-norm is restricted to convolutional
+            layers l2_factor: a factor of l2-norm added to weights
         """
         if self.training:
             self.clip_weights(clip)
@@ -64,7 +75,8 @@ class CudaModel(nn.Module):
                         if l2_factor != 0.:
                             p.data.add_(l2.mul(l2_factor))
                     else:
-                        p.data.div_(p.data.abs().max(1, True)[0]).div_(p.size(1)**0.5)
+                        bounds = p.data.abs().max(1, True)[0]
+                        p.data.div_(bounds).div_(p.size(1)**0.5)
                         if l2_factor != 0.:
                             l2 = p.data.norm(2, 1, True)
                             p.data.add_(l2.mul(l2_factor))
@@ -77,9 +89,8 @@ class CudaModel(nn.Module):
                         p.data.add_(l2.mul(l2_factor))
 
                 elif p.data.ndimension() == 2 and not only_convs:
-                    if name.endswith("centers"): # avoid centers
+                    if name.endswith("centers"):  # avoid centers
                         continue
-
                     # fully-connected and lossfunctions
                     l2 = p.data.norm(2, 1, True)
                     p.data.div_(l2.add(1e-8))
