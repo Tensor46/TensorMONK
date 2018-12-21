@@ -91,6 +91,16 @@ def MakeModel(file_name,
     return Model
 
 
+def convert(state_dict):
+    new_state_dict = {}
+    for name in state_dict.keys():
+        # fix for new Linear layer
+        new_name = name.replace(".Linear.weight", ".weight")
+        new_name = new_name.replace(".Linear.bias", ".bias")
+        new_state_dict[new_name] = state_dict[name]
+    return new_state_dict
+
+
 def LoadModel(Model):
     r""" Loads the following from Model.file_name:
         1. state_dict of any value whose key starts with "net" & value != None
@@ -103,7 +113,8 @@ def LoadModel(Model):
 
     for x in dir(Model):
         if x.startswith("net") and getattr(Model, x) is not None:
-            eval("Model."+x+'.load_state_dict(dict_stuff["'+x+'"])')
+            eval("Model." + x +
+                 '.load_state_dict(convert(dict_stuff["'+x+'"]))')
         if x.startswith("meter") and dict_stuff[x] is not None:
             setattr(Model, x, dict_stuff[x])
     return Model
