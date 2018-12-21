@@ -43,6 +43,10 @@ class Convolution(nn.Module):
             test = Convolution((1, 18, 10, 10), 3, 36, 2, True, transpose=True)
             test.tensor_size = (3, 36, 20, 20)
             test(torch.rand((1, 18, 10, 10))).shape
+        bias: default=False
+
+    Return:
+        torch.Tensor of shape BCHW
     """
     def __init__(self,
                  tensor_size,
@@ -59,6 +63,7 @@ class Convolution(nn.Module):
                  equalized: bool = False,
                  shift: bool = False,
                  transpose: bool = False,
+                 bias: bool = False,
                  **kwargs):
         super(Convolution, self).__init__()
 
@@ -86,6 +91,11 @@ class Convolution(nn.Module):
         assert isinstance(pad, bool), "Convolution: pad must be boolean"
         padding = (filter_size[0]//2, filter_size[1]//2) if pad else (0, 0)
 
+        activation = activation.lower()
+        assert activation in [None, "", ] + Activations.available(),\
+            "Linear: activation must be None/''/" + \
+            "/".join(Activations.available())
+
         assert isinstance(dropout, float), "Convolution: dropout must be float"
         if dropout > 0.:
             self.dropout = nn.Dropout2d(dropout)
@@ -109,8 +119,6 @@ class Convolution(nn.Module):
             "Convolution: transpose must be boolean"
         self.transpose = transpose
 
-        if activation is None:
-            activation = ""
         pre_expansion = pst_expansion = 1
         if activation in ("maxo", "rmxo"):
             pre_expansion = 2 if pre_nm else 1
@@ -129,7 +137,7 @@ class Convolution(nn.Module):
         block = nn.ConvTranspose2d if transpose else nn.Conv2d
         self.Convolution = block(tensor_size[1]//pre_expansion,
                                  out_channels*pst_expansion, filter_size,
-                                 strides, padding, bias=False,
+                                 strides, padding, bias=bias,
                                  groups=groups, dilation=dilation)
         nn.init.kaiming_normal_(self.Convolution.weight,
                                 nn.init.calculate_gain("conv2d"))
