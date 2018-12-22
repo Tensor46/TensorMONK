@@ -29,7 +29,8 @@ def MakeModel(file_name,
               loss_net_kwargs: dict = {},
               default_gpu: int = 0,
               gpus: int = 1,
-              ignore_trained: bool = False):
+              ignore_trained: bool = False,
+              old_weights: bool = False):
     r"""Using BaseModel structure build CudaModel's for embedding_net and
     loss_net.
 
@@ -50,6 +51,11 @@ def MakeModel(file_name,
         gpus: numbers of gpus used for training - used by CudaModel for
             multi-gpu support, default = 1
         ignore_trained: when True, ignores the trained model
+        old_weights: converts old_weights from NeuralLayers.Linear and
+            NeuralLayers.CenterLoss to new format, default = False
+
+    Return:
+        BaseModel with networks
     """
     Model = BaseModel()
     Model.file_name = file_name
@@ -72,7 +78,7 @@ def MakeModel(file_name,
 
     if os.path.isfile(file_name) and not ignore_trained:
         print("...... loading pretrained Model!")
-        Model = LoadModel(Model)
+        Model = LoadModel(Model, old_weights)
 
     for x in dir(Model):  # count parameters
         if x.startswith("net") and getattr(Model, x) is not None:
@@ -97,11 +103,14 @@ def convert(state_dict):
         # fix for new Linear layer
         new_name = name.replace(".Linear.weight", ".weight")
         new_name = new_name.replace(".Linear.bias", ".bias")
+        # fix for new Center Loss
+        new_name = name.replace(".center.centers", ".centers")
+
         new_state_dict[new_name] = state_dict[name]
     return new_state_dict
 
 
-def LoadModel(Model):
+def LoadModel(Model, old_weights):
     r""" Loads the following from Model.file_name:
         1. state_dict of any value whose key starts with "net" & value != None
         2. values of keys that starts with "meter".
@@ -113,8 +122,9 @@ def LoadModel(Model):
 
     for x in dir(Model):
         if x.startswith("net") and getattr(Model, x) is not None:
-            eval("Model." + x +
-                 '.load_state_dict(convert(dict_stuff["'+x+'"]))')
+            if old_weights:
+                dict_stuff[x] = convert(dict_stuff[x])
+            eval("Model." + x + '.load_state_dict(dict_stuff["'+x+'"])')
         if x.startswith("meter") and dict_stuff[x] is not None:
             setattr(Model, x, dict_stuff[x])
     return Model
