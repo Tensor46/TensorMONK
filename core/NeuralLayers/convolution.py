@@ -122,7 +122,7 @@ class Convolution(nn.Module):
         pre_expansion = pst_expansion = 1
         if activation in ("maxo", "rmxo"):
             pre_expansion = 2 if pre_nm else 1
-            pst_expansion = 2 if pre_nm else 1
+            pst_expansion = 1 if pre_nm else 2
 
         dilation = kwargs["dilation"] if "dilation" in kwargs.keys() and \
             not transpose else (1, 1)
@@ -223,8 +223,10 @@ class Convolution(nn.Module):
         return tensor
 
 
+# import torch
 # from core.NeuralLayers import Activations, Normalizations
 # x = torch.rand(3, 18, 10, 10)
-# test = Convolution((1, 18, 10, 10), (3,3), 36, (1, 1), True, shift=True)
+# test = Convolution((1, 18, 10, 10), 3, 36, 1, True, "maxo", pre_nm=False)
 # test.Convolution.weight.shape
 # test(x).size()
+# test.Convolution.weight.shape
