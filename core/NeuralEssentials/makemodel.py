@@ -130,7 +130,7 @@ def LoadModel(Model, old_weights):
     return Model
 
 
-def SaveModel(Model):
+def SaveModel(Model, remove_weight_nm=False):
     r""" Saves the following to Model.file_name:
         1. state_dict of any value whose key starts with "net" & value != None
         2. values of keys that starts with "meter".
@@ -142,7 +142,13 @@ def SaveModel(Model):
 
     for x in dir(Model):
         if x.startswith("net") and getattr(Model, x) is not None:
-            state_dict = getattr(Model, x).state_dict()
+            net = getattr(Model, x)
+            if remove_weight_nm:
+                for name, p in net.named_parameters():
+                    if "weight_v" in name:
+                        eval("torch.nn.utils.remove_weight_norm(net." +
+                             name.rstrip(".weight_v") + ", 'weight')")
+            state_dict = net.state_dict()
             for y in state_dict.keys():
                 state_dict[y] = state_dict[y].cpu()
             dict_stuff.update({x: state_dict})
