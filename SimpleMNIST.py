@@ -42,7 +42,7 @@ def train():
     """
     args = parse_args()
     trData, vaData, teData, n_labels, tensor_size = \
-        DataSets("fashionmnist", data_path="../data", n_samples=args.BSZ)
+        DataSets(args.dataset, data_path="../data", n_samples=args.BSZ)
 
     file_name = "./models/" + args.Architecture.lower()
     visplots = VisPlots(file_name.split("/")[-1].split(".")[0])

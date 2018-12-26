@@ -1,37 +1,29 @@
-""" TensorMONK's :: NeuralArchitectures                                      """
+""" TensorMONK's :: NeuralArchitectures                                     """
 
 import torch
-import torch.nn as nn
-import numpy as np
-import torch.nn.functional as F
-from ..NeuralLayers import *
-#==============================================================================#
+from ..NeuralLayers import Convolution, Linear
 
 
-class SimpleNet(nn.Module):
+class SimpleNet(torch.nn.Sequential):
     """
         For MNIST testing
     """
     def __init__(self, tensor_size=(6, 1, 28, 28), *args, **kwargs):
         super(SimpleNet, self).__init__()
-        activation, normalization, pre_nm = "relu", None, False
 
-        self.Net46 = nn.Sequential()
-        self.Net46.add_module("conv1", Convolution(tensor_size, 5, 16, 2, True, activation,
-                                                   0., normalization, False))
-        self.Net46.add_module("conv2", Convolution(self.Net46[-1].tensor_size, 5, 32, 2, True,
-                                                   activation, 0., normalization, False))
-        self.Net46.add_module("conv3", Convolution(self.Net46[-1].tensor_size, 3, 64, 2, True,
-                                                   activation, 0., normalization, False))
-        self.linear = nn.Linear(np.prod(self.Net46[-1].tensor_size), 64, bias=True)
+        kwargs = {"pad": True, "activation": "relu",
+                  "normalization": None, "pre_nm": False}
 
-        self.tensor_size = (6, 64)
-
-    def forward(self, tensor):
-        return F.relu(self.linear(self.Net46(tensor).view(tensor.size(0), -1)))
+        self.add_module("conv1", Convolution(tensor_size, 5, 16, 2, **kwargs))
+        self.add_module("conv2", Convolution(self.conv1.tensor_size, 5, 32, 2,
+                                             **kwargs))
+        self.add_module("conv3", Convolution(self.conv2.tensor_size, 3, 64, 2,
+                                             **kwargs))
+        self.add_module("linear", Linear(self.conv3.tensor_size, 64, "relu"))
+        self.tensor_size = (1, 64)
 
 
-# from core.NeuralLayers import *
+# from core.NeuralLayers import Convolution, Linear
 # tensor_size = (1, 1, 28, 28)
 # tensor = torch.rand(*tensor_size)
 # test = SimpleNet(tensor_size)

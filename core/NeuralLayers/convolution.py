@@ -22,27 +22,36 @@ class Convolution(nn.Module):
             When shift = True and filter_size = 3, filter_size is changed to
             1x1 and shift operation is done  on 3x3 region.
         out_channels: output tensor.size(1)
-        strides: integer or list/tuple of length 2
-        pad: True/False
-        activation: None/relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish
-        dropout: 0. - 1.
-        normalization: None/batch/group/instance/layer/pixelwise
+        strides: integer or list/tuple of length 2, default = 1
+        pad: True/False, default = True
+        activation: None/relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish,
+            default = relu
+        dropout: 0. - 1., default = 0.
+        normalization: None/batch/group/instance/layer/pixelwise, default= None
         pre_nm: if True, normalization -> activation -> convolution else
             convolution -> normalization -> activation
+            default = False
         groups: grouped convolution, value must be divisble by tensor_size[1]
-            and out_channels
+            and out_channels, default = 1
         weight_nm: True/False -- https://arxiv.org/pdf/1602.07868.pdf
+            default = False
         equalized: True/False -- https://arxiv.org/pdf/1710.10196.pdf
+            default = False
         shift: True/False -- https://arxiv.org/pdf/1711.08141.pdf
             Shift replaces 3x3 convolution with pointwise convs after shifting.
             Requires tensor_size[1] >= 9 and only works for a filter_size = 3
+            default = False
         transpose: True/False, when True does nn.ConvTranspose2d. Transpose may
             have several possible outputs, you can readjust the built module
-            tensor_size to achieve a specific shape.
+            tensor_size to achieve a specific shape. default = False
             Ex:
             test = Convolution((1, 18, 10, 10), 3, 36, 2, True, transpose=True)
             test.tensor_size = (3, 36, 20, 20)
             test(torch.rand((1, 18, 10, 10))).shape
+        bias: default=False
+
+    Return:
+        torch.Tensor of shape BCHW
     """
     def __init__(self,
                  tensor_size,
@@ -59,6 +68,7 @@ class Convolution(nn.Module):
                  equalized: bool = False,
                  shift: bool = False,
                  transpose: bool = False,
+                 bias: bool = False,
                  **kwargs):
         super(Convolution, self).__init__()
 
@@ -86,6 +96,12 @@ class Convolution(nn.Module):
         assert isinstance(pad, bool), "Convolution: pad must be boolean"
         padding = (filter_size[0]//2, filter_size[1]//2) if pad else (0, 0)
 
+        if isinstance(activation, str):
+            activation = activation.lower()
+        assert activation in [None, "", ] + Activations.available(),\
+            "Linear: activation must be None/''/" + \
+            "/".join(Activations.available())
+
         assert isinstance(dropout, float), "Convolution: dropout must be float"
         if dropout > 0.:
             self.dropout = nn.Dropout2d(dropout)
@@ -109,12 +125,10 @@ class Convolution(nn.Module):
             "Convolution: transpose must be boolean"
         self.transpose = transpose
 
-        if activation is None:
-            activation = ""
         pre_expansion = pst_expansion = 1
         if activation in ("maxo", "rmxo"):
             pre_expansion = 2 if pre_nm else 1
-            pst_expansion = 2 if pre_nm else 1
+            pst_expansion = 1 if pre_nm else 2
 
         dilation = kwargs["dilation"] if "dilation" in kwargs.keys() and \
             not transpose else (1, 1)
@@ -129,7 +143,7 @@ class Convolution(nn.Module):
         block = nn.ConvTranspose2d if transpose else nn.Conv2d
         self.Convolution = block(tensor_size[1]//pre_expansion,
                                  out_channels*pst_expansion, filter_size,
-                                 strides, padding, bias=False,
+                                 strides, padding, bias=bias,
                                  groups=groups, dilation=dilation)
         nn.init.kaiming_normal_(self.Convolution.weight,
                                 nn.init.calculate_gain("conv2d"))
@@ -215,8 +229,10 @@ class Convolution(nn.Module):
         return tensor
 
 
+# import torch
 # from core.NeuralLayers import Activations, Normalizations
 # x = torch.rand(3, 18, 10, 10)
-# test = Convolution((1, 18, 10, 10), (3,3), 36, (1, 1), True, shift=True)
+# test = Convolution((1, 18, 10, 10), 3, 36, 1, True, "maxo", pre_nm=False)
 # test.Convolution.weight.shape
 # test(x).size()
+# test.Convolution.weight.shape

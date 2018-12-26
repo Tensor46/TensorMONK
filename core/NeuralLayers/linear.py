@@ -1,4 +1,4 @@
-""" TensorMONK's :: NeuralLayers :: Linear                                   """
+""" TensorMONK's :: NeuralLayers :: Linear                                  """
 
 __all__ = ["Linear", ]
 
@@ -6,75 +6,87 @@ import torch
 import torch.nn as nn
 import numpy as np
 from .activations import Activations
-# ============================================================================ #
 
 
 class Linear(nn.Module):
-    def __init__(self, tensor_size, out_features, activation="relu", dropout=0.,
-                 normalization=None, pre_nm=False, weight_nm=False, bias=True, *args, **kwargs):
+    r"""Linear layer with built-in dropout and activations. (Moved out of
+    nn.Linear and a fix is available in LoadModels to convert old model
+    weights).
+
+    Args:
+        tensor_size (int/list/tuple): shape of tensor in
+            (None/any integer >0, channels, height, width) or
+            (None/any integer >0, in_features) or in_features
+        out_features (int): output features, tensor.size(1)
+        activation: None/relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish,
+            default = None
+        dropout (float): 0. - 1., default = 0.
+        bias (bool): to enable bias, default = True
+
+    Return:
+        torch.Tensor of shape (B, out_features)
+
+    """
+    def __init__(self,
+                 tensor_size,
+                 out_features,
+                 activation: str = None,
+                 dropout: float = 0.,
+                 bias: bool = True,
+                 **kwargs):
         super(Linear, self).__init__()
         # Checks
-        assert type(tensor_size) in [list, tuple], "Linear -- tensor_size must be tuple or list"
-        assert len(tensor_size) > 1, "Linear -- tensor_size must be of length > 1 (tensor_size[0] = BatchSize)"
-        if len(tensor_size) > 2: # In case, last was a convolution or 2D input
-            tensor_size = (tensor_size[0], int(np.prod(tensor_size[1:])))
-        assert type(out_features) is int, "Linear -- out_features must be int"
-        assert dropout >= 0. and dropout < 1., "Linear -- dropout must be in the range 0. - 1."
-        assert normalization in [None, "batch"], "Linear's normalization must be None/'batch'"
-        assert type(pre_nm) is bool, "Linear -- pre_nm must be boolean"
-        assert type(weight_nm) is bool, "Linear -- weight_nm must be boolean"
-        assert type(bias) is bool, "Linear -- bias must be boolean"
-        activation = activation.lower()
-        self.pre_nm = pre_nm
-        # Modules
-        if dropout > 0.:
-            self.dropout = nn.Dropout(dropout)
-        if pre_nm:
-            if normalization == "batch":
-                self.Normalization = nn.BatchNorm1d(tensor_size[1])
-            act = Activations(activation)
-            if act is not None:
-                self.Activation = act
+        assert type(tensor_size) in [int, list, tuple], \
+            "Linear: tensor_size must tuple/list"
 
-        if weight_nm:
-            """ https://arxiv.org/pdf/1602.07868.pdf """
-            self.Linear = nn.utils.weight_norm(nn.Linear(tensor_size[1] // (2 if activation in ("maxo", "rmxo") and pre_nm else 1),
-                                    out_features // (2 if activation in ("maxo", "rmxo") and not pre_nm else 1), bias=bias), name='weight')
+        if isinstance(tensor_size, int):
+            in_features = tensor_size
         else:
-            self.Linear = nn.Linear(tensor_size[1] // (2 if activation in ("maxo", "rmxo") and pre_nm else 1),
-                                    out_features * (2 if activation in ("maxo", "rmxo") and not pre_nm else 1), bias=bias)
-            torch.nn.init.orthogonal_(self.Linear.weight)
-        if not pre_nm:
-            if normalization == "batch":
-                self.Normalization = nn.BatchNorm1d(out_features*(2 if activation in ("maxo", "rmxo") and not pre_nm else 1))
-            act = Activations(activation)
-            if act is not None:
-                self.Activation = act
+            assert len(tensor_size) >= 2, \
+                "Linear: when tuple/list, tensor_size must of length 2 or more"
+            in_features = np.prod(tensor_size[1:])
+        assert isinstance(out_features, int), "Linear:out_features must be int"
+        assert isinstance(dropout, float), "Linear: dropout must be float"
+        if dropout > 0.:
+            self.dropout = nn.Dropout2d(dropout)
+        if isinstance(activation, str):
+            activation = activation.lower()
+        assert activation in [None, "", ] + Activations.available(),\
+            "Linear: activation must be None/''/" + \
+            "/".join(Activations.available())
+        assert isinstance(bias, bool), "Linear: bias must be bool"
+        multiplier = 2 if activation in ("maxo", "rmxo") else 1
+
+        # get weight and bias
+        self.weight = nn.Parameter(torch.rand(out_features*multiplier,
+                                              in_features))
+        self.weight.data.add_(- 0.5)
+        self.weight.data.div_(self.weight.data.pow(2).sum(1, True).pow(0.5))
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(out_features*multiplier))
+        # get activation function
+        if activation is not None:
+            self.activation = Activations(activation)
         # out tensor size
-        self.tensor_size = (tensor_size[0], out_features)
+        self.tensor_size = (1, out_features)
 
     def forward(self, tensor):
         if tensor.dim() > 2:
             tensor = tensor.view(tensor.size(0), -1)
         if hasattr(self, "dropout"):
             tensor = self.dropout(tensor)
-        if self.pre_nm:
-            if hasattr(self, "Normalization"):
-                tensor = self.Normalization(tensor)
-            if hasattr(self, "Activation"):
-                tensor = self.Activation(tensor)
-            tensor = self.Linear(tensor)
-        else:
-            tensor = self.Linear(tensor)
-            if hasattr(self, "Normalization"):
-                tensor = self.Normalization(tensor)
-            if hasattr(self, "Activation"):
-                tensor = self.Activation(tensor)
+        tensor = tensor.mm(self.weight.t())
+        if hasattr(self, "bias"):
+            tensor = tensor + self.bias.view(1, -1)
+        if hasattr(self, "activation"):
+            tensor = self.activation(tensor)
         return tensor
 
 
 # from core.NeuralLayers import Activations
 # tensor_size = (2, 3, 10, 10)
 # x = torch.rand(*tensor_size)
-# test = Linear(tensor_size, 16, "relu", 0., "batch", True, False, bias=False)
+# test = Linear(tensor_size, 16, "maxo", 0., bias=True)
 # test(x).size()
+# test.weight.shape
+# test.bias.shape

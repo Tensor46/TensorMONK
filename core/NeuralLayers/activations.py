@@ -27,6 +27,8 @@ class Activations(nn.Module):
             self.function = getattr(self, "_" + activation)
             if activation == "prelu":
                 self.weight = nn.Parameter(torch.rand(channels))
+        else:
+            self.activation = ""
 
     def forward(self, tensor):
         if self.function is None:
@@ -63,6 +65,9 @@ class Activations(nn.Module):
 
     def _swish(self, tensor):
         return tensor * torch.sigmoid(tensor)
+
+    def __repr__(self):
+        return self.activation
 
     @staticmethod
     def available():
