@@ -18,8 +18,9 @@ class Linear(nn.Module):
             (None/any integer >0, channels, height, width) or
             (None/any integer >0, in_features) or in_features
         out_features (int): output features, tensor.size(1)
-        activation: None/relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish
-        dropout (float): 0. - 1.
+        activation: None/relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish,
+            default = None
+        dropout (float): 0. - 1., default = 0.
         bias (bool): to enable bias, default = True
 
     Return:
@@ -29,7 +30,7 @@ class Linear(nn.Module):
     def __init__(self,
                  tensor_size,
                  out_features,
-                 activation: str = "relu",
+                 activation: str = None,
                  dropout: float = 0.,
                  bias: bool = True,
                  **kwargs):
@@ -48,7 +49,8 @@ class Linear(nn.Module):
         assert isinstance(dropout, float), "Linear: dropout must be float"
         if dropout > 0.:
             self.dropout = nn.Dropout2d(dropout)
-        activation = activation.lower()
+        if isinstance(activation, str):
+            activation = activation.lower()
         assert activation in [None, "", ] + Activations.available(),\
             "Linear: activation must be None/''/" + \
             "/".join(Activations.available())
