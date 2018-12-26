@@ -1,10 +1,10 @@
 """ TensorMONK's :: NeuralLayers :: PrimaryCapsule                          """
 
-import torch.nn as nn
+import torch
 from .convolution import Convolution
 
 
-class PrimaryCapsule(nn.Module):
+class PrimaryCapsule(torch.nn.Module):
     r""" Primary capsule from Dynamic Routing Between Capsules. A single
     convolution is used to generate all the capsules.
     Implemented -- https://arxiv.org/pdf/1710.09829.pdf
@@ -26,7 +26,7 @@ class PrimaryCapsule(nn.Module):
     def __init__(self,
                  tensor_size,
                  filter_size,
-                 out_channels,
+                 out_channels: int = None,
                  strides: int = 1,
                  pad: bool = True,
                  activation: str = "relu",
@@ -38,12 +38,14 @@ class PrimaryCapsule(nn.Module):
                  equalized: bool = False,
                  shift: bool = False,
                  growth_rate: int = 32,
-                 block=Convolution,
+                 block: torch.nn.Module = Convolution,
                  n_capsules: int = 8,
                  capsule_length: int = 32,
                  *args, **kwargs):
         super(PrimaryCapsule, self).__init__()
-
+        # TODO: depreciate out_channels?
+        if out_channels is None:
+            out_channels = n_capsules*capsule_length
         assert out_channels == n_capsules*capsule_length, \
             "PrimaryCapsule -- out_channels!=n_capsules*capsule_length"
 
@@ -62,7 +64,6 @@ class PrimaryCapsule(nn.Module):
         return tensor.permute(0, 1, 3, 4, 2).contiguous()
 
 
-# import torch
 # x = torch.rand(3,3,10,10)
 # test = PrimaryCapsule((1, 3, 10, 10), (3, 3), 256, (2, 2), True, "relu", 0.,
 #                       True, False, block=Convolution, n_capsules=8,
