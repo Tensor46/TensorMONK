@@ -81,26 +81,42 @@ def map_pretrained(state_dict, type):
 
 
 class DenseNet(torch.nn.Sequential):
-    """
-        Implemented from https://arxiv.org/pdf/1608.06993.pdf
+    r"""Versions of DenseNets. With the ability to change the strides of
+    initial convolution and remove max pool the models works for all the
+    min(height, width) >= 32. To replicate the paper, use default parameters
+    (and select type). Implemented from https://arxiv.org/pdf/1608.06993.pdf
 
+    Args:
+        tensor_size: shape of tensor in BCHW
+            (None/any integer >0, channels, height, width)
+        type (string): model type
             Available models        type
-            ================================
+            ============================
             DenseNet-121            d121
             DenseNet-169            d169
             DenseNet-201            d201
             DenseNet-264            d264
 
-        Works for all the min(height, width) >= 32
-        To replicate the paper, use default parameters (and select type)
+        activation: None/relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish
+        normalization: None/batch/group/instance/layer/pixelwise
+        pre_nm: if True, normalization -> activation -> convolution else
+            convolution -> normalization -> activation
+        groups: grouped convolution, value must be divisble by tensor_size[1]
+            and out_channels, default = 1
+        weight_nm: True/False, default = False
+        shift: True/False, default = False
+            Shift replaces 3x3 convolution with pointwise convs after shifting.
+            Requires tensor_size[1] >= 9 and filter_size = 3
+        n_embedding: when not None and > 0, adds a linear layer to the network
+            and returns a torch.Tensor of shape (None, n_embedding)
+        pretrained: downloads and updates the weights with pretrained weights
     """
-
     def __init__(self,
                  tensor_size=(6, 3, 224, 224),
                  type: str = "d121",
                  activation: str = "relu",
                  normalization: str = "batch",
-                 pre_nm: bool = False,
+                 pre_nm: bool = True,
                  groups: int = 1,
                  weight_nm: bool = False,
                  equalized: bool = False,
