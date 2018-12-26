@@ -1,31 +1,44 @@
-""" TensorMONK's :: NeuralArchitectures                                      """
+""" TensorMONK's :: NeuralArchitectures                                     """
 
 import torch
-import torch.nn as nn
-import numpy as np
-from ..NeuralLayers import *
-#==============================================================================#
+from ..NeuralLayers import Convolution, ResidualShuffle, Linear
 
 
-class ShuffleNet(nn.Module):
-    """
-        Implemented https://arxiv.org/pdf/1707.01083.pdf
-        See table 1, to better understand type parameter!
+class ShuffleNet(torch.nn.Sequential):
+    r"""Versions of ShuffleNet. With the ability to change the strides of
+    initial convolution and remove max pool the models works for all the
+    min(height, width) >= 32. To replicate the paper, use default parameters
+    (and select type). Implemented from https://arxiv.org/pdf/1707.01083.pdf
 
-        Works for all the min(height, width) >= 32
-        To replicate the paper, use default parameters
+    Args:
+        tensor_size: shape of tensor in BCHW
+            (None/any integer >0, channels, height, width)
+        type (string): model type (g1/g2/g3/g4/g8), default = g4
+        activation: None/relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish,
+            default = relu
+        normalization: None/batch/group/instance/layer/pixelwise,
+            default = batch
+        pre_nm: if True, normalization -> activation -> convolution else
+            convolution -> normalization -> activation
+            default = True
+        weight_nm: True/False, default = False
+        shift: True/False, default = False
+            Shift replaces 3x3 convolution with pointwise convs after shifting.
+            Requires tensor_size[1] >= 9 and filter_size = 3
+        n_embedding: when not None and > 0, adds a linear layer to the network
+            and returns a torch.Tensor of shape (None, n_embedding)
+        pretrained: downloads and updates the weights with pretrained weights
     """
     def __init__(self,
-                 tensor_size = (6, 3, 224, 224),
-                 type = "g4",
-                 activation = "relu",
-                 normalization = "batch",
-                 pre_nm = False,
-                 weight_norm = False,
-                 equalized = False,
-                 shift = False,
-                 embedding = False,
-                 n_embedding = 256,
+                 tensor_size=(6, 3, 224, 224),
+                 type: str = "g4",
+                 activation: str = "relu",
+                 normalization: str = "batch",
+                 pre_nm: bool = True,
+                 weight_nm: bool = False,
+                 equalized: bool = False,
+                 shift: bool = False,
+                 n_embedding: int = None,
                  *args, **kwargs):
         super(ShuffleNet, self).__init__()
 
@@ -60,50 +73,53 @@ class ShuffleNet(nn.Module):
         else:
             raise NotImplementedError
 
-        self.Net46 = nn.Sequential()
         print("Input", tensor_size)
         s = 2
-        if min(tensor_size[2], tensor_size[3]) < 64: # Addon -- To make it flexible for other tensor_size's
+        if min(tensor_size[2], tensor_size[3]) < 64:
+            # Addon -- To make it flexible for other tensor_size's
             s = 1
-            print("Initial convolution strides changed from 2 to 1, as min(tensor_size[2], tensor_size[3]) <  64")
-        self.Net46.add_module("Convolution",
-            Convolution(tensor_size, 3, 24, s, True, activation, 0., normalization,
-            False, 1, weight_norm, equalized, shift, **kwargs))
-        print("Convolution",self.Net46[-1].tensor_size)
+            print("ShuffleNet: InitialConvolution strides changed from 2 to 1,"
+                  + " as min(tensor_size[2], tensor_size[3]) <  64")
+
+        kwargs = {"activation": activation, "normalization": normalization,
+                  "weight_nm": weight_nm, "equalized": equalized,
+                  "shift": shift, "pad": True, "groups": 1}
+        self.add_module("InitialConvolution",
+                        Convolution(tensor_size, 3, 24, s,
+                                    pre_nm=False, **kwargs))
+        t_size = self.InitialConvolution.tensor_size
+        print("InitialConvolution", t_size)
 
         if min(tensor_size[2], tensor_size[3]) > 128:
-            self.Net46.add_module("MaxPool", nn.MaxPool2d((3, 3), stride=(2, 2), padding=1))
-            _tensor_size = (self.Net46[-2].tensor_size[0], self.Net46[-2].tensor_size[1],
-                self.Net46[-2].tensor_size[2]//2, self.Net46[-2].tensor_size[3]//2)
-            print("MaxPool", _tensor_size)
-        else: # Addon -- To make it flexible for other tensor_size's
-            print("MaxPool is ignored if min(tensor_size[2], tensor_size[3]) <=  128")
-            _tensor_size = self.Net46[-1].tensor_size
+            self.add_module("MaxPool", torch.nn.MaxPool2d(3, 2, padding=1))
+            h, w = t_size[2:]
+            t_size = (1, 24, h//2 + (1 if h % 2 == 1 else 0),
+                      w//2 + (1 if w % 2 == 1 else 0))
+            print("MaxPool", t_size)
+        else:
+            # Addon -- To make it flexible for other tensor_size's
+            print("ShuffleNet: MaxPool is ignored if min(h, w) <=  128")
 
+        kwargs["groups"] = groups
         for i, (oc, s) in enumerate(block_params):
-            self.Net46.add_module("Shuffle"+str(i),
-                ResidualShuffle(_tensor_size, 3, oc, s, True, activation, 0., normalization,
-                pre_nm, groups, weight_norm, equalized, shift, **kwargs))
-            _tensor_size = self.Net46[-1].tensor_size
-            print("Shuffle"+str(i), _tensor_size)
+            self.add_module("Shuffle-"+str(i),
+                            ResidualShuffle(t_size, 3, oc, s, **kwargs))
+            t_size = getattr(self, "Shuffle-"+str(i)).tensor_size
+            print("Shuffle-"+str(i), t_size)
 
-        self.Net46.add_module("AveragePool", nn.AvgPool2d(self.Net46[-1].tensor_size[2:]))
+        self.add_module("AveragePool", torch.nn.AvgPool2d(t_size[2:]))
         print("AveragePool", (1, oc, 1, 1))
-        self.tensor_size = (6, oc)
+        self.tensor_size = (1, oc)
 
-        if embedding:
-            self.embedding = nn.Linear(oc, n_embedding, bias=False)
-            self.tensor_size = (6, n_embedding)
+        if n_embedding is not None and n_embedding > 0:
+            self.add_module("Embedding", Linear(self.tensor_size, n_embedding,
+                                                "", 0., False))
+            self.tensor_size = (1, n_embedding)
             print("Linear", (1, n_embedding))
 
-    def forward(self, tensor):
-        if hasattr(self, "embedding"):
-            return self.embedding(self.Net46(tensor).view(tensor.size(0), -1))
-        return self.Net46(tensor).view(tensor.size(0), -1)
 
-
-# from core.NeuralLayers import *
+# from core.NeuralLayers import Convolution, ResidualShuffle, Linear
 # tensor_size = (1, 3, 224, 224)
 # tensor = torch.rand(*tensor_size)
-# test = ShuffleNet(tensor_size, "g1")
+# test = ShuffleNet(tensor_size, "g8")
 # test(tensor).size()
