@@ -14,6 +14,9 @@ class PixelWise(torch.nn.Module):
     def forward(self, tensor):
         return tensor.div(tensor.pow(2).mean(1, True).add(self.eps).pow(.5))
 
+    def __repr__(self):
+        return "pixelwise"
+
 
 def Normalizations(tensor_size=None, normalization=None, available=False,
                    **kwargs):
