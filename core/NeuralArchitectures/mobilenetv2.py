@@ -16,8 +16,6 @@ class MobileNetV2(torch.nn.Sequential):
         normalization: None/batch/group/instance/layer/pixelwise
         pre_nm: if True, normalization -> activation -> convolution else
             convolution -> normalization -> activation
-        groups: grouped convolution, value must be divisble by tensor_size[1]
-            and out_channels, default = 1
         weight_nm: True/False, default = False
         equalized: True/False, default = False
         shift: True/False, default = False
