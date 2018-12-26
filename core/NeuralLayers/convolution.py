@@ -22,23 +22,28 @@ class Convolution(nn.Module):
             When shift = True and filter_size = 3, filter_size is changed to
             1x1 and shift operation is done  on 3x3 region.
         out_channels: output tensor.size(1)
-        strides: integer or list/tuple of length 2
-        pad: True/False
-        activation: None/relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish
-        dropout: 0. - 1.
-        normalization: None/batch/group/instance/layer/pixelwise
+        strides: integer or list/tuple of length 2, default = 1
+        pad: True/False, default = True
+        activation: None/relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish,
+            default = relu
+        dropout: 0. - 1., default = 0.
+        normalization: None/batch/group/instance/layer/pixelwise, default= None
         pre_nm: if True, normalization -> activation -> convolution else
             convolution -> normalization -> activation
+            default = False
         groups: grouped convolution, value must be divisble by tensor_size[1]
-            and out_channels
+            and out_channels, default = 1
         weight_nm: True/False -- https://arxiv.org/pdf/1602.07868.pdf
+            default = False
         equalized: True/False -- https://arxiv.org/pdf/1710.10196.pdf
+            default = False
         shift: True/False -- https://arxiv.org/pdf/1711.08141.pdf
             Shift replaces 3x3 convolution with pointwise convs after shifting.
             Requires tensor_size[1] >= 9 and only works for a filter_size = 3
+            default = False
         transpose: True/False, when True does nn.ConvTranspose2d. Transpose may
             have several possible outputs, you can readjust the built module
-            tensor_size to achieve a specific shape.
+            tensor_size to achieve a specific shape. default = False
             Ex:
             test = Convolution((1, 18, 10, 10), 3, 36, 2, True, transpose=True)
             test.tensor_size = (3, 36, 20, 20)
@@ -91,7 +96,8 @@ class Convolution(nn.Module):
         assert isinstance(pad, bool), "Convolution: pad must be boolean"
         padding = (filter_size[0]//2, filter_size[1]//2) if pad else (0, 0)
 
-        activation = activation.lower()
+        if isinstance(activation, str):
+            activation = activation.lower()
         assert activation in [None, "", ] + Activations.available(),\
             "Linear: activation must be None/''/" + \
             "/".join(Activations.available())
