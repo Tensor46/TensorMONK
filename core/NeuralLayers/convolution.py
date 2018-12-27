@@ -48,7 +48,7 @@ class Convolution(nn.Module):
             test = Convolution((1, 18, 10, 10), 3, 36, 2, True, transpose=True)
             test.tensor_size = (3, 36, 20, 20)
             test(torch.rand((1, 18, 10, 10))).shape
-        strided_size: True/False, when True (and tranpose = True)
+        multiply_size: True/False, when True (and tranpose = True)
             output_tensor_size[2] = input_tensor_size[2]*strides[0]
             output_tensor_size[3] = input_tensor_size[3]*strides[1]
         bias: default=False
@@ -71,7 +71,7 @@ class Convolution(nn.Module):
                  equalized: bool = False,
                  shift: bool = False,
                  transpose: bool = False,
-                 strided_size: bool = False,
+                 multiply_size: bool = False,
                  bias: bool = False,
                  **kwargs):
         super(Convolution, self).__init__()
@@ -137,29 +137,6 @@ class Convolution(nn.Module):
         dilation = kwargs["dilation"] if "dilation" in kwargs.keys() and \
             not transpose else (1, 1)
 
-        # Modules
-        if pre_nm and normalization is not None:
-            self.Normalization = Normalizations(tensor_size, normalization,
-                                                **kwargs)
-        if pre_nm and activation in Activations.available():
-            self.Activation = Activations(activation, tensor_size[1])
-        self.conv_depth = out_channels*pst_expansion
-        block = nn.ConvTranspose2d if transpose else nn.Conv2d
-        self.Convolution = block(tensor_size[1]//pre_expansion,
-                                 out_channels*pst_expansion, filter_size,
-                                 strides, padding, bias=bias,
-                                 groups=groups, dilation=dilation)
-        nn.init.kaiming_normal_(self.Convolution.weight,
-                                nn.init.calculate_gain("conv2d"))
-        if weight_nm:
-            self.Convolution = nn.utils.weight_norm(self.Convolution,
-                                                    name="weight")
-        if equalized and not weight_nm:
-            import numpy as np
-            gain = kwargs["gain"] if "gain" in kwargs.keys() else np.sqrt(2)
-            fan_in = tensor_size[1] * out_channels * filter_size[0]
-            self.scale = gain / np.sqrt(fan_in)
-            self.Convolution.weight.data.mul_(self.scale)
         # out tensor size
         h, w = tensor_size[2:]
         if transpose:
@@ -172,6 +149,43 @@ class Convolution(nn.Module):
                 strides[1] + 1
         self.tensor_size = (tensor_size[0], out_channels,
                             math.floor(h), math.floor(w))
+
+        # Modules
+        if pre_nm and normalization is not None:
+            self.Normalization = Normalizations(tensor_size, normalization,
+                                                **kwargs)
+        if pre_nm and activation in Activations.available():
+            self.Activation = Activations(activation, tensor_size[1])
+        self.conv_depth = out_channels*pst_expansion
+
+        if transpose:
+            out_pad = (0, 0)
+            if multiply_size:
+                out_pad = (tensor_size[2]*strides[0] - self.tensor_size[2],
+                           tensor_size[3]*strides[1] - self.tensor_size[3])
+            self.Convolution = \
+                nn.ConvTranspose2d(tensor_size[1]//pre_expansion,
+                                   out_channels*pst_expansion, filter_size,
+                                   strides, padding, bias=bias, groups=groups,
+                                   dilation=dilation, output_padding=out_pad)
+        else:
+            self.Convolution = nn.Conv2d(tensor_size[1]//pre_expansion,
+                                         out_channels*pst_expansion,
+                                         filter_size, strides, padding,
+                                         bias=bias,
+                                         groups=groups, dilation=dilation)
+
+        nn.init.kaiming_normal_(self.Convolution.weight,
+                                nn.init.calculate_gain("conv2d"))
+        if weight_nm:
+            self.Convolution = nn.utils.weight_norm(self.Convolution,
+                                                    name="weight")
+        if equalized and not weight_nm:
+            import numpy as np
+            gain = kwargs["gain"] if "gain" in kwargs.keys() else np.sqrt(2)
+            fan_in = tensor_size[1] * out_channels * filter_size[0]
+            self.scale = gain / np.sqrt(fan_in)
+            self.Convolution.weight.data.mul_(self.scale)
 
         if (not pre_nm) and normalization is not None:
             t_size = (self.tensor_size[0], out_channels*pst_expansion,
@@ -196,16 +210,14 @@ class Convolution(nn.Module):
             if hasattr(self, "Activation"):
                 tensor = self.Activation(tensor)
             if self.transpose:
-                t_size = self.conv_expected(tensor.size(0))
-                tensor = self.Convolution(tensor, output_size=t_size)
+                tensor = self.Convolution(tensor)
             else:
                 tensor = self.Convolution(tensor)
             if self.equalized:
                 tensor = tensor.mul(self.scale)
         else:  # convolution -> normalization -> activation
             if self.transpose:
-                t_size = self.conv_expected(tensor.size(0))
-                tensor = self.Convolution(tensor, output_size=t_size)
+                tensor = self.Convolution(tensor)
             else:
                 tensor = self.Convolution(tensor)
             if self.equalized:
@@ -215,10 +227,6 @@ class Convolution(nn.Module):
             if hasattr(self, "Activation"):
                 tensor = self.Activation(tensor)
         return tensor
-
-    def conv_expected(self, samples):
-        return (samples, self.conv_depth,
-                self.tensor_size[2], self.tensor_size[3])
 
     def shift_pixels(self, tensor):
         if tensor.size(1) >= 9:  # only for 3x3
@@ -255,7 +263,8 @@ class Convolution(nn.Module):
 # import torch
 # from core.NeuralLayers import Activations, Normalizations
 # x = torch.rand(3, 18, 10, 10)
-# test = Convolution((1, 18, 10, 10), 3, 36, 1, True, "maxo", pre_nm=False)
+# test = Convolution((1, 18, 10, 10), 3, 36, 2, True, "maxo", transpose=True,
+#                    multiply_size=True)
 # test.Convolution.weight.shape
 # test(x).size()
 # test.Convolution.weight.shape

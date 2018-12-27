@@ -224,7 +224,7 @@ class ResidualNeXt(nn.Module):
     """
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
-                 pre_nm=False, groups=1, weight_nm=False, equalized=False,
+                 pre_nm=False, groups=32, weight_nm=False, equalized=False,
                  shift=False, *args, **kwargs):
         super(ResidualNeXt, self).__init__()
         if dropout > 0.:
@@ -340,39 +340,34 @@ class ResidualInverted(nn.Module):
                                strides, True, activation, 0., normalization,
                                pre_nm, groups, weight_nm, equalized, shift)
 
-        self.network = nn.Sequential()
         kwargs["filter_size"] = 1
         kwargs["out_channels"] = out_channels*t
         kwargs["strides"] = 1
-        self.network.add_module("Block1x1pre", Convolution(**kwargs))
-        kwargs["tensor_size"] = self.network[-1].tensor_size
-        kwargs["filter_size"] = filter_size
-        kwargs["out_channels"] = out_channels*t
-        kwargs["strides"] = strides
-        kwargs["groups"] = out_channels*t
-        self.network.add_module("Block3x3", Convolution(**kwargs))
-        kwargs["tensor_size"] = self.network[-1].tensor_size
-        kwargs["filter_size"] = 1
-        kwargs["out_channels"] = out_channels
-        kwargs["strides"] = 1
-        kwargs["activation"] = ""
-        kwargs["groups"] = 1
-        self.network.add_module("Block1x1pst", Convolution(**kwargs))
+        self.Block1x1pre = Convolution(**kwargs)
+        kwargs["tensor_size"] = self.Block1x1pre.tensor_size
+        kwargs["filter_size"], kwargs["groups"] = filter_size, out_channels*t
+        kwargs["out_channels"], kwargs["strides"] = out_channels*t, strides
+        self.Block3x3 = Convolution(**kwargs)
+        kwargs["tensor_size"] = self.Block3x3.tensor_size
+        kwargs["filter_size"], kwargs["out_channels"] = 1, out_channels
+        kwargs["strides"], kwargs["activation"], kwargs["groups"] = 1, "", 1
+        self.Block1x1pst = Convolution(**kwargs)
         self.skip_residue = True if check_strides(strides) else False
         if not self.skip_residue and tensor_size[1] != out_channels:
             kwargs["tensor_size"] = tensor_size
             kwargs["strides"] = strides
             self.edit_residue = Convolution(**kwargs)
-        self.tensor_size = self.network[-1].tensor_size
+        self.tensor_size = self.Block1x1pst.tensor_size
 
     def forward(self, tensor):
         if hasattr(self, "pre_network"):  # for dropout
             tensor = self.pre_network(tensor)
         if self.skip_residue:  # For strides > 1
-            return self.network(tensor)
+            return self.Block1x1pst(self.Block3x3(self.Block1x1pre(tensor)))
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue")\
             else tensor
-        return self.network(tensor) + residue
+        return self.Block1x1pst(self.Block3x3(self.Block1x1pre(tensor))) + \
+            residue
 # =========================================================================== #
 
 
@@ -910,7 +905,7 @@ class ContextNet_Bottleneck(nn.Module):
 # test = InceptionC((1, 1536, 8, 8))
 # test(torch.rand(*(1, 1536, 8, 8))).size()
 
-# tensor_size = (3,64,10,10)
+# tensor_size = (3, 64, 10, 10)
 # x = torch.rand(*tensor_size)
 # test = ResidualOriginal(tensor_size, 3, 64, 2, False, "relu", 0.,
 #                         "batch", False)
@@ -920,7 +915,7 @@ class ContextNet_Bottleneck(nn.Module):
 #                        False)
 # test(x).size()
 # %timeit test(x).size()
-# test = ResidualInverted(tensor_size, 3, 64, 2, False, "relu", 0., "batch",
+# test = ResidualInverted(tensor_size, 3, 96, 1, False, "relu", 0., "batch",
 #                         False)
 # test(x).size()
 # %timeit test(x).size()

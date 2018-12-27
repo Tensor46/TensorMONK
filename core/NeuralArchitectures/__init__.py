@@ -1,10 +1,12 @@
-""" TensorMONK's :: NeuralArchitectures                                      """
+""" TensorMONK's :: NeuralArchitectures                                     """
 
-__all__ = ["CapsuleNet", "SimpleNet", "ShuffleNet", "MobileNetV1", "MobileNetV2",
+__all__ = ["CapsuleNet", "SimpleNet", "ShuffleNet",
+           "MobileNetV1", "MobileNetV2",
            "ResidualNet", "InceptionV4", "DenseNet",
            "LinearVAE", "ConvolutionalVAE", "PGGAN",
-           "ContextNet", "FeatureNet", "FeatureCapNet", "PointNet", "UNet", "UNetPatch",
-           "Models"]
+           "ContextNet", "FeatureNet", "FeatureCapNet",
+           "PointNet", "UNet", "UNetPatch", "UNetMini",
+           "NeuralDecisionForest", "Models"]
 
 from .capsulenet import CapsuleNet
 from .simplenet import SimpleNet
@@ -39,6 +41,7 @@ del residualnet
 del inceptionv4
 del linearvae
 del convolutionalvae
+
 
 def Models(Architecture):
     Architecture = Architecture.lower()
