@@ -48,7 +48,7 @@ class Convolution(nn.Module):
             test = Convolution((1, 18, 10, 10), 3, 36, 2, True, transpose=True)
             test.tensor_size = (3, 36, 20, 20)
             test(torch.rand((1, 18, 10, 10))).shape
-        multiply_size: True/False, when True (and tranpose = True)
+        maintain_out_size: True/False, when True (and tranpose = True)
             output_tensor_size[2] = input_tensor_size[2]*strides[0]
             output_tensor_size[3] = input_tensor_size[3]*strides[1]
         bias: default=False
@@ -71,7 +71,7 @@ class Convolution(nn.Module):
                  equalized: bool = False,
                  shift: bool = False,
                  transpose: bool = False,
-                 multiply_size: bool = False,
+                 maintain_out_size: bool = False,
                  bias: bool = False,
                  **kwargs):
         super(Convolution, self).__init__()
@@ -160,7 +160,7 @@ class Convolution(nn.Module):
 
         if transpose:
             out_pad = (0, 0)
-            if multiply_size:
+            if maintain_out_size:
                 out_pad = (tensor_size[2]*strides[0] - self.tensor_size[2],
                            tensor_size[3]*strides[1] - self.tensor_size[3])
             self.Convolution = \
@@ -264,7 +264,7 @@ class Convolution(nn.Module):
 # from core.NeuralLayers import Activations, Normalizations
 # x = torch.rand(3, 18, 10, 10)
 # test = Convolution((1, 18, 10, 10), 3, 36, 2, True, "maxo", transpose=True,
-#                    multiply_size=True)
+#                    maintain_out_size=True)
 # test.Convolution.weight.shape
 # test(x).size()
 # test.Convolution.weight.shape
