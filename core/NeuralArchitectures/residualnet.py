@@ -109,6 +109,8 @@ class ResidualNet(nn.Sequential):
             Requires tensor_size[1] >= 9 and filter_size = 3
         n_embedding: when not None and > 0, adds a linear layer to the network
             and returns a torch.Tensor of shape (None, n_embedding)
+        n_layers: used along with pretrained, to select first n layers (not
+            including InitialConvolution) of any residual network
         pretrained: downloads and updates the weights with pretrained weights
     """
 
@@ -124,6 +126,7 @@ class ResidualNet(nn.Sequential):
                  shift: bool = False,
                  n_embedding: int = None,
                  pretrained: bool = False,
+                 n_layers: int = None,
                  *args, **kwargs):
         super(ResidualNet, self).__init__()
 
@@ -187,6 +190,8 @@ class ResidualNet(nn.Sequential):
         if pretrained:
             print("ImageNetNorm = ON")
             self.add_module("ImageNetNorm", ImageNetNorm())
+        else:
+            n_layers = None
         print("Input", tensor_size)
         s = 2
         if min(tensor_size[2], tensor_size[3]) < 64:
@@ -210,6 +215,8 @@ class ResidualNet(nn.Sequential):
 
         # Residual blocks
         for i, (oc, s) in enumerate(block_params):
+            if n_layers is not None and i >= n_layers:
+                continue
             nm = "Residual" + str(i)
             self.add_module(nm, BaseBlock(t_size, 3, oc, s, True,
                                           activation, 0., normalization,
@@ -218,16 +225,19 @@ class ResidualNet(nn.Sequential):
             t_size = getattr(self, nm).tensor_size
             print(nm, t_size)
 
-        self.add_module("AveragePool",
-                        nn.AvgPool2d(t_size[2:]))
-        print("AveragePool", (1, oc, 1, 1))
-        self.tensor_size = (1, oc)
+        if n_layers is None:
+            self.add_module("AveragePool",
+                            nn.AvgPool2d(t_size[2:]))
+            print("AveragePool", (1, oc, 1, 1))
+            self.tensor_size = (1, oc)
 
-        if n_embedding is not None and n_embedding > 0:
-            self.add_module("embedding", nn.Linear(oc, n_embedding,
-                                                   bias=False))
-            self.tensor_size = (1, n_embedding)
-            print("Linear", (1, n_embedding))
+            if n_embedding is not None and n_embedding > 0:
+                self.add_module("embedding", nn.Linear(oc, n_embedding,
+                                                       bias=False))
+                self.tensor_size = (1, n_embedding)
+                print("Linear", (1, n_embedding))
+        else:
+            self.tensor_size = t_size
 
         if self.pretrained:
             self.load_pretrained()
@@ -246,7 +256,7 @@ class ResidualNet(nn.Sequential):
 # from core.utils import ImageNetNorm
 # tensor_size = (1, 3, 224, 224)
 # tensor = torch.rand(*tensor_size)
-# test = ResidualNet(tensor_size, "r18", pretrained=True)
+# test = ResidualNet(tensor_size, "r18", pretrained=True, n_layers=4)
 # test
 # test(tensor).size()
 # import torchvision.utils as tutils
