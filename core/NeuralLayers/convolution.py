@@ -209,17 +209,11 @@ class Convolution(nn.Module):
                 tensor = self.Normalization(tensor)
             if hasattr(self, "Activation"):
                 tensor = self.Activation(tensor)
-            if self.transpose:
-                tensor = self.Convolution(tensor)
-            else:
-                tensor = self.Convolution(tensor)
+            tensor = self.Convolution(tensor)
             if self.equalized:
                 tensor = tensor.mul(self.scale)
         else:  # convolution -> normalization -> activation
-            if self.transpose:
-                tensor = self.Convolution(tensor)
-            else:
-                tensor = self.Convolution(tensor)
+            tensor = self.Convolution(tensor)
             if self.equalized:
                 tensor = tensor.mul(self.scale)
             if hasattr(self, "Normalization"):
