@@ -48,6 +48,9 @@ class Convolution(nn.Module):
             test = Convolution((1, 18, 10, 10), 3, 36, 2, True, transpose=True)
             test.tensor_size = (3, 36, 20, 20)
             test(torch.rand((1, 18, 10, 10))).shape
+        strided_size: True/False, when True (and tranpose = True)
+            output_tensor_size[2] = input_tensor_size[2]*strides[0]
+            output_tensor_size[3] = input_tensor_size[3]*strides[1]
         bias: default=False
 
     Return:
@@ -68,10 +71,11 @@ class Convolution(nn.Module):
                  equalized: bool = False,
                  shift: bool = False,
                  transpose: bool = False,
+                 strided_size: bool = False,
                  bias: bool = False,
                  **kwargs):
         super(Convolution, self).__init__()
-
+        self.t_size = tensor_size
         # Checks
         assert len(tensor_size) == 4 and type(tensor_size) in [list, tuple], \
             "Convolution: tensor_size must tuple/list of length 4"
@@ -178,6 +182,8 @@ class Convolution(nn.Module):
             self.Activation = Activations(activation,
                                           out_channels*pst_expansion)
         self.pre_nm = pre_nm
+        self.activation = activation
+        self.normalization = normalization
 
     def forward(self, tensor):
         if hasattr(self, "dropout"):
@@ -227,6 +233,23 @@ class Convolution(nn.Module):
             tensor[:, 7::9, :, :] = padded[:, 7::9, :-2, 2:]
             tensor[:, 8::9, :, :] = padded[:, 8::9, 2:, :-2]
         return tensor
+
+    def __repr__(self):
+        ws = "x".join([str(x)for x in self.Convolution.weight.shape])
+        cn = "{}({})".format("convT" if self.transpose else "conv", ws)
+        nmac = "{}{}{}".format("" if self.normalization is None else
+                               self.normalization, " -> " if self.normalization
+                               else "", self.activation).rstrip(" -> ")
+        osz = " -> " + "x".join(["_"]+[str(x)for x in self.tensor_size[1:]])
+        isz = "x".join(["_"]+[str(x)for x in self.t_size[1:]]) + " -> "
+        if self.pre_nm:
+            nmac += (" -> " if len(nmac) > 1 else "")
+        else:
+            nmac = (" -> " if len(nmac) > 1 else "") + nmac
+        if self.pre_nm:
+            return "{}{}{}{}".format(isz, nmac, cn, osz)
+        else:
+            return "{}{}{}{}".format(isz, cn, nmac, osz)
 
 
 # import torch
