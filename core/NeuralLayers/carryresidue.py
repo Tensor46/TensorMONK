@@ -65,7 +65,7 @@ class ResidualOriginal(nn.Module):
 
         super(ResidualOriginal, self).__init__()
         if dropout > 0.:
-            self.pre_network = nn.Dropout2d(dropout)
+            self.dropout = nn.Dropout2d(dropout)
 
         kwargs = update_kwargs(kwargs, tensor_size, filter_size, out_channels,
                                strides, True, activation, 0., normalization,
@@ -85,8 +85,8 @@ class ResidualOriginal(nn.Module):
         self.tensor_size = self.network[-1].tensor_size
 
     def forward(self, tensor):
-        if hasattr(self, "pre_network"):  # for dropout
-            tensor = self.pre_network(tensor)
+        if hasattr(self, "dropout"):  # for dropout
+            tensor = self.dropout(tensor)
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") \
             else tensor
         return self.network(tensor) + residue
@@ -109,7 +109,7 @@ class ResidualComplex(nn.Module):
                  shift=False, late_activation=False, *args, **kwargs):
         super(ResidualComplex, self).__init__()
         if dropout > 0.:
-            self.pre_network = nn.Dropout2d(dropout)
+            self.dropout = nn.Dropout2d(dropout)
 
         kwargs = update_kwargs(kwargs, tensor_size, filter_size, out_channels,
                                strides, True, activation, 0., normalization,
@@ -144,8 +144,8 @@ class ResidualComplex(nn.Module):
         self.tensor_size = self.network[-1].tensor_size
 
     def forward(self, tensor):
-        if hasattr(self, "pre_network"):  # for dropout
-            tensor = self.pre_network(tensor)
+        if hasattr(self, "dropout"):  # for dropout
+            tensor = self.dropout(tensor)
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") \
             else tensor
         if hasattr(self, "Activation"):  # late_activation
@@ -168,7 +168,7 @@ class SEResidualComplex(nn.Module):
                  shift=False, r=16, *args, **kwargs):
         super(SEResidualComplex, self).__init__()
         if dropout > 0.:
-            self.pre_network = nn.Dropout2d(dropout)
+            self.dropout = nn.Dropout2d(dropout)
 
         kwargs = update_kwargs(kwargs, tensor_size, filter_size, out_channels,
                                strides, True, activation, 0., normalization,
@@ -207,8 +207,8 @@ class SEResidualComplex(nn.Module):
         self.tensor_size = self.network[-1].tensor_size
 
     def forward(self, tensor):
-        if hasattr(self, "pre_network"):  # for dropout
-            tensor = self.pre_network(tensor)
+        if hasattr(self, "dropout"):  # for dropout
+            tensor = self.dropout(tensor)
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") \
             else tensor
         tensor = self.network(tensor)
@@ -228,7 +228,7 @@ class ResidualNeXt(nn.Module):
                  shift=False, *args, **kwargs):
         super(ResidualNeXt, self).__init__()
         if dropout > 0.:
-            self.pre_network = nn.Dropout2d(dropout)
+            self.dropout = nn.Dropout2d(dropout)
 
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
                                activation, 0., normalization, pre_nm, None,
@@ -247,8 +247,8 @@ class ResidualNeXt(nn.Module):
         self.tensor_size = self.Block3.tensor_size
 
     def forward(self, tensor):
-        if hasattr(self, "pre_network"):  # for dropout
-            tensor = self.pre_network(tensor)
+        if hasattr(self, "dropout"):  # for dropout
+            tensor = self.dropout(tensor)
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") \
             else tensor
         return self.Block3(self.Block2(self.Block1(tensor))) + residue
@@ -265,7 +265,7 @@ class SEResidualNeXt(nn.Module):
                  shift=False, r=16, *args, **kwargs):
         super(SEResidualNeXt, self).__init__()
         if dropout > 0.:
-            self.pre_network = nn.Dropout2d(dropout)
+            self.dropout = nn.Dropout2d(dropout)
 
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
                                activation, 0., normalization, pre_nm, None,
@@ -291,8 +291,8 @@ class SEResidualNeXt(nn.Module):
         self.tensor_size = self.Block3.tensor_size
 
     def forward(self, tensor):
-        if hasattr(self, "pre_network"):  # for dropout
-            tensor = self.pre_network(tensor)
+        if hasattr(self, "dropout"):  # for dropout
+            tensor = self.dropout(tensor)
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue")\
             else tensor
         tensor = self.Block3(self.Block2(self.Block1(tensor)))
@@ -309,7 +309,7 @@ class ResidualInverted(nn.Module):
                  shift=False, t=1, *args, **kwargs):
         super(ResidualInverted, self).__init__()
         if dropout > 0.:
-            self.pre_network = nn.Dropout2d(dropout)
+            self.dropout = nn.Dropout2d(dropout)
 
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
                                activation, 0., normalization, pre_nm, None,
@@ -330,8 +330,8 @@ class ResidualInverted(nn.Module):
         self.tensor_size = self.Block3.tensor_size
 
     def forward(self, tensor):
-        if hasattr(self, "pre_network"):  # for dropout
-            tensor = self.pre_network(tensor)
+        if hasattr(self, "dropout"):  # for dropout
+            tensor = self.dropout(tensor)
         if self.skip_residue:  # For strides > 1
             return self.Block3(self.Block2(self.Block1(tensor)))
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue")\
@@ -364,7 +364,7 @@ class ResidualShuffle(nn.Module):
                  shift=False, *args, **kwargs):
         super(ResidualShuffle, self).__init__()
         if dropout > 0.:
-            self.pre_network = nn.Dropout2d(dropout)
+            self.dropout = nn.Dropout2d(dropout)
         kwargs = update_kwargs(kwargs, None, None, out_channels, None,
                                True, activation, 0., normalization,
                                pre_nm, groups, weight_nm, equalized, shift)
@@ -396,8 +396,8 @@ class ResidualShuffle(nn.Module):
         self.Activation = Activations(activation)
 
     def forward(self, tensor):
-        if hasattr(self, "pre_network"):  # for dropout
-            tensor = self.pre_network(tensor)
+        if hasattr(self, "dropout"):
+            tensor = self.dropout(tensor)
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") \
             else tensor
         tensor = self.Block3(self.Block2(self.Shuffle(self.Block1(tensor))))
@@ -871,7 +871,7 @@ class ContextNet_Bottleneck(nn.Module):
 # test(torch.rand(*(1, 1024, 17, 17))).size()
 # test = InceptionC((1, 1536, 8, 8))
 # test(torch.rand(*(1, 1536, 8, 8))).size()
-
+#
 # tensor_size = (3, 64, 10, 10)
 # x = torch.rand(*tensor_size)
 # test = ResidualOriginal(tensor_size, 3, 64, 2, False, "relu", 0.,
