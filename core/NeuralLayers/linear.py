@@ -22,6 +22,7 @@ class Linear(nn.Module):
             default = None
         dropout (float): 0. - 1., default = 0.
         bias (bool): to enable bias, default = True
+        out_shape (tuple): a desired output shape in tuple with out batches
 
     Return:
         torch.Tensor of shape (B, out_features)
@@ -33,11 +34,12 @@ class Linear(nn.Module):
                  activation: str = None,
                  dropout: float = 0.,
                  bias: bool = True,
+                 out_shape: tuple = None,
                  **kwargs):
         super(Linear, self).__init__()
         # Checks
-        assert type(tensor_size) in [int, list, tuple], \
-            "Linear: tensor_size must tuple/list"
+        if not type(tensor_size) in [int, list, tuple]:
+            raise TypeError("Linear: tensor_size must tuple/list")
 
         if isinstance(tensor_size, int):
             in_features = tensor_size
@@ -45,18 +47,30 @@ class Linear(nn.Module):
             assert len(tensor_size) >= 2, \
                 "Linear: when tuple/list, tensor_size must of length 2 or more"
             in_features = np.prod(tensor_size[1:])
-        assert isinstance(out_features, int), "Linear:out_features must be int"
-        assert isinstance(dropout, float), "Linear: dropout must be float"
-        if dropout > 0.:
+
+        if not isinstance(out_features, int):
+            raise TypeError("Linear:out_features must be int")
+
+        if not isinstance(dropout, float):
+            raise TypeError("Linear: dropout must be float")
+        if 1. > dropout > 0.:
             self.dropout = nn.Dropout2d(dropout)
+
         if isinstance(activation, str):
             activation = activation.lower()
         assert activation in [None, "", ] + Activations.available(),\
             "Linear: activation must be None/''/" + \
             "/".join(Activations.available())
-        assert isinstance(bias, bool), "Linear: bias must be bool"
-        multiplier = 2 if activation in ("maxo", "rmxo") else 1
 
+        if not isinstance(bias, bool):
+            raise TypeError("Linear: bias must be bool")
+
+        if out_shape is not None:
+            assert np.prod(out_shape) == out_features, \
+                "Linear: np.prod(out_shape) != out_features"
+            self.out_shape = out_shape
+
+        multiplier = 2 if activation in ("maxo", "rmxo") else 1
         # get weight and bias
         self.weight = nn.Parameter(torch.rand(out_features*multiplier,
                                               in_features))
@@ -80,13 +94,15 @@ class Linear(nn.Module):
             tensor = tensor + self.bias.view(1, -1)
         if hasattr(self, "activation"):
             tensor = self.activation(tensor)
+        if hasattr(self, "out_shape"):
+            tensor = tensor.view(-1, *self.out_shape)
         return tensor
 
 
 # from core.NeuralLayers import Activations
 # tensor_size = (2, 3, 10, 10)
 # x = torch.rand(*tensor_size)
-# test = Linear(tensor_size, 16, "maxo", 0., bias=True)
+# test = Linear(tensor_size, 16, "maxo", 0., True, (1, 4, 4))
 # test(x).size()
 # test.weight.shape
 # test.bias.shape
