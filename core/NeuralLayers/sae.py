@@ -14,17 +14,17 @@ class ConvolutionalSAE(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=(1, 1),
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_norm=False, equalized=False,
-                 shit=False, learningRate=0.1, *args, **kwargs):
+                 shift=False, learningRate=0.1, *args, **kwargs):
 
         super(ConvolutionalSAE, self).__init__()
         self.encoder = Convolution(tensor_size, filter_size, out_channels,
                                    strides, pad, activation, dropout,
                                    normalization, pre_nm, groups, weight_norm,
-                                   equalized, shit, **kwargs)
+                                   equalized, shift, **kwargs)
         self.decoder = Convolution(self.encoder.tensor_size, filter_size,
                                    out_channels, strides, pad, activation,
                                    dropout, normalization, pre_nm, groups,
-                                   weight_norm, equalized, shit,
+                                   weight_norm, equalized, shift,
                                    transpose=True, **kwargs)
         self.decoder.tensor_size = tensor_size
 
