@@ -163,6 +163,9 @@ class Convolution(nn.Module):
             if maintain_out_size:
                 out_pad = (tensor_size[2]*strides[0] - self.tensor_size[2],
                            tensor_size[3]*strides[1] - self.tensor_size[3])
+                self.tensor_size = (tensor_size[0], out_channels,
+                                    math.floor(h)+out_pad[0],
+                                    math.floor(w)+out_pad[1])
             self.Convolution = \
                 nn.ConvTranspose2d(tensor_size[1]//pre_expansion,
                                    out_channels*pst_expansion, filter_size,

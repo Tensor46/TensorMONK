@@ -75,9 +75,9 @@ class ObfuscateDecolor(nn.Module):
                     tensor[i, ] = tmp.expand(-1, 3, -1, -1)
                 self.n_decolor += 1
 
-        random_shit = torch.rand(1, *tensor.size()[1:])
+        random_shift = torch.rand(1, *tensor.size()[1:])
         if tensor.is_cuda:
-            random_shit = random_shit.cuda()
+            random_shift = random_shift.cuda()
 
         for i in range(tensor.size(0)):
             if self.n_obfuscate == self.p_obfuscate.size(0):
@@ -91,7 +91,7 @@ class ObfuscateDecolor(nn.Module):
 
                 sh, eh = self.sample_height[self.n_sample_height]
                 sw, ew = self.sample_width[self.n_sample_width]
-                tensor[i, :, sh:eh, sw:ew] = random_shit[0, :, sh:eh, sw:ew]
+                tensor[i, :, sh:eh, sw:ew] = random_shift[0, :, sh:eh, sw:ew]
 
                 self.n_sample_height += 1
                 self.n_sample_width += 1
