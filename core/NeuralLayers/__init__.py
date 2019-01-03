@@ -24,8 +24,7 @@ from .routingcapsule import RoutingCapsule
 from .sae import ConvolutionalSAE
 
 from .detailpooling import DetailPooling
-from .lossfunctions import CapsuleLoss, CategoricalLoss, TripletLoss, \
-    DiceLoss
+from .lossfunctions import CapsuleLoss, CategoricalLoss, TripletLoss, DiceLoss
 from .obfuscatedecolor import ObfuscateDecolor
 
 from .activations import Activations
