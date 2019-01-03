@@ -43,31 +43,45 @@ def nlog_likelihood(tensor, targets):
     return F.nll_loss(tensor.log_softmax(1), targets)
 # =========================================================================== #
 
-def hardest_negative(lossValues,margin):
+
+def hardest_negative(lossValues, margin):
     return lossValues.max(2)[0].max(1)[0].mean()
 
+
 def semihard_negative(lossValues, margin):
-    lossValues = torch.where((torch.ByteTensor(lossValues>0.) & torch.ByteTensor(lossValues<margin)), lossValues, torch.zeros(lossValues.size()))
+    lossValues = torch.where((torch.ByteTensor(lossValues > 0.) &
+                              torch.ByteTensor(lossValues < margin)),
+                             lossValues, torch.zeros(lossValues.size()))
     return lossValues.max(2)[0].max(1)[0].mean()
 
 
 class TripletLoss(nn.Module):
-    def __init__(self, margin, negative_selection_fn='hardest_negative', samples_per_class = 2, *args, **kwargs):
+    def __init__(self, margin, negative_selection_fn='hardest_negative',
+                 samples_per_class=2, *args, **kwargs):
         super(TripletLoss, self).__init__()
         self.tensor_size = (1,)
         self.margin = margin
         self.negative_selection_fn = negative_selection_fn
-        self.sqrEuc = lambda x : (x.unsqueeze(0) - x.unsqueeze(1)).pow(2).sum(2).div(x.size(1))
+        self.sqrEuc = lambda x: (x.unsqueeze(0) -
+                                 x.unsqueeze(1)).pow(2).sum(2).div(x.size(1))
         self.perclass = samples_per_class
 
     def forward(self, embeddings, labels):
-        InClass     = labels.reshape(-1,1) == labels.reshape(1,-1)
-        Consider    = torch.eye(labels.size(0)).mul(-1).add(1).type(InClass.type())
-        Scores      = self.sqrEuc(embeddings)
-        Gs          = Scores.view(-1, 1)[(InClass*Consider).view(-1, 1)].reshape(-1, self.perclass-1)
-        Is          = Scores.view(-1, 1)[(InClass == 0).view(-1, 1)].reshape(-1, embeddings.size(0)-self.perclass)
-        lossValues = Gs.view(embeddings.size(0), -1, 1) - Is.view(embeddings.size(0), 1, -1) + self.margin
+        labels = torch.from_numpy(np.array([1, 1, 0, 1, 1], dtype='float32'))
+        InClass = labels.reshape(-1, 1) == labels.reshape(1, -1)
+        Consider = torch.eye(labels.size(0)).mul(-1).add(1) \
+                        .type(InClass.type())
+        Scores = self.sqrEuc(embeddings)
+
+        Gs = Scores.view(-1, 1)[(InClass*Consider).view(-1, 1)] \
+            .reshape(-1, self.perclass-1)
+        Is = Scores.view(-1, 1)[(InClass == 0).view(-1, 1)] \
+            .reshape(-1, embeddings.size(0)-self.perclass)
+
+        lossValues = Gs.view(embeddings.size(0), -1, 1) - \
+            Is.view(embeddings.size(0), 1, -1) + self.margin
         lossValues = lossValues.clamp(0.)
+
         if self.negative_selection_fn == "hardest_negative":
             return hardest_negative(lossValues, self.margin), Gs, Is
         elif self.negative_selection_fn == "semihard_negative":
@@ -78,15 +92,22 @@ class TripletLoss(nn.Module):
 
 
 class DiceLoss(nn.Module):
-    """
+    r""" Dice/ Tversky loss for semantic segmentationself.
     Implemented from https://arxiv.org/pdf/1803.11078.pdf
-    https://arxiv.org/pdf/1706.05721.pdf has same equation but with alpha and beta controlling FP and FN.
-    works for both softmax predicted output [batchx2xH,W] or sigmoid output [batchx1xH,W
-    p_i * g_i --> True Positives  (TP)
-    p_i * g_j --> False Positives (FP)
-    p_j * g_i --> False Negatives (FN)
+    https://arxiv.org/pdf/1706.05721.pdf has same equation but with alpha
+    and beta controlling FP and FN.
+    Args:
+        type: tversky/dice
+    Definations:
+        p_i - correctly predicted foreground pixels
+        p_j - correctly predicted background pixels
+        g_i - target foreground pixels
+        g_j - target background pixels
+        p_i * g_i - True Positives  (TP)
+        p_i * g_j - False Positives (FP)
+        p_j * g_i - False Negatives (FN)
     """
-    def __init__(self, type = "tversky", *args, **kwargs):
+    def __init__(self, type="tversky", *args, **kwargs):
         super(DiceLoss, self).__init__()
         self.tensor_size = (1,)
         if type == "tversky":
@@ -97,6 +118,7 @@ class DiceLoss(nn.Module):
             self.beta = 1.0         # below Eq(6)
         else:
             raise NotImplementedError
+
     def forward(self, prediction, targets):
         top1, top5 = 0., 0.
         if prediction.shape[1] == 1:
@@ -106,21 +128,23 @@ class DiceLoss(nn.Module):
             g_j = targets.mul(-1).add(1)
             # the above is similar to one hot encoding of targets
             num = (p_i*g_i).sum(1).sum(1).mul((1 + self.beta**2))   # eq(5)
-            den = num.add((p_i*g_j).sum(1).sum(1).mul((self.beta**2))).add((p_j*g_i).sum(1).sum(1).mul((self.beta)))    # eq(5)
+            den = num.add((p_i*g_j).sum(1).sum(1).mul((self.beta**2))) \
+                .add((p_j*g_i).sum(1).sum(1).mul((self.beta)))    # eq(5)
             loss = num / den.add(1e-6)
         elif prediction.shape[1] == 2:
-            p_i = prediction[:,0,:,:]
-            p_j = prediction[:,1,:,:]
+            p_i = prediction[:, 0, :, :]
+            p_j = prediction[:, 1, :, :]
             g_i = targets
             g_j = targets.mul(-1).add(1)
             # the above is similar to one hot encoding of targets
             num = (p_i*g_i).sum(1).sum(1).mul((1 + self.beta**2))   # eq(5)
-            den = num.add((p_i*g_j).sum(1).sum(1).mul((self.beta**2))).add((p_j*g_i).sum(1).sum(1).mul((self.beta)))    # eq(5)
+            den = num.add((p_i*g_j).sum(1).sum(1).mul((self.beta**2))) \
+                .add((p_j*g_i).sum(1).sum(1).mul((self.beta)))    # eq(5)
             loss = num / den.add(1e-6)
         else:
             raise NotImplementedError
         return loss.mean(), (top1, top5)
-# ============================================================================ #
+# =========================================================================== #
 
 
 class CapsuleLoss(nn.Module):
