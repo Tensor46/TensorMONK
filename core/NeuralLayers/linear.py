@@ -37,6 +37,7 @@ class Linear(nn.Module):
                  out_shape: tuple = None,
                  **kwargs):
         super(Linear, self).__init__()
+        self.t_size = tuple(tensor_size)
         # Checks
         if not type(tensor_size) in [int, list, tuple]:
             raise TypeError("Linear: tensor_size must tuple/list")
@@ -61,6 +62,7 @@ class Linear(nn.Module):
         assert activation in [None, "", ] + Activations.available(),\
             "Linear: activation must be None/''/" + \
             "/".join(Activations.available())
+        self.act = activation
 
         if not isinstance(bias, bool):
             raise TypeError("Linear: bias must be bool")
@@ -80,9 +82,12 @@ class Linear(nn.Module):
             self.bias = nn.Parameter(torch.zeros(out_features*multiplier))
         # get activation function
         if activation is not None:
-            self.activation = Activations(activation)
+            if activation in Activations.available():
+                self.activation = Activations(activation)
         # out tensor size
         self.tensor_size = (1, out_features)
+        if hasattr(self, "out_shape"):
+            self.tensor_size = tuple([1, ] + list(out_shape))
 
     def forward(self, tensor):
         if tensor.dim() > 2:
@@ -98,11 +103,21 @@ class Linear(nn.Module):
             tensor = tensor.view(-1, *self.out_shape)
         return tensor
 
+    def __repr__(self):
+        msg = "x".join(["_"]+[str(x)for x in self.t_size[1:]]) + " -> "
+        if hasattr(self, "dropout"):
+            msg += "dropout -> "
+        msg += "{}({})".format("linear", "x".join([str(x) for x in
+                                                   self.weight.shape]))+" -> "
+        if hasattr(self, "activation"):
+            msg += self.act + " -> "
+        msg += "x".join(["_"]+[str(x)for x in self.tensor_size[1:]])
+        return msg
 
 # from core.NeuralLayers import Activations
 # tensor_size = (2, 3, 10, 10)
 # x = torch.rand(*tensor_size)
-# test = Linear(tensor_size, 16, "maxo", 0., True, (1, 4, 4))
+# test = Linear(tensor_size, 16, "", 0., True, (1, 4, 4))
 # test(x).size()
 # test.weight.shape
 # test.bias.shape
