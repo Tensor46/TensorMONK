@@ -51,7 +51,7 @@ class Activations(nn.Module):
         return F.prelu(tensor, self.weight)
 
     def _tanh(self, tensor):
-        return F.tanh(tensor)
+        return torch.tanh(tensor)
 
     def _sigm(self, tensor):
         return torch.sigmoid(tensor)
