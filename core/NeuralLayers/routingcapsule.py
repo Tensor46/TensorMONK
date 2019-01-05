@@ -37,8 +37,8 @@ class RoutingCapsule(nn.Module):
         #               = (32*6*6, 8 , 10*16)
         weight_size = (int(np.prod(tensor_size[1:-1])), tensor_size[-1],
                        n_capsules*capsule_length)
-        self.weight = nn.Parameter(torch.Tensor(*weight_size))
-        nn.init.xavier_normal_(self.weight, gain=0.01)
+        self.weight = nn.Parameter(torch.randn(*weight_size).normal_(0., 0.1))
+        # nn.init.xavier_normal_(self.weight, gain=0.01)
         # nn.init.orthogonal_(self.weight, gain=1./np.sqrt(tensor_size[-1]))
         self.tensor_size = (6, n_capsules, capsule_length)
 
