@@ -34,10 +34,10 @@ class CudaModel(torch.nn.Module):
                 break
             self.precision = p.dtype if "p" in locals() else torch.float32
         if type(inputs) in [list, tuple]:
+            inputs = [x if x.dtype == torch.long else x.type(self.precision)
+                      for x in inputs]
             if self.is_cuda:
-                inputs = [(x.type(self.precision).cuda() if self.is_cuda else
-                           x.type(self.precision)) if x.dtype != torch.long
-                          else x for x in inputs]
+                inputs = [x.cuda() for x in inputs]
             return inputs
         else:
             if not (inputs.dtype == torch.long):
