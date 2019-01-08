@@ -69,8 +69,7 @@ class DropBlock(nn.Module):
             raise TypeError("DropBlock: iterative_p must boolean: "
                             "{}".format(type(iterative_p).__name__))
         if iterative_p:
-            # max_p = max probability
-            # steps_to_max = steps to reach max_p
+            # steps_to_max = steps to reach p
             self.steps_to_max = 500000
             self.register_buffer("n_iterations", torch.Tensor([0]).sum())
 
