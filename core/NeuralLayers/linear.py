@@ -55,7 +55,7 @@ class Linear(nn.Module):
         if not isinstance(dropout, float):
             raise TypeError("Linear: dropout must be float")
         if 1. > dropout > 0.:
-            self.dropout = nn.Dropout2d(dropout)
+            self.dropout = nn.Dropout(dropout)
 
         if isinstance(activation, str):
             activation = activation.lower()
