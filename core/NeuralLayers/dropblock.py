@@ -20,7 +20,8 @@ class DropBlock(nn.Module):
             tensor channels. default = False - recommended in paper
         iterative_p: when True, iteratively increases probability from 0 to p
             till n_iterations = steps_to_max, and maintains p there after.
-        steps_to_max: steps to reach p, default = 500000
+            default = True
+        steps_to_max: iterations to reach p, default = 50000
 
      Return:
          torch.Tensor of shape BCHW
@@ -31,8 +32,8 @@ class DropBlock(nn.Module):
                  p: float = 0.1,
                  block_size: int = 5,
                  shared: bool = False,
-                 iterative_p: bool = False,
-                 steps_to_max: int = 500000):
+                 iterative_p: bool = True,
+                 steps_to_max: int = 50000):
 
         super(DropBlock, self).__init__()
         # checks
@@ -70,7 +71,7 @@ class DropBlock(nn.Module):
                             "{}".format(type(iterative_p).__name__))
         if iterative_p:
             # steps_to_max = steps to reach p
-            self.steps_to_max = 500000
+            self.steps_to_max = steps_to_max
             self.register_buffer("n_iterations", torch.Tensor([0]).sum())
 
     def forward(self, tensor):
@@ -89,12 +90,14 @@ class DropBlock(nn.Module):
         pad = self.w//2
         if self.shared:
             c = 1
+
         mask = torch.ones(n, c, h-2*pad, w-2*pad).to(tensor.device)
         mask = torch.bernoulli(mask * gamma)
         mask = F.pad(mask, (pad, pad, pad, pad))
-        block_mask = F.conv2d(mask, torch.ones(c, 1, self.w, self.w),
-                              padding=pad, groups=c)
+        kernel = torch.ones(c, 1, self.w, self.w).to(tensor.device)
+        block_mask = F.conv2d(mask, kernel, padding=pad, groups=c)
         block_mask = (block_mask == 0).float().detach()
+
         # norm = count(M)/count_ones(M)
         norm = block_mask.sum(2, True).sum(3, True) / h / w
         return tensor * block_mask * norm  # A × count(M)/count_ones(M)
