@@ -104,6 +104,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
   * [ReductionB](https://arxiv.org/pdf/1602.07261.pdf)
   * [ContextNet_Bottleneck](https://arxiv.org/pdf/1805.04554.pdf)
 
+* [DropBlock](https://arxiv.org/abs/1810.12890)
 * [PrimaryCapsule](https://arxiv.org/pdf/1710.09829.pdf)
 * [RoutingCapsule](https://arxiv.org/pdf/1710.09829.pdf)
 
