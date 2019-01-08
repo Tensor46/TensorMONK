@@ -35,11 +35,13 @@ class CudaModel(torch.nn.Module):
             self.precision = p.dtype if "p" in locals() else torch.float32
         if type(inputs) in [list, tuple]:
             if self.is_cuda:
-                inputs = [x.type(self.precision).cuda() if self.is_cuda else
-                          x.type(self.precision) for x in inputs]
+                inputs = [(x.type(self.precision).cuda() if self.is_cuda else
+                           x.type(self.precision)) if x.dtype != torch.long
+                          else x for x in inputs]
             return inputs
         else:
-            inputs = inputs.type(self.precision)
+            if not (inputs.dtype == torch.long):
+                inputs = inputs.type(self.precision)
             if self.is_cuda:
                 inputs = inputs.cuda()
         return inputs
