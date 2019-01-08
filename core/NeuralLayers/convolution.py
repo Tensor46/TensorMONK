@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .activations import Activations
 from .normalizations import Normalizations
+from .dropblock import DropBlock
 import math
 
 
@@ -53,6 +54,9 @@ class Convolution(nn.Module):
             output_tensor_size[2] = input_tensor_size[2]*strides[0]
             output_tensor_size[3] = input_tensor_size[3]*strides[1]
         bias: default=False
+        dropblock: Uses dropblock instead of 2D dropout, default=False
+            all the inputs for DropBlock (refer DropBlock) except tensor_size
+            and p (dropout) are gathered from kwargs when available
 
     Return:
         torch.Tensor of shape BCHW
@@ -74,6 +78,7 @@ class Convolution(nn.Module):
                  transpose: bool = False,
                  maintain_out_size: bool = False,
                  bias: bool = False,
+                 dropblock: bool = False,
                  **kwargs):
         super(Convolution, self).__init__()
         show_msg = "x".join(["_"]+[str(x)for x in tensor_size[1:]]) + " -> "
@@ -132,7 +137,20 @@ class Convolution(nn.Module):
             raise ValueError("Convolution: dropout must be >=0 and <1: "
                              "{}".format(dropout))
         if dropout > 0.:
-            self.dropout = nn.Dropout2d(dropout)
+            if dropblock:
+                kwgs = {}
+                if "block_size" in kwargs.keys():
+                    kwgs["block_size"] = kwargs["block_size"]
+                if "shared" in kwargs.keys():
+                    kwgs["shared"] = kwargs["shared"]
+                if "iterative_p" in kwargs.keys():
+                    kwgs["iterative_p"] = kwargs["iterative_p"]
+                if "steps_to_max" in kwargs.keys():
+                    kwgs["steps_to_max"] = kwargs["steps_to_max"]
+                self.dropout = DropBlock(tensor_size, p=dropout, **kwgs)
+                pass
+            else:
+                self.dropout = nn.Dropout2d(dropout)
 
         if not (normalization is None or type(normalization) == str):
             raise TypeError("Convolution: normalization must None/str: "
