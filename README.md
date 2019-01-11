@@ -97,7 +97,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 ### loss
 * [CapsuleLoss](https://arxiv.org/pdf/1710.09829.pdf)
 * Categorical: Cross entropy / softmax / [taylor softmax](https://arxiv.org/pdf/1511.05042.pdf) / [large margin cosine loss](https://arxiv.org/pdf/1801.09414.pdf) / [large-margin Gaussian Mixture](https://arxiv.org/pdf/1803.02988.pdf)
-* [DiceLoss / Tversky Loss](https://arxiv.org/abs/1706.05721): Segmentation loss function
+* [DiceLoss / Tversky Loss](https://arxiv.org/pdf/1706.05721.pdf): Segmentation loss function
 * TripletLoss: with soft and hard negative mining
 
 ### normalizations
@@ -120,3 +120,36 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 * corr_1d: Computes row wise correlation between two 2D torch.Tensor's of same shape
 * xcorr_1d: Computes cross correlation of 2D torch.Tensor's of shape MxN, i.e, M vectors of length N
 * roc: Computes receiver under operating curve for a given combination of (genuine and impostor) or (score matrix and labels)
+
+## References
+
+### Classification
+* [Deep Neural Decision Forests](https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Kontschieder_Deep_Neural_Decision_ICCV_2015_paper.pdf)
+
+### Generative Models
+* [Auto-Encoding Variational Bayes](https://arxiv.org/pdf/1312.6114v10.pdf)
+* [Progressive Growing of GANs](https://arxiv.org/pdf/1710.10196.pdf)
+
+### Image Recognition Models
+* [Dynamic Routing Between Capsules](https://arxiv.org/pdf/1710.09829.pdf)
+* [Densely Connected Convolutional Networks](https://arxiv.org/pdf/1608.06993.pdf)
+* [Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning](https://arxiv.org/pdf/1602.07261.pdf)
+* [MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications](https://arxiv.org/pdf/1704.04861.pdf)
+* [MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/pdf/1801.04381.pdf)
+* [Deep Residual Learning for Image Recognition](https://arxiv.org/pdf/1512.03385.pdf)
+* [Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf)
+* [Squeeze-and-Excitation Networks](https://arxiv.org/pdf/1709.01507.pdf)
+* [ShuffleNet: An Extremely Efficient Convolutional Neural Network for Mobile Devices](https://arxiv.org/pdf/1707.01083.pdf)
+
+### Image Segmentation Models
+* [ContextNet: Exploring Context and Detail for Semantic Segmentation in Real-time](https://arxiv.org/pdf/1805.04554.pdf)
+* [U-Net: Convolutional Networks for Biomedical Image Segmentation](https://arxiv.org/pdf/1505.04597.pdf)
+
+### Local Features
+* [Learning Discriminative and Transformation Covariant Local Feature Detectors](http://openaccess.thecvf.com/content_cvpr_2017/papers/Zhang_Learning_Discriminative_and_CVPR_2017_paper.pdf)
+
+### Loss Functions
+* [AN EXPLORATION OF SOFTMAX ALTERNATIVES BELONGING TO THE SPHERICAL LOSS FAMILY](https://arxiv.org/pdf/1511.05042.pdf)
+* [CosFace: Large Margin Cosine Loss for Deep Face Recognition](https://arxiv.org/pdf/1801.09414.pdf)
+* [Rethinking Feature Distribution for Loss Functions in Image Classification](https://arxiv.org/pdf/1803.02988.pdf)
+* [Tversky loss function for image segmentation using 3D fully convolutional deep networks](https://arxiv.org/pdf/1706.05721.pdf)
