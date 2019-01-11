@@ -3,7 +3,7 @@
 A collection of deep learning architectures (a PyTorch implementation).
 
 ## Dependencies
-* python 3.6
+* python >= 3.6
 * PyTorch > 0.4.1
 * torchvision
 * visdom
