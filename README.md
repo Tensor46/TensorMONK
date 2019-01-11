@@ -144,6 +144,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 * [Deep Residual Learning for Image Recognition](https://arxiv.org/pdf/1512.03385.pdf)
 * [Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf)
 * [Squeeze-and-Excitation Networks](https://arxiv.org/pdf/1709.01507.pdf)
+* [Shift: A Zero FLOP, Zero Parameter Alternative to Spatial Convolutions](https://arxiv.org/pdf/1711.08141.pdf)
 * [ShuffleNet: An Extremely Efficient Convolutional Neural Network for Mobile Devices](https://arxiv.org/pdf/1707.01083.pdf)
 
 ### Image Segmentation Models
