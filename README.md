@@ -8,11 +8,11 @@ A collection of deep learning architectures (a PyTorch implementation).
 * torchvision
 * visdom
 
-## How to train ImageNet?
+## Training models on 2012 ImageNet recognition task
 
 If you have more nvidia cards & cores available, adjust the batch size (BSZ), number of GPUs (gpus), & number of threads (cpus) accordingly in the ./ImageNet.sh. Next, select an available architecture and update your train & validation folder location (trainDataPath and testDataPath). Finally, run ./ImageNet.sh.
 
-## How to train CapsuleNet?
+## Training CapsuleNet on MNIST
 
 To replicate Hinton's paper on MNIST, run the following:
 
@@ -20,7 +20,7 @@ python Capsule.py -A capsule -B 256 -E 500 --optimizer adam --gpus 2 --cpus 6 --
 
 Ignore the replicate_paper argument to create a deep architecture (with few residual blocks before primary capsule). You can essentially add any block available in NeuralLayers to create a deeper architecture, which is followed by a primary capsule and secondary capsule. However, do consider two things 1. if you do reconstruction, update the reconstruction network relative to tensor_size, 2. capsule nets do require a good amount of gpu ram.
 
-## Generative Adversarial Networks GAN
+## Generative Adversarial Networks
 
 ### [Progressive Growing of GANs](https://arxiv.org/pdf/1710.10196.pdf)
 
@@ -33,7 +33,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 
 ## Details on tensormonk
 ### activations
-* Activations: A supporting function for tensormonk.layers.Convolution. Available options (elu/lklu/[maxo](https://arxiv.org/pdf/1302.4389.pdf)/prelu/relu/relu6/rmxo(relu + maxo)/sigm/[squash](https://arxiv.org/pdf/1710.09829.pdf)/[swish](https://arxiv.org/pdf/1710.05941v1.pdf)/tanh)
+* Activations: A supporting function for convolution and linear layers. Available options (elu/lklu/[maxo](https://arxiv.org/pdf/1302.4389.pdf)/prelu/relu/relu6/rmxo(relu + maxo)/sigm/[squash](https://arxiv.org/pdf/1710.09829.pdf)/[swish](https://arxiv.org/pdf/1710.05941v1.pdf)/tanh)
 
 ### architectures
 * [CapsuleNet](https://arxiv.org/pdf/1710.09829.pdf) (Hinton's version, and an example deep network)
@@ -101,7 +101,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 * TripletLoss: with soft and hard negative mining
 
 ### normalizations
-* Normalizations: A supporting function for tensormonk.layers.Convolution. Available options (batch/group/instance/layer/pixelwise)
+* Normalizations: A supporting function for convolution layers. Available options (batch/group/instance/layer/pixelwise)
 
 ### optimizers
 

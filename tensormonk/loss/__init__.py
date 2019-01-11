@@ -3,9 +3,8 @@
 __all__ = ["CapsuleLoss", "Categorical", "TripletLoss", "DiceLoss"]
 
 from .categorical import Categorical
-from .other import CapsuleLoss, TripletLoss
+from .capsuleloss import CapsuleLoss
+from .metricloss import TripletLoss
 from .segloss import DiceLoss
 
-del categorical
-del other
-del segloss
+del categorical, capsuleloss, metricloss, segloss
