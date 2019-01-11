@@ -147,6 +147,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 * [ShuffleNet: An Extremely Efficient Convolutional Neural Network for Mobile Devices](https://arxiv.org/pdf/1707.01083.pdf)
 
 ### Image Segmentation Models
+* [AnatomyNet: Deep Learning for Fast and Fully Automated Whole-volume Segmentation of Head and Neck Anatomy](https://arxiv.org/pdf/1808.05238.pdf)
 * [ContextNet: Exploring Context and Detail for Semantic Segmentation in Real-time](https://arxiv.org/pdf/1805.04554.pdf)
 * [U-Net: Convolutional Networks for Biomedical Image Segmentation](https://arxiv.org/pdf/1505.04597.pdf)
 

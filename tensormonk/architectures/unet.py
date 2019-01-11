@@ -191,9 +191,9 @@ class UNet(nn.Module):
         return self.final_layer(u4)
 
 
-class ANet(nn.Module):
-    '''
-    AnatomyNet architecture -- https://arxiv.org/pdf/1808.05238.pdf
+class AnatomyNet(nn.Module):
+    r'''AnatomyNet architecture -- https://arxiv.org/pdf/1808.05238.pdf
+
     Args:
         tensor_size: shape of tensor in BCHW
         in_channels: C in tensor_size
@@ -204,7 +204,7 @@ class ANet(nn.Module):
     '''
     def __init__(self, tensor_size, out_channels, n_classes=2,
                  *args, **kwargs):
-        super(ANet, self).__init__()
+        super(AnatomyNet, self).__init__()
         self.d1 = Down(tensor_size, tensor_size[1], out_channels,
                        pad=True, nettype='anatomynet')
         self.b1 = ResSEBlock(self.d1.tensor_size, int(out_channels*1.25))
