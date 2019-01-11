@@ -123,6 +123,11 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 
 ## References
 
+### Activation Functions
+* [Maxout Networks](https://arxiv.org/pdf/1302.4389.pdf)
+* [Dynamic Routing Between Capsules](https://arxiv.org/pdf/1710.09829.pdf)
+* [SWISH: A SELF-GATED ACTIVATION FUNCTION](https://arxiv.org/pdf/1710.05941v1.pdf)
+
 ### Classification
 * [Deep Neural Decision Forests](https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Kontschieder_Deep_Neural_Decision_ICCV_2015_paper.pdf)
 
@@ -153,3 +158,6 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 * [CosFace: Large Margin Cosine Loss for Deep Face Recognition](https://arxiv.org/pdf/1801.09414.pdf)
 * [Rethinking Feature Distribution for Loss Functions in Image Classification](https://arxiv.org/pdf/1803.02988.pdf)
 * [Tversky loss function for image segmentation using 3D fully convolutional deep networks](https://arxiv.org/pdf/1706.05721.pdf)
+
+### Regularizations
+* [DropBlock: A regularization method for convolutional networks](https://arxiv.org/pdf/1810.12890.pdf)
