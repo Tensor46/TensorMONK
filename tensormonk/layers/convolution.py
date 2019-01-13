@@ -224,7 +224,7 @@ class Convolution(nn.Module):
                                                 normalization, **kwargs)
             show_msg += normalization + " -> "
         if pre_nm and activation in Activations.available():
-            self.Activation = Activations(activation, tensor_size[1])
+            self.Activation = Activations(activation, tensor_size[1], **kwargs)
             show_msg += activation + " -> "
 
         if transpose:
@@ -274,7 +274,7 @@ class Convolution(nn.Module):
             show_msg += normalization + " -> "
         if (not pre_nm) and activation in Activations.available():
             self.Activation = Activations(activation,
-                                          out_channels*pst_expansion)
+                                          out_channels*pst_expansion, **kwargs)
             show_msg += activation + " -> "
 
         show_msg += "x".join(["_"]+[str(x)for x in self.tensor_size[1:]])
@@ -295,9 +295,9 @@ class Convolution(nn.Module):
 
         if self.shift:
             tensor = self.shift_pixels(tensor)
-        if self.equalized:
-            self.equalize_w()
         tensor = self.Convolution(tensor)
+        if self.equalized:
+            tensor = tensor * self.scale
 
         if not self.pre_nm:  # convolution -> normalization -> activation
             if hasattr(self, "Normalization"):
