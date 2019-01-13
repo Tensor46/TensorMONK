@@ -12,7 +12,7 @@ class PixelWise(torch.nn.Module):
         self.eps = eps
 
     def forward(self, tensor):
-        return tensor.div(tensor.pow(2).mean(1, True).add(self.eps).pow(.5))
+        return tensor.div(tensor.pow(2).mean(1, True).pow(.5) + self.eps)
 
     def __repr__(self):
         return "pixelwise"
