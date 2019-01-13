@@ -44,7 +44,8 @@ class ResidualOriginal(nn.Module):
                                             strides, **kwargs)
         if not pre_nm and activation is not None:
             if activation.lower() in Activations.available():
-                self.activation = Activations(activation.lower())
+                self.activation = Activations(activation.lower(), out_channels,
+                                              **kwargs)
         self.tensor_size = self.Block2.tensor_size
 
     def forward(self, tensor):
@@ -89,7 +90,8 @@ class ResidualComplex(nn.Module):
                                             strides, **kwargs)
         if not pre_nm and activation is not None:
             if activation.lower() in Activations.available():
-                self.activation = Activations(activation.lower())
+                self.activation = Activations(activation.lower(), out_channels,
+                                              **kwargs)
         self.tensor_size = self.Block3.tensor_size
 
     def forward(self, tensor):
@@ -143,7 +145,8 @@ class SEResidualComplex(nn.Module):
                                             strides, **kwargs)
         if not pre_nm and activation is not None:
             if activation.lower() in Activations.available():
-                self.activation = Activations(activation.lower())
+                self.activation = Activations(activation.lower(), out_channels,
+                                              **kwargs)
         self.tensor_size = self.Block3.tensor_size
 
     def forward(self, tensor):
@@ -333,7 +336,7 @@ class ResidualShuffle(nn.Module):
 
         if activation in ("maxo", "rmxo"):  # switch to retain out_channels
             activation = "relu"
-        self.Activation = Activations(activation)
+        self.Activation = Activations(activation, out_channels, **kwargs)
 
     def forward(self, tensor):
         if self.dropout is not None:
