@@ -35,7 +35,7 @@ class Activations(nn.Module):
         activation: relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish
         channels: parameter for prelu, default is 1
     """
-    def __init__(self, activation="relu", channels=1):
+    def __init__(self, activation="relu", channels=1, **kwargs):
         super(Activations, self).__init__()
 
         if activation is not None:
@@ -46,6 +46,12 @@ class Activations(nn.Module):
             self.function = getattr(self, "_" + activation)
             if activation == "prelu":
                 self.weight = nn.Parameter(torch.rand(channels))
+            if activation == "lklu":
+                self.negslope = kwargs["lklu_negslope"] if "lklu_negslope" in \
+                    kwargs.keys() else 0.01
+            if activation == "elu":
+                self.alpha = kwargs["elu_alpha"] if "elu_alpha" in \
+                    kwargs.keys() else 1.0
         else:
             self.activation = ""
 
@@ -55,16 +61,16 @@ class Activations(nn.Module):
         return self.function(tensor)
 
     def _relu(self, tensor):
-        return F.relu(tensor)
+        return F.relu(tensor, inplace=True)
 
     def _relu6(self, tensor):
-        return F.relu6(tensor)
+        return F.relu6(tensor, inplace=True)
 
     def _lklu(self, tensor):
-        return F.leaky_relu(tensor)
+        return F.leaky_relu(tensor, self.negslope, inplace=True)
 
     def _elu(self, tensor):
-        return F.elu(tensor)
+        return F.elu(tensor, self.alpha, inplace=True)
 
     def _prelu(self, tensor):
         return F.prelu(tensor, self.weight)
