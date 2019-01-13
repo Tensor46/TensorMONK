@@ -91,7 +91,8 @@ class Linear(nn.Module):
         # get activation function
         if activation is not None:
             if activation in Activations.available():
-                self.activation = Activations(activation)
+                self.activation = Activations(activation, out_features,
+                                              **kwargs)
                 show_msg += activation + " -> "
         # out tensor size
         self.tensor_size = (1, out_features)
