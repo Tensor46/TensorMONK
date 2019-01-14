@@ -85,7 +85,7 @@ class Linear(nn.Module):
         self.weight = nn.Parameter(torch.randn(out_features*multiplier,
                                                tensor_size))
         self.weight.data.normal_(0., 0.02)
-        show_msg += "linear(_x{}) -> ".format(tensor_size)
+        show_msg += "linear({}x{}) -> ".format(*self.weight.shape)
         if bias:
             self.bias = nn.Parameter(torch.zeros(out_features*multiplier))
         # get activation function
