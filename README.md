@@ -125,7 +125,6 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 
 ### Activation Functions
 * [Maxout Networks](https://arxiv.org/pdf/1302.4389.pdf)
-* [Dynamic Routing Between Capsules](https://arxiv.org/pdf/1710.09829.pdf)
 * [SWISH: A SELF-GATED ACTIVATION FUNCTION](https://arxiv.org/pdf/1710.05941v1.pdf)
 
 ### Classification
