@@ -13,6 +13,7 @@ from .convolution import Convolution
 from ..activations import Activations
 from ..regularizations import DropOut
 from .utils import check_strides, check_residue, update_kwargs
+from copy import deepcopy
 # =========================================================================== #
 
 
@@ -27,7 +28,7 @@ class ResidualOriginal(nn.Module):
 
         super(ResidualOriginal, self).__init__()
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
-
+        kwgs = deepcopy(kwargs)
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
                                activation, 0., normalization, pre_nm, None,
                                weight_nm, equalized, shift, bias)
@@ -45,7 +46,7 @@ class ResidualOriginal(nn.Module):
         if not pre_nm and activation is not None:
             if activation.lower() in Activations.available():
                 self.activation = Activations(activation.lower(), out_channels,
-                                              **kwargs)
+                                              **kwgs)
         self.tensor_size = self.Block2.tensor_size
 
     def forward(self, tensor):
@@ -71,7 +72,7 @@ class ResidualComplex(nn.Module):
                  shift=False, bias=False, dropblock=True, **kwargs):
         super(ResidualComplex, self).__init__()
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
-
+        kwgs = deepcopy(kwargs)
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
                                activation, 0., normalization, pre_nm, None,
                                weight_nm, equalized, shift, bias)
@@ -91,7 +92,7 @@ class ResidualComplex(nn.Module):
         if not pre_nm and activation is not None:
             if activation.lower() in Activations.available():
                 self.activation = Activations(activation.lower(), out_channels,
-                                              **kwargs)
+                                              **kwgs)
         self.tensor_size = self.Block3.tensor_size
 
     def forward(self, tensor):
@@ -120,7 +121,7 @@ class SEResidualComplex(nn.Module):
                  shift=False, bias=False, dropblock=True, r=16, **kwargs):
         super(SEResidualComplex, self).__init__()
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
-
+        kwgs = deepcopy(kwargs)
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
                                activation, 0., normalization, pre_nm, None,
                                weight_nm, equalized, shift, bias)
@@ -146,7 +147,7 @@ class SEResidualComplex(nn.Module):
         if not pre_nm and activation is not None:
             if activation.lower() in Activations.available():
                 self.activation = Activations(activation.lower(), out_channels,
-                                              **kwargs)
+                                              **kwgs)
         self.tensor_size = self.Block3.tensor_size
 
     def forward(self, tensor):
@@ -308,7 +309,7 @@ class ResidualShuffle(nn.Module):
                  shift=False, bias=False, dropblock=True, **kwargs):
         super(ResidualShuffle, self).__init__()
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
-
+        kwgs = deepcopy(kwargs)
         kwargs = update_kwargs(kwargs, None, None, out_channels, None,
                                True, activation, 0., normalization, pre_nm,
                                groups, weight_nm, equalized, shift, bias)
@@ -336,7 +337,7 @@ class ResidualShuffle(nn.Module):
 
         if activation in ("maxo", "rmxo"):  # switch to retain out_channels
             activation = "relu"
-        self.Activation = Activations(activation, out_channels, **kwargs)
+        self.Activation = Activations(activation, out_channels, **kwgs)
 
     def forward(self, tensor):
         if self.dropout is not None:
