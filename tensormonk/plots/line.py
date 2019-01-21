@@ -7,6 +7,8 @@ def line_plot(data,
               labels: str = None,
               x_log: bool = False,
               y_log: bool = False,
+              x_limit: tuple = None,
+              y_limit: tuple = None,
               save_png: str = None,
               show: bool = True):
     r"""Seaborn line plots using pandas DataFrameself.
@@ -21,6 +23,8 @@ def line_plot(data,
             example: data["labels"] = ["center", "center", "center", "center"]
         x_log (bool, optional): converts x-axis to log scale, default=False
         y_log (bool, optional): converts y-axis to log scale, default=False
+        x_limit (tuple, optional): limits x-axis
+        y_limit (tuple, optional): limits y-axis
         save_png (str, optional): save the plot to png file, default=None
         show (bool, optional): returns the plot when True, default=True
 
@@ -54,6 +58,11 @@ def line_plot(data,
         ax.set_xscale("log")
     if y_log:
         ax.set_yscale("log")
+    if x_limit is not None:
+        ax.set_xlim(*x_limit)
+    if y_limit is not None:
+        ax.set_ylim(*y_limit)
+
     f.tight_layout()
     if isinstance(save_png, str) and save_png.endswith(".png"):
         f.savefig(save_png, format="png", dpi=464)
