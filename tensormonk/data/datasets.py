@@ -6,7 +6,7 @@ import multiprocessing
 from torchvision import datasets
 from torchvision.transforms import RandomApply, ColorJitter, \
     RandomResizedCrop, RandomRotation, Compose, ToTensor, Normalize, \
-    RandomHorizontalFlip
+    RandomHorizontalFlip, Resize
 
 
 def DataSets(dataset: str = "MNIST",
@@ -52,18 +52,24 @@ def DataSets(dataset: str = "MNIST",
             loader = datasets.MNIST
             if tensor_size is None:
                 tensor_size = (1, 1, 28, 28)
+            elif tensor_size[2] != 28 or tensor_size[3] != 28:
+                basics = [Resize(tensor_size[2:][::-1])] + basics
             if normalize:
                 basics += [Normalize((0.1307,), (0.3081,))]
         if dataset == "fashionmnist":
             loader = datasets.FashionMNIST
             if tensor_size is None:
                 tensor_size = (1, 1, 28, 28)
+            elif tensor_size[2] != 32 or tensor_size[3] != 32:
+                basics = [Resize(tensor_size[2:][::-1])] + basics
             if normalize:
                 basics += [Normalize((0.5,), (0.5,))]
         if dataset == "cifar10":
             loader = datasets.CIFAR10
             if tensor_size is None:
                 tensor_size = (1, 3, 32, 32)
+            elif tensor_size[2] != 32 or tensor_size[3] != 32:
+                basics = [Resize(tensor_size[2:][::-1])] + basics
             if normalize:
                 basics += [Normalize((0.4914, 0.4822, 0.4465),
                                      (0.2023, 0.1994, 0.2010))]
@@ -72,6 +78,8 @@ def DataSets(dataset: str = "MNIST",
             loader = datasets.CIFAR100
             if tensor_size is None:
                 tensor_size = (1, 3, 32, 32)
+            elif tensor_size[2] != 32 or tensor_size[3] != 32:
+                basics = [Resize(tensor_size[2:][::-1])] + basics
             if normalize:
                 basics += [Normalize((0.5071, 0.4867, 0.4408),
                                      (0.2675, 0.2565, 0.2761))]
