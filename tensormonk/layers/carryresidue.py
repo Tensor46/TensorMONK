@@ -77,10 +77,11 @@ class ResidualComplex(nn.Module):
                                activation, 0., normalization, pre_nm, None,
                                weight_nm, equalized, shift, bias)
 
-        self.Block1 = Convolution(tensor_size, 1, out_channels//4, 1, **kwargs)
+        self.Block1 = Convolution(tensor_size, 1, out_channels//4, strides,
+                                  **kwargs)
         self.Block2 = \
             Convolution(self.Block1.tensor_size, filter_size, out_channels//4,
-                        strides, groups=groups, **kwargs)
+                        1, groups=groups, **kwargs)
         if not pre_nm:
             kwargs["activation"] = ""
         self.Block3 = \
@@ -126,19 +127,20 @@ class SEResidualComplex(nn.Module):
                                activation, 0., normalization, pre_nm, None,
                                weight_nm, equalized, shift, bias)
 
-        self.Block1 = Convolution(tensor_size, 1, out_channels//4, 1, **kwargs)
+        self.Block1 = Convolution(tensor_size, 1, out_channels//4, strides,
+                                  **kwargs)
         self.Block2 = \
             Convolution(self.Block1.tensor_size, filter_size, out_channels//4,
-                        strides, groups=groups, **kwargs)
+                        1, groups=groups, **kwargs)
         if not pre_nm:
             kwargs["activation"] = ""
         self.Block3 = \
             Convolution(self.Block2.tensor_size, 1, out_channels, 1, **kwargs)
 
         se = [Convolution((1, out_channels, 1, 1), 1, out_channels//r, 1,
-                          False, "relu"),
+                          False, "relu", bias=True),
               Convolution((1, out_channels//r, 1, 1), 1, out_channels, 1,
-                          False, "sigm")]
+                          False, "sigm", bias=True)]
         self.SE = nn.Sequential(*se)
 
         if check_residue(strides, tensor_size, out_channels):
