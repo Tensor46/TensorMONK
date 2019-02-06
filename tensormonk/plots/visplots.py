@@ -1,12 +1,9 @@
 """ TensorMONK :: plots """
 
-import sys
 import torch
 import torch.nn.functional as F
 import torchvision.utils as tutils
 import visdom
-if sys.version_info.major == 3:
-    from functools import reduce
 
 
 class VisPlots(object):
@@ -86,9 +83,8 @@ class VisPlots(object):
                 data = data.view(-1, 1, *sz[2:])
                 multiplier = sz[1]
             if sz[0]*multiplier > max_samples:
-                samples = reduce(lambda x, y: max(x, y),
-                                 [x*multiplier for x in range(sz[0]) if
-                                  x*multiplier <= max_samples])
+                samples = max([x*multiplier for x in range(sz[0]) if
+                               x*multiplier <= max_samples][-1], multiplier)
                 data = data[:samples]
             # resize image when height is not None
             if height is not None:
@@ -123,7 +119,6 @@ class VisPlots(object):
             for p in data.keys():
                 if data[p].dim() == 4 and data[p].size(2) > min_width and \
                    data[p].size(3) > min_width:
-                    pass
                     newid = self._trim_name(p)
                     ws = data[p].data.cpu()
                     sz = ws.size()
