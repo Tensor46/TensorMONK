@@ -4,6 +4,14 @@ import torch
 import torch.nn.functional as F
 import torchvision.utils as tutils
 import visdom
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import matplotlib
+from PIL import Image as ImPIL
+from torchvision import transforms
+matplotlib.use('Agg')
+_totensor = transforms.ToTensor()
 
 
 class VisPlots(object):
@@ -22,7 +30,7 @@ class VisPlots(object):
 
     def histograms(self, data, vis_name="hist"):
         r""" Plots histograms of weights. For Model.state_dict(), parameter
-        names after used to name the plots.
+        names are used to name the plots.
 
         Args:
             data: Accepts nn.Parameter, torch.Tensor and Model.state_dict()
@@ -164,8 +172,43 @@ class VisPlots(object):
         return name.replace("NET46.", "").replace("Net46.",
                                                   "") .replace("network.", "")
 
+    def show_gradients(self,
+                       data: list,
+                       png_name: str,
+                       vis_name: str = "grads",
+                       width: int = 946):
+        r""" Violin plots of gradients that need to be called after .backward()
 
-# visplots = VisPlots()
-# hasattr(visplots, "visplots")
-# visplots.show_images(torch.rand(10, 10, 200, 200), height=32)
-# visplots.show_weights(torch.nn.Parameter(torch.rand(10, 10, 7, 7)))
+        Args:
+            data: Accepts list(named_parameters())
+            vis_name: name for visdom plots, default = "grads"
+        """
+        if isinstance(data, list):
+            gs, ns = [], []
+            for n, p in data:
+                if "weight" in n and "weight_g" not in n and \
+                   "Normalization" not in n and "bias" not in n and \
+                   p.requires_grad:
+                    _n = n.replace("NET46.", "")
+                    _n = _n.replace(".weight", "-ws")
+                    _n = _n.replace(".Convolution", ".c")
+                    gs += p.grad.abs().cpu().view(-1).numpy().tolist()
+                    ns += [_n] * (len(gs) - len(ns))
+            dFrame = pd.DataFrame({"param": ns, "grads": gs})
+
+            f, ax = plt.subplots()
+            f.canvas.draw()
+            ax = sns.violinplot(x="param", y="grads", data=dFrame,
+                                palette="Set3")
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+            plt.tight_layout()
+            plt.savefig(png_name, dpi=200)
+            plt.close()
+            # TODO: figure out visplot.matplot issue
+            image = ImPIL.open(png_name).convert("RGB")
+            sz = (width, int(image.size[1] * float(width) / image.size[0]))
+            image = image.resize(sz, ImPIL.BILINEAR)
+            self.visplots.image(_totensor(image), win="grads",
+                                opts={"title": "grads"},)
+        else:
+            raise NotImplementedError
