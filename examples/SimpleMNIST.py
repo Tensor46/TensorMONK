@@ -98,6 +98,9 @@ def train():
 
             # weight visualization
             if i % 50 == 0:
+                params = list(Model.netEmbedding.named_parameters())
+                params += list(Model.netLoss.named_parameters())
+                visplots.show_gradients(params, file_name + "_grads.png")
                 visplots.show_weights(Model.netEmbedding.state_dict(),
                                       png_name=file_name)
 
