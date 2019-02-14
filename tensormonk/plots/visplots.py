@@ -177,7 +177,8 @@ class VisPlots(object):
                        data: list,
                        png_name: str,
                        vis_name: str = "grads",
-                       width: int = 946):
+                       width: int = 946,
+                       fast: bool = True):
         r""" Violin plots of gradients that need to be called after .backward()
 
         Args:
@@ -195,23 +196,36 @@ class VisPlots(object):
                     _n = n.replace("NET46.", "")
                     _n = _n.replace(".weight", "-ws")
                     _n = _n.replace(".Convolution", ".c")
+                    if fast:
+                        # sort and interpolate to width for visdom boxplot
+                        _p = torch.sort(p.grad.detach().view(-1))[0]
+                        _p = F.interpolate(_p.view(1, 1, -1, 1),
+                                           size=(width, 1))
+                        gs.append(_p.view(-1, 1))
+                        ns.append(_n)
+                        continue
                     gs += p.grad.abs().cpu().view(-1).numpy().tolist()
                     ns += [_n] * (len(gs) - len(ns))
-            dFrame = pd.DataFrame({"param": ns, "grads": gs})
 
-            f, ax = plt.subplots()
-            f.canvas.draw()
-            ax = sns.violinplot(x="param", y="grads", data=dFrame,
-                                palette="Set3")
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
-            plt.tight_layout()
-            plt.savefig(png_name, dpi=200)
-            plt.close()
-            # TODO: figure out visplot.matplot issue
-            image = ImPIL.open(png_name).convert("RGB")
-            sz = (width, int(image.size[1] * float(width) / image.size[0]))
-            image = image.resize(sz, ImPIL.BILINEAR)
-            self.visplots.image(_totensor(image), win="grads",
-                                opts={"title": "grads"},)
+            if fast:
+                gs = torch.cat(gs, 1)
+                self.visplots.boxplot(gs, win="grads",
+                                      opts={"legend": ns, "title": "grads"})
+            else:
+                dFrame = pd.DataFrame({"param": ns, "grads": gs})
+                f, ax = plt.subplots()
+                f.canvas.draw()
+                ax = sns.violinplot(x="param", y="grads", data=dFrame,
+                                    palette="Set3")
+                ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+                plt.tight_layout()
+                plt.savefig(png_name, dpi=200)
+                plt.close()
+                # TODO: figure out visplot.matplot issue
+                image = ImPIL.open(png_name).convert("RGB")
+                sz = (width, int(image.size[1] * float(width) / image.size[0]))
+                image = image.resize(sz, ImPIL.BILINEAR)
+                self.visplots.image(_totensor(image), win="grads",
+                                    opts={"title": "grads"},)
         else:
             raise NotImplementedError
