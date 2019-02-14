@@ -22,13 +22,13 @@ class VisPlots(object):
         env: name of your environment, default = main
         server: server address, default = None
     """
-    def __init__(self, env="main", server=None):
+    def __init__(self, env: str = "main", server: str = None):
         if server is None:
             self.visplots = visdom.Visdom(env=env)
         else:
             self.visplots = visdom.Visdom(env=env, server=server)
 
-    def histograms(self, data, vis_name="hist"):
+    def histograms(self, data, vis_name: str = "hist"):
         r""" Plots histograms of weights. For Model.state_dict(), parameter
         names are used to name the plots.
 
@@ -58,9 +58,9 @@ class VisPlots(object):
         else:
             raise NotImplementedError
 
-    def show_images(self, data, vis_name="images", png_name=None,
-                    normalize=False, height=None, max_samples=512,
-                    attention=False):
+    def show_images(self, data, vis_name: str = "images", png_name: str = None,
+                    normalize: bool = False, height: int = None,
+                    max_samples: int = 512, attention: bool = False):
         r""" Plots responses in RGB (C=3) and grey (C=1), requires BCHW
         torch.Tensor. When C != 1/3, reorganizes the BxCxHxW to BCx1xHxC if
         attention is False, else Bx1xHxC.
@@ -104,8 +104,9 @@ class VisPlots(object):
             if png_name is not None:
                 tutils.save_image(data, png_name)
 
-    def show_weights(self, data, vis_name="weights", png_name=None,
-                     min_width=3, max_samples=512):
+    def show_weights(self, data, vis_name: str = "weights",
+                     png_name: str = None, min_width: int = 3,
+                     max_samples: int = 512):
         r""" Plots weights (histograms and images of 2D kernels larger than
         min_width). 2D kernels are normalized between 0-1 for visualization.
         Requires a minimum of 4 kernels to plot images.
@@ -162,13 +163,13 @@ class VisPlots(object):
         else:
             raise NotImplementedError
 
-    def _normalize_01(self, tensor):
+    def _normalize_01(self, tensor: torch.Tensor):
         _min = tensor.min(2, True)[0].min(3, True)[0]
         _max = tensor.max(2, True)[0].max(3, True)[0]
         return tensor.add(-_min).div(_max - _min + 1e-6)
 
     @staticmethod
-    def _trim_name(name):
+    def _trim_name(name: str):
         return name.replace("NET46.", "").replace("Net46.",
                                                   "") .replace("network.", "")
 
@@ -182,6 +183,8 @@ class VisPlots(object):
         Args:
             data: Accepts list(named_parameters())
             vis_name: name for visdom plots, default = "grads"
+            fast: a faster way using boxplots but induces interpolation
+                artifacts
         """
         if isinstance(data, list):
             gs, ns = [], []
