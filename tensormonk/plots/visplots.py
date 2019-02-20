@@ -178,7 +178,8 @@ class VisPlots(object):
                        png_name: str,
                        vis_name: str = "grads",
                        width: int = 946,
-                       fast: bool = True):
+                       fast: bool = True,
+                       weights: bool = False):
         r""" Violin plots of gradients that need to be called after .backward()
 
         Args:
@@ -188,7 +189,7 @@ class VisPlots(object):
                 artifacts
         """
         if isinstance(data, list):
-            gs, ns = [], []
+            gs, ws, ns = [], [], []
             for n, p in data:
                 if "weight" in n and "weight_g" not in n and \
                    "Normalization" not in n and "bias" not in n and \
@@ -203,6 +204,11 @@ class VisPlots(object):
                                            size=(width, 1))
                         gs.append(_p.view(-1, 1))
                         ns.append(_n)
+                        if weights:
+                            _p = torch.sort(p.detach().view(-1))[0]
+                            _p = F.interpolate(_p.view(1, 1, -1, 1),
+                                               size=(width, 1))
+                            ws.append(_p.view(-1, 1))
                         continue
                     gs += p.grad.abs().cpu().view(-1).numpy().tolist()
                     ns += [_n] * (len(gs) - len(ns))
@@ -211,6 +217,11 @@ class VisPlots(object):
                 gs = torch.cat(gs, 1)
                 self.visplots.boxplot(gs, win="grads",
                                       opts={"legend": ns, "title": "grads"})
+                if weights:
+                    ws = torch.cat(ws, 1)
+                    self.visplots.boxplot(ws, win="weights",
+                                          opts={"legend": ns,
+                                                "title": "weights"})
             else:
                 dFrame = pd.DataFrame({"param": ns, "grads": gs})
                 f, ax = plt.subplots()
