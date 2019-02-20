@@ -87,7 +87,8 @@ class NeuralTree(nn.Module):
 
 # from tensormonk.layers import Linear
 # test = NeuralTree((1, 64), 12, 4)
-# decision, predictions = test(torch.randn(15, 64))
+# decision, predictions = test(torch.randn(1, 64))
+# decision.shape
 # predictions.shape
 
 
@@ -132,11 +133,18 @@ class NeuralDecisionForest(nn.Module):
     def forward(self, tensor):
         if tensor.dim() > 2:
             tensor = tensor.view(tensor.size(0), -1)
-        predictions = torch.cat([tree(tensor)[1].unsqueeze(2)
-                                 for tree in self.trees], 2)
-        return predictions.mean(2).log()
+        decisions, predictions = [], []
+        for tree in self.trees:
+            decision, prediction = tree(tensor)
+            decisions.append(decision)
+            predictions.append(prediction.unsqueeze(2))
+        decisions = torch.cat(decisions, 1)
+        predictions = torch.cat(predictions, 2)
+        return decisions[:, 0::2], predictions.mean(2).log()
 
 
-# test = NeuralDecisionForest((1, 64), 12, 10, 4)
-# predictions = test(torch.rand(15, 64))
-# predictions.shape
+# test = NeuralDecisionForest((1, 256), 6, 8, 5)
+# decisions, predictions = test(torch.rand(1, 256))
+# %timeit decisions, predictions = test(torch.rand(1, 256))
+# np.sum([p.numel() for p in test.parameters()])
+# decisions.shape
