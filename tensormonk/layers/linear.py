@@ -38,7 +38,7 @@ class Linear(nn.Module):
                  **kwargs):
         super(Linear, self).__init__()
 
-        show_msg = "x".join(["_"]+[str(x)for x in tensor_size[1:]]) + " -> "
+        show_msg = "x".join(["_"]+list(map(str, tensor_size[1:]))) + " -> "
         # Checks
         if not type(tensor_size) in [int, list, tuple]:
             raise TypeError("Linear: tensor_size must be int/tuple/list: " +
