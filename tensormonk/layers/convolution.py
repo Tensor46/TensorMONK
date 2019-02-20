@@ -241,7 +241,7 @@ class Convolution(nn.Module):
                                    strides, padding, bias=bias, groups=groups,
                                    dilation=dilation, output_padding=out_pad)
             show_msg += "convT({}) -> ".format(
-                "x".join([str(x)for x in self.Convolution.weight.shape]))
+                "x".join(map(str, self.Convolution.weight.shape)))
         else:
             if shift:
                 # self.add_module("Shift", Shift3x3())
@@ -251,7 +251,7 @@ class Convolution(nn.Module):
                           out_channels*pst_expansion, filter_size, strides,
                           padding, bias=bias, groups=groups, dilation=dilation)
             show_msg += "conv({}) -> ".format(
-                "x".join([str(x)for x in self.Convolution.weight.shape]))
+                "x".join(map(str, self.Convolution.weight.shape)))
 
         nn.init.kaiming_normal_(self.Convolution.weight,
                                 nn.init.calculate_gain("conv2d"))
