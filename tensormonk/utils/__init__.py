@@ -1,9 +1,10 @@
 """ TensorMONK :: utils """
 
-__all__ = ["roc", "ImageNetNorm", "corr_1d", "xcorr_1d"]
+__all__ = ["roc", "ImageNetNorm", "Measures", "compute_affine"]
 
 from .roc import roc
 from .imagenetnorm import ImageNetNorm
-from .correlation import corr_1d, xcorr_1d
+from .measures import Measures
+from .computeaffine import compute_affine
 
-del correlation, imagenetnorm
+del measures, imagenetnorm, computeaffine
