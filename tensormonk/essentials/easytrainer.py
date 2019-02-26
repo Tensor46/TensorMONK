@@ -379,7 +379,8 @@ class EasyTrainer(object):
             if self.is_cuda and gpus > 1:
                 _gpus = list(range(gpus))
                 self.model_container[n] = \
-                    nn.DataParallel(self.model_container[n], device_ids=_gpus)
+                    nn.DataParallel(self.model_container[n],
+                                    device_ids=_gpus).cuda()
             if networks[n].only_eval is not None:
                 if networks[n].only_eval:
                     self.model_container[n].eval()
@@ -444,7 +445,8 @@ class EasyTrainer(object):
             if self.is_cuda and gpus > 1:
                 _gpus = list(range(gpus))
                 self.transformations = \
-                    nn.DataParallel(self.transformations, device_ids=_gpus)
+                    nn.DataParallel(self.transformations,
+                                    device_ids=_gpus).cuda()
             self.transformations.eval()
             n_params = np.sum([p.numel() for p in
                                self.transformations.parameters()])
