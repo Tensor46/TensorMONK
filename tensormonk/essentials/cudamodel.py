@@ -1,4 +1,4 @@
-""" TensorMONK's :: NeuralEssentials                                        """
+""" TensorMONK's :: essentials """
 
 import torch
 import torch.nn as nn
