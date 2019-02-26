@@ -95,7 +95,7 @@ class BaseNetwork:
 
 class EasyTrainer(object):
     r"""A trainer object scalable to several (cnn/gan/rnn) models. The step has
-    to be defined for a model that has to be trained. There is no limit on
+    to be defined for the model that has to be trained. There is no limit on
     "networks", as in, for GANs, one can define a generator and a discriminator
     in networks (a dictonary of BaseNetwork's). All the "networks" will be
     built in model_container (OrderedDict). All the arguments in BaseNetwork
@@ -104,7 +104,6 @@ class EasyTrainer(object):
     can have a generator on gpu-0 and discriminator on gpu-1. "optimizer" must
     be a BaseOptimizer object, which accumulates all the parameters in the
     networks when networks[n].optimizer==None and networks[n].only_eval==False.
-    "transformations"
 
     Args:
         name (required, str): Name of the model. A folder is created to save
