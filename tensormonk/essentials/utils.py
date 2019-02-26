@@ -15,7 +15,8 @@ class Meter(object):
 
     def update(self, current: torch.Tensor):
         if isinstance(current, torch.Tensor):
-            current = round(float(current.data.numpy()), self.ndigits)
+            current = float(current.detach().mean().cpu().numpy())
+            current = round(current, self.ndigits)
         self.values.append(current)
         return
 
