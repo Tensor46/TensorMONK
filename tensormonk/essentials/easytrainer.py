@@ -7,6 +7,7 @@ import torch.nn as nn
 from .utils import Meter
 from ..plots import VisPlots
 from collections import OrderedDict
+from collections.abc import Iterable
 
 
 class BaseOptimizer:
@@ -254,12 +255,18 @@ class EasyTrainer(object):
             current_states += [self.model_container[n].training]
             self.model_container[n].eval()
         # testing using step
-        for i, inputs in enumerate(test_data):
-            output = self.step(inputs, training=False)
+        if isinstance(test_data, Iterable):
+            # pytorch or other iterable objects compatible with step
+            for i, inputs in enumerate(test_data):
+                output = self.step(inputs, training=False)
+                if "monitor" in output.keys():
+                    print(" ... test "+self._monitor(output["monitor"]),
+                          end="\r")
             if "monitor" in output.keys():
-                print(" ... test "+self._monitor(output["monitor"]), end="\r")
-        if "monitor" in output.keys():
-            print(" ... test " + self._monitor(output["monitor"], i))
+                print(" ... test " + self._monitor(output["monitor"], i))
+        else:
+            # a function that can handle model_container
+            output = test_data(self.model_container)
         # convert all trainable models from eval to train
         for value, n in zip(current_states, self.model_container.keys()):
             if value:
