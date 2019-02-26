@@ -221,12 +221,12 @@ class ElasticSimilarity(nn.Module):
             # row-offset
             one_180 = torch.arange(0, h, 1.).div(h-1).mul(np.pi).to(device)
             few_180s = one_180.div(random() * 0.9 + 0.1)
-            few_180s = few_180s.view(1, -1) + torch.randn(n, 1)
+            few_180s = few_180s.view(1, -1) + torch.randn(n, 1).to(device)
             offset_rows = few_180s.sin().mul(factor).view(n, h, 1)
             # column-offset
             one_180 = torch.arange(0, w, 1.).div(w-1).mul(np.pi).to(device)
             few_180s = one_180.div(random() * 0.9 + 0.1)
-            few_180s = few_180s.view(1, -1) * torch.randn(n, 1)
+            few_180s = few_180s.view(1, -1) * torch.randn(n, 1).to(device)
             offset_cols = few_180s.sin().mul(factor).view(n, 1, w)
 
             # random offsets added to the affine grid
