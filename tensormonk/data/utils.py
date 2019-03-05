@@ -1,4 +1,4 @@
-""" TensorMONK :: data :: FolderITTR """
+""" TensorMONK :: data :: utils """
 
 import os
 import errno

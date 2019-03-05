@@ -84,7 +84,8 @@ class Categorical(nn.Module):
         self.alpha = alpha
         self.n_labels = n_labels
 
-        self.weight = nn.Parameter(torch.randn(n_labels, n_embedding))
+        self.weight = nn.Parameter(F.normalize(torch.randn(n_labels,
+                                                           n_embedding), 2, 1))
         self.tensor_size = (1, )
 
     def forward(self, tensor, targets):

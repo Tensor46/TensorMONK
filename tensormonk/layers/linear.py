@@ -4,6 +4,7 @@ __all__ = ["Linear", ]
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 from ..activations import Activations
 
@@ -82,8 +83,8 @@ class Linear(nn.Module):
             self.out_shape = out_shape
 
         # get weight and bias
-        self.weight = nn.Parameter(torch.randn(out_features*multiplier,
-                                               tensor_size))
+        w = torch.randn(out_features*multiplier, tensor_size)
+        self.weight = nn.Parameter(F.normalize(w, p=2, dim=1))
         self.weight.data.normal_(0., 0.02)
         show_msg += "linear({}x{}) -> ".format(*self.weight.shape)
         if bias:
