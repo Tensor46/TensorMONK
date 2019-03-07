@@ -31,7 +31,7 @@ def parse_args():
     return parser.parse_args()
 
 
-class MyModel(EasyTrainer):
+class Trainer(EasyTrainer):
 
     def step(self, inputs, training):
         tensor, target = inputs
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         network=RandomTransforms,
         arguments={"functions": [ElasticSimilarity()], "probabilities": [0.5]})
 
-    model = MyModel(name="simplenet",
+    model = Trainer(name="simplenet",
                     path="./models",
                     networks={"embedding": embedding_net, "loss": loss_net},
                     optimizer=BaseOptimizer(args.optimizer,

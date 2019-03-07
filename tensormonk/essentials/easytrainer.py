@@ -25,12 +25,23 @@ class BaseOptimizer:
                 eps = 1e-8
                 weight_decay = 0
                 amsgrad = True
+        param_groups_fn (optional, function): A param_groups function to
+            create a list of parameters with different learning rate (useful
+            for funetuning). default = None
+
+            Ex:
+            def param_groups_fn(named_params, lr):
+                params = []
+                for i, (n, p) in enumerate(named_params):
+                    params.append((p, lr*0.1 if "embedding" in n else lr))
+                return params
 
     Ex:
         optimizer = BaseOptimizer(type="sgd", arguments={"lr": 0.1,
             "momentum": 0.9, "weight_decay": 0.00005})
     """
-    def __init__(self, type: str = "sgd", arguments: dict = {}):
+    def __init__(self, type: str = "sgd", arguments: dict = {},
+                 param_groups_fn=None):
 
         if type.lower() == "sgd":
             self.algorithm = torch.optim.SGD
@@ -45,6 +56,7 @@ class BaseOptimizer:
         else:
             raise NotImplementedError
         self.arguments = arguments
+        self.param_groups_fn = param_groups_fn
 
 
 class BaseNetwork:
@@ -170,7 +182,8 @@ class EasyTrainer(object):
                  gpus: int = 1,
                  ignore_trained: bool = False,
                  visplots: bool = False,
-                 n_visplots: int = 100):
+                 n_visplots: int = 100,
+                 **kwargs):
 
         # checks
         if not isinstance(n_checkpoint, int):
@@ -207,6 +220,7 @@ class EasyTrainer(object):
         self.ignore_trained = ignore_trained
         self.iteration = 0
         self.n_visplots = n_visplots
+        self.kwargs = kwargs
 
         self._check_path(name, path)
         self._check_networks(networks)
@@ -233,20 +247,22 @@ class EasyTrainer(object):
                 # save the model is n_checkpoint > 0
                 if self.n_checkpoint > 0 and \
                    not (self.iteration % self.n_checkpoint):
-                    self._save()
                     if "monitor" in output.keys():
                         print(" ... " + self._monitor(output["monitor"],
                                                       self.n_checkpoint))
                     if test_data is not None:
                         self.test(test_data)
+                    if self.save_criteria():
+                        self._save()
 
             # save the model every epoch (n_checkpoint = -1)
             if self.n_checkpoint == -1:
-                self._save()
                 if "monitor" in output.keys():
                     print(" ... " + self._monitor(output["monitor"], i))
                 if test_data is not None:
                     self.test(test_data)
+                if self.save_criteria():
+                    self._save()
 
     def test(self, test_data):
         current_states = []
@@ -273,9 +289,14 @@ class EasyTrainer(object):
                 self.model_container[n].train()
 
     def step(self, inputs, training):
-        r"""Define what need to be done. "training" is True when called from
+        r"""Define what needs to be done. "training" is True when called from
         train, and False when called from test """
         pass
+
+    def save_criteria(self):
+        r"""Define a criteria based on meter_container or a validation data.
+        By default, saves the latest set of weights every n_checkpoint."""
+        return True
 
     def _monitor(self, tags, n=1):
         r"""Convert a list of tags in meter_container to string"""
@@ -391,16 +412,28 @@ class EasyTrainer(object):
 
     def _build_optimizers(self, optimizer, networks):
         r"""Builds all optimizer and networks.optimizer (if any) """
+        def _param_groups_fn(named_params, lr):
+            return [{"params": p, "lr": lr} for n, p in named_params]
 
         all_params = []
         for n in self.model_container.keys():
             if not networks[n].only_eval:
-                params = list(self.model_container[n].parameters())
+                named_params = self.model_container[n].named_parameters()
                 if isinstance(networks[n].optimizer, BaseOptimizer):
+                    lr = networks[n].optimizer.arguments["lr"]
+                    param_groups_fn = networks[n].optimizer.param_groups_fn
+                    if param_groups_fn is None:
+                        param_groups_fn = _param_groups_fn
                     self.optim_container[n] = networks[n].optimizer.algorithm(
-                        params, **networks[n].optimizer.arguments)
+                        param_groups_fn(named_params, lr),
+                        **networks[n].optimizer.arguments)
                 else:
-                    all_params += params
+                    if isinstance(optimizer, BaseOptimizer):
+                        lr = optimizer.arguments["lr"]
+                        param_groups_fn = optimizer.param_groups_fn
+                        if param_groups_fn is None:
+                            param_groups_fn = _param_groups_fn
+                        all_params += param_groups_fn(named_params, lr)
 
         if len(all_params) > 0 and isinstance(optimizer, BaseOptimizer):
             self.optimizer = optimizer.algorithm(all_params,
