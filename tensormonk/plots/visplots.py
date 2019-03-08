@@ -7,6 +7,7 @@ import visdom
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import numpy as np
 import matplotlib
 from PIL import Image as ImPIL
 from torchvision import transforms
@@ -238,5 +239,51 @@ class VisPlots(object):
                 image = image.resize(sz, ImPIL.BILINEAR)
                 self.visplots.image(_totensor(image), win="grads",
                                     opts={"title": "grads"},)
+        else:
+            raise NotImplementedError
+
+    def line(self, xs, ys, legends, vis_name: str = "lines",
+             update: bool = False):
+        r""" Line plots.
+
+        Args:
+            xs (required, torch.Tensor/np.ndarry): 1 or 2 dimensional.
+            ys (required, torch.Tensor/np.ndarry): 1 or 2 dimensional.
+            legends (required, str/list/tuple): List of plot names.
+                when legends is list/tuple
+                xs.shape[1] == ys.shape[1] == len(legends)
+            vis_name (optional, str): name for visdom plots, default = "lines"
+            update (optional, bool): True will update the existing plot.
+        """
+        check = (lambda x: isinstance(x, torch.Tensor) or
+                 isinstance(x, np.ndarray))
+        if isinstance(legends, str):
+            legends = [legends]
+
+        if isinstance(xs, torch.Tensor) and len(ys.size()) == 0:
+            xs, ys = xs.view(1), ys.view(1)
+        if isinstance(ys, float) or isinstance(ys, int):
+            xs, ys = np.array([xs]), np.array([ys])
+
+        if check(xs) and check(ys) and (isinstance(legends, list) or
+                                        isinstance(legends, tuple)):
+            if isinstance(xs, torch.Tensor):
+                if xs.dim() == 1:
+                    xs = xs.view(-1, 1)
+                if ys.dim() == 1:
+                    ys = ys.view(-1, 1)
+                if len(xs.size()) == 0:
+                    xs = xs.view(1)
+                if len(ys.size()) == 0:
+                    ys = ys.view(1)
+            if isinstance(xs, np.ndarray):
+                if len(xs.shape) == 1:
+                    xs = xs.reshape(-1, 1)
+                if len(ys.shape) == 1:
+                    ys = ys.reshape(-1, 1)
+            self.visplots.line(Y=ys, X=xs, win=vis_name,
+                               opts={"legend": legends, "title": vis_name,
+                                     "webgl": True},
+                               update="append" if update else True)
         else:
             raise NotImplementedError
