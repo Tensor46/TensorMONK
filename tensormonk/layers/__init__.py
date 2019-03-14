@@ -7,7 +7,8 @@ __all__ = ["Convolution", "ConvolutionalSAE", "Linear",
            "Stem2", "InceptionA", "InceptionB", "InceptionC", "ReductionA",
            "ReductionB", "ContextNet_Bottleneck",
            "PrimaryCapsule", "RoutingCapsule", "DetailPooling",
-           "DoG", "DoGBlob", "GaussianBlur", "DoH", "HessianBlob", "SSIM"]
+           "DoG", "DoGBlob", "GaussianBlur", "DoH", "HessianBlob", "SSIM",
+           "SelfAttention"]
 
 
 from .linear import Linear
@@ -25,7 +26,8 @@ from .detailpooling import DetailPooling
 from .doh import DoH, HessianBlob
 from .dog import DoG, DoGBlob, GaussianBlur
 from .ssim import SSIM
+from .attention import SelfAttention
 
-del linear, convolution, carryresidue, inception
+del linear, convolution, carryresidue, inception, attention
 del primarycapsule, routingcapsule
 del sae, detailpooling, dog, doh
