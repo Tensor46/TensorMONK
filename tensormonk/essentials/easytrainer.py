@@ -449,7 +449,8 @@ class EasyTrainer(object):
 
         for m in meters:
             self.meter_container[m] = Meter()
-            if "content" in locals():
+            if "content" in locals() and \
+               m in content["meter_container"].keys():
                 self.meter_container[m].values = content["meter_container"][m]
 
     def _build_transformations(self, transformations):
@@ -484,6 +485,58 @@ class EasyTrainer(object):
             n_params = np.sum([p.numel() for p in
                                self.transformations.parameters()])
             print("... Transformations has {} parameters".format(n_params))
+
+    def _renormalize(self, dims: tuple = (2, 3, 4), eps: float = 1e-6):
+        r"""Renormalizes only trainable weights in the model_container.
+        Exceptions - bias, gamma, beta, centers (in Categorical loss)
+
+        For convolutions with kernel height*width > 1 -- l2-norm is done
+        on the dim-2 and dim-3 and divided by sqrt(number of input channels).
+        For convolutions with kernel height*width = 1 -- bounds are normalized
+        between -1 to 1 without sign change and divided by sqrt(number of input
+        channels).
+        For routing capsule weights which are 3D (N, I, O) i.e, we have N IxO
+        linear layers. l2-norm is done on dim-1.
+        For linear layer weights which are 2D (out_channels, in_channels) --
+        l2-norm is done on dim-1.
+
+        Args
+            dims (tuple, optional): a tuple of weight dimension that need to be
+                renormalized. default = (2, 3, 4) - 2D (linear), 3D (routing) &
+                4D (convolution) weights are normalized.
+            eps (float, optional): added to l2 before division, default 1e-6
+        """
+
+        for n in self.model_container.keys():
+            # only re-normalize the trainable models in model_container
+            if self.model_container[n].training:
+                for name, p in self.model_container[n].named_parameters():
+                    if p.dim() == 4 and p.dim() in dims:
+                        # convolution
+                        if p.data.size(2)*p.data.size(3) > 1:  # ignore 1x1's
+                            # l2 and divide by sqrt(input channels)
+                            l2 = p.data.norm(2, 2, True).norm(2, 3, True)
+                            p.data.div_(l2.add(eps)).div_(p.size(1)**0.5)
+                        else:
+                            # divide by max abs value and sqrt(input channels)
+                            if p.size(1) < 2**2:
+                                continue
+                            bounds = p.data.abs().max(1, True)[0]
+                            p.data.div_(bounds).div_(p.size(1)**0.5)
+                    elif p.dim() == 3 and p.dim() in dims:
+                        # routing capsule - has K MxN linears - normalize M
+                        l2 = p.data.norm(2, 1, True)
+                        p.data.div_(l2.add(eps))
+                    elif p.dim() == 2 and p.dim() in dims:
+                        if name.endswith("centers"):  # avoid centers
+                            continue
+                        # fully-connected and lossfunctions
+                        l2 = p.data.norm(2, 1, True)
+                        p.data.div_(l2.add(eps))
+                    else:
+                        # bias, gamma, beta
+                        pass
+        return None
 
     def _save(self):
         r""" Saves the model_container and meter_container as dict given the
