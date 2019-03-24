@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .convolution import Convolution
+from .utils import compute_flops
 
 
 class SelfAttention(nn.Module):
@@ -21,11 +22,12 @@ class SelfAttention(nn.Module):
     def __init__(self, tensor_size, shrink=8, scale_factor=1., **kwargs):
         super(SelfAttention, self).__init__()
 
+        self.shrink = shrink
         self.scale_factor = scale_factor
-        oc = int(tensor_size[1] / shrink)
+        self.oc = int(tensor_size[1] / shrink)
 
-        self.key = Convolution(tensor_size, 1, oc, 1, True, None)
-        self.query = Convolution(tensor_size, 1, oc, 1, True, None)
+        self.key = Convolution(tensor_size, 1, self.oc, 1, True, None)
+        self.query = Convolution(tensor_size, 1, self.oc, 1, True, None)
         self.value = Convolution(tensor_size, 1, tensor_size[1], 1, True, None)
         self.gamma = nn.Parameter(torch.zeros(1))
 
@@ -49,8 +51,26 @@ class SelfAttention(nn.Module):
             return _tensor + o, attention
         return tensor + o, attention
 
+    def flops(self):
+        flops = 0
+        c, h, w = self.tensor_size[1:]
+        if self.scale_factor != 1:
+            # assuming nearest
+            nh, nw = int(h*self.scale_factor), int(w*self.scale_factor)
+            flops += (c*h*w + c*nh*nw) * 2
+        # attention - bmm
+        flops += ((2 * self.oc * self.oc) - 1) * ((h * w)**2)
+        # attention - softmax
+        flops += (h * w) * (h * w * 3)
+        # o - bmm
+        flops += c * ((2 * h * w) - 1) * h * w
+        # tensor + o
+        flops += c * h * w
+        return compute_flops(self) + flops
+
 
 # from tensormonk.layers import Convolution
+# from tensormonk.layers.utils import compute_flops
 # tensor_size = (3, 16, 60, 60)
 # x = torch.rand(*tensor_size)
 # test = SelfAttention(tensor_size, 8, 1.)

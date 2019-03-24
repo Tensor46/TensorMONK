@@ -6,7 +6,7 @@ __all__ = ["Stem2", "InceptionA", "InceptionB", "InceptionC",
 import torch
 import torch.nn as nn
 from .convolution import Convolution
-from .utils import update_kwargs
+from .utils import update_kwargs, compute_flops
 from .carryresidue import CarryModular
 
 
@@ -62,6 +62,9 @@ class Stem2(nn.Module):
         tensor = self.C3_64_1(self.C3_32_1(self.C3_32_2(tensor)))
         tensor = self.C160(tensor)
         return self.C384(self.C192(tensor))
+
+    def flops(self):
+        return compute_flops(self)
 # =========================================================================== #
 
 
@@ -81,6 +84,7 @@ class InceptionA(nn.Module):
                                normalization, pre_nm, groups, weight_nm,
                                equalized, shift, bias, dropblock)
 
+        self._flops = tensor_size[1] * (h//2) * (w//2) * (3*3+1)
         self.path1 = nn.Sequential(nn.AvgPool2d((3, 3), (1, 1), 1),
                                    Convolution(tensor_size, 1, 96, 1,
                                                **kwargs))
@@ -97,6 +101,9 @@ class InceptionA(nn.Module):
     def forward(self, tensor):
         return torch.cat((self.path1(tensor), self.path2(tensor),
                           self.path3(tensor), self.path4(tensor)), 1)
+
+    def flops(self):
+        return compute_flops(self) + self._flops
 # =========================================================================== #
 
 
@@ -115,7 +122,7 @@ class ReductionA(nn.Module):
         kwargs = update_kwargs(kwargs, *([None]*5), activation, dropout,
                                normalization, pre_nm, groups, weight_nm,
                                equalized, shift, bias, dropblock)
-
+        self._flops = tensor_size[1] * (h//2) * (w//2) * (3*3+1)
         self.path1 = nn.MaxPool2d((3, 3), stride=(2, 2))
         self.path2 = Convolution(tensor_size, 3, 384, 2, False, **kwargs)
         path3 = [Convolution(tensor_size, 1, 192, 1, True, **kwargs),
@@ -130,6 +137,9 @@ class ReductionA(nn.Module):
     def forward(self, tensor):
         return torch.cat((self.path1(tensor), self.path2(tensor),
                           self.path3(tensor)), 1)
+
+    def flops(self):
+        return compute_flops(self) + self._flops
 # =========================================================================== #
 
 
@@ -148,7 +158,7 @@ class InceptionB(nn.Module):
         kwargs = update_kwargs(kwargs, *([None]*4), True, activation, dropout,
                                normalization, pre_nm, groups, weight_nm,
                                equalized, shift, bias, dropblock)
-
+        self._flops = tensor_size[1] * (h//2) * (w//2) * (3*3+1)
         self.path1 = nn.Sequential(nn.AvgPool2d((3, 3), (1, 1), 1),
                                    Convolution(tensor_size, 1, 128, 1,
                                                **kwargs))
@@ -169,6 +179,9 @@ class InceptionB(nn.Module):
     def forward(self, tensor):
         return torch.cat((self.path1(tensor), self.path2(tensor),
                           self.path3(tensor), self.path4(tensor)), 1)
+
+    def flops(self):
+        return compute_flops(self) + self._flops
 # =========================================================================== #
 
 
@@ -187,7 +200,7 @@ class ReductionB(nn.Module):
         kwargs = update_kwargs(kwargs, *([None]*5), activation, dropout,
                                normalization, pre_nm, groups, weight_nm,
                                equalized, shift, bias, dropblock)
-
+        self._flops = tensor_size[1] * (h//2) * (w//2) * (3*3+1)
         self.path1 = nn.MaxPool2d((3, 3), stride=(2, 2))
         path2 = [Convolution(tensor_size, 1, 192, 1, True, **kwargs),
                  Convolution((1, 192, h, w), 3, 192, 2, False, **kwargs)]
@@ -205,6 +218,9 @@ class ReductionB(nn.Module):
     def forward(self, tensor):
         return torch.cat((self.path1(tensor), self.path2(tensor),
                           self.path3(tensor)), 1)
+
+    def flops(self):
+        return compute_flops(self) + self._flops
 # =========================================================================== #
 
 
@@ -223,7 +239,7 @@ class InceptionC(nn.Module):
         kwargs = update_kwargs(kwargs, *([None]*4), True, activation, dropout,
                                normalization, pre_nm, groups, weight_nm,
                                equalized, shift, bias, dropblock)
-
+        self._flops = tensor_size[1] * (h//2) * (w//2) * (3*3+1)
         self.path1 = nn.Sequential(nn.AvgPool2d((3, 3), (1, 1), 1),
                                    Convolution(tensor_size, 1, 256, 1,
                                                **kwargs))
@@ -250,21 +266,30 @@ class InceptionC(nn.Module):
                           self.path3a(path3), self.path3b(path3),
                           self.path4a(path4), self.path4b(path4)), 1)
 
+    def flops(self):
+        return compute_flops(self) + self._flops
+
 
 # from tensormonk.layers import Convolution, CarryModular
-# from tensormonk.layers.utils import update_kwargs
-# tensor_size = (3,3,299,299)
+# from tensormonk.layers.utils import update_kwargs, compute_flops
+# tensor_size = (3, 3, 299, 299)
 # x = torch.rand(*tensor_size)
 # test = Stem2(tensor_size, "relu", 0., "batch", False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
 # test = InceptionA()
 # test(torch.rand(*(1, 384, 35, 35))).size()
+# test.flops()
 # test = ReductionA()
 # test(torch.rand(*(1, 384, 35, 35))).size()
+# test.flops()
 # test = InceptionB((1, 1024, 17, 17))
 # test(torch.rand(*(1, 1024, 17, 17))).size()
+# test.flops()
 # test = ReductionB((1, 1024, 17, 17))
 # test(torch.rand(*(1, 1024, 17, 17))).size()
+# test.flops()
 # test = InceptionC((1, 1536, 8, 8))
 # test(torch.rand(*(1, 1536, 8, 8))).size()
+# test.flops()

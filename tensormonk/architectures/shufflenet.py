@@ -2,6 +2,7 @@
 
 import torch
 from ..layers import Convolution, ResidualShuffle, Linear
+from ..layers.utils import compute_flops
 
 
 class ShuffleNet(torch.nn.Sequential):
@@ -47,6 +48,7 @@ class ShuffleNet(torch.nn.Sequential):
                  *args, **kwargs):
         super(ShuffleNet, self).__init__()
 
+        import numpy as np
         assert type.lower() in ("g1", "g2", "g3", "g4", "g8"), \
             "ShuffleNet -- type must be g1/g2/g3/g4/g8"
 
@@ -95,12 +97,14 @@ class ShuffleNet(torch.nn.Sequential):
         t_size = self.InitialConvolution.tensor_size
         print("InitialConvolution", t_size)
 
+        self.pool_flops = 0
         if min(tensor_size[2], tensor_size[3]) > 128:
             self.add_module("MaxPool", torch.nn.MaxPool2d(3, 2, padding=1))
             h, w = t_size[2:]
             t_size = (1, 24, h//2 + (1 if h % 2 == 1 else 0),
                       w//2 + (1 if w % 2 == 1 else 0))
             print("MaxPool", t_size)
+            self.pool_flops += np.prod(t_size[1:]) * (3 * 3)
         else:
             # Addon -- To make it flexible for other tensor_size's
             print("ShuffleNet: MaxPool is ignored if min(h, w) <=  128")
@@ -115,6 +119,7 @@ class ShuffleNet(torch.nn.Sequential):
 
         self.add_module("AveragePool", torch.nn.AvgPool2d(t_size[2:]))
         print("AveragePool", (1, oc, 1, 1))
+        self.pool_flops += (np.prod(t_size[2:]) * 2 - 1) * t_size[1]
         self.tensor_size = (1, oc)
 
         if n_embedding is not None and n_embedding > 0:
@@ -123,9 +128,15 @@ class ShuffleNet(torch.nn.Sequential):
             self.tensor_size = (1, n_embedding)
             print("Linear", (1, n_embedding))
 
+    def flops(self):
+        # all operations
+        return compute_flops(self) + self.pool_flops
+
 
 # from tensormonk.layers import Convolution, ResidualShuffle, Linear
+# from tensormonk.layers.utils import compute_flops
 # tensor_size = (1, 3, 224, 224)
 # tensor = torch.rand(*tensor_size)
 # test = ShuffleNet(tensor_size, "g8")
 # test(tensor).size()
+# test.flops() / 1000 / 1000 / 1000

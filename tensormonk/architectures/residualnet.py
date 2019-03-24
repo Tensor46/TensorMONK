@@ -11,6 +11,7 @@ import torch.nn as nn
 from ..layers import Convolution, ResidualOriginal, ResidualComplex,\
     ResidualNeXt, SEResidualComplex, SEResidualNeXt
 from ..utils import ImageNetNorm
+from ..layers.utils import compute_flops
 # =========================================================================== #
 
 
@@ -137,6 +138,7 @@ class ResidualNet(nn.Sequential):
                  *args, **kwargs):
         super(ResidualNet, self).__init__()
 
+        import numpy as np
         type = type.lower()
         assert type in ("r18", "r34", "r50", "r101", "r152", "rn50", "rn101",
                         "rn152", "ser50", "ser101", "ser152", "sern50",
@@ -152,6 +154,7 @@ class ResidualNet(nn.Sequential):
             groups, weight_nm, equalized, shift = 1, False, False, False
         self.model_type = type
         self.in_tensor_size = tensor_size
+        self.pool_flops = 0
 
         if type in ("r18", "r34"):
             BaseBlock = ResidualOriginal
@@ -217,6 +220,7 @@ class ResidualNet(nn.Sequential):
             self.add_module("MaxPool", nn.MaxPool2d(3, 2, 1))
             t_size = (1, 64, t_size[2]//2, t_size[3]//2)
             print("MaxPool", t_size)
+            self.pool_flops += np.prod(t_size[1:]) * (3 * 3)
         else:  # Addon -- To make it flexible for other tensor_size's
             print("MaxPool is ignored if min(height, width) <= 128")
 
@@ -237,6 +241,7 @@ class ResidualNet(nn.Sequential):
                             nn.AvgPool2d(t_size[2:]))
             print("AveragePool", (1, oc, 1, 1))
             self.tensor_size = (1, oc)
+            self.pool_flops += (np.prod(t_size[2:]) * 2 - 1) * t_size[1]
 
             if n_embedding is not None and n_embedding > 0:
                 self.add_module("embedding", nn.Linear(oc, n_embedding,
@@ -257,14 +262,20 @@ class ResidualNet(nn.Sequential):
             print(" ... pretrained not available")
             self.pretrained = False
 
+    def flops(self):
+        # all operations
+        return compute_flops(self) + self.pool_flops
 
-# from tensormonk.layers import ResidualOriginal, ResidualComplex,\
-#     ResidualNeXt, SEResidualComplex, SEResidualNeXt, Convolution
+
+# from tensormonk.layers import ResidualOriginal, ResidualComplex
+# from tensormonk.layers import ResidualNeXt, SEResidualComplex, SEResidualNeXt
+# from tensormonk.layers import Convolution
 # from tensormonk.utils import ImageNetNorm
+# from tensormonk.layers.utils import compute_flops
 # tensor_size = (1, 3, 224, 224)
 # tensor = torch.rand(*tensor_size)
-# test = ResidualNet(tensor_size, "r18", pretrained=True)
-# test
+# test = ResidualNet(tensor_size, "r18", pretrained=False)
+# test.flops() / 1000 / 1000 / 1000
 # test(tensor).size()
 # import torchvision.utils as tutils
 # tutils.save_image(test.state_dict()['InitialConvolution.Convolution.weight'],

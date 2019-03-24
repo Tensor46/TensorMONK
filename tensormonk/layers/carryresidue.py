@@ -9,10 +9,11 @@ __all__ = ["ResidualOriginal", "ResidualComplex", "ResidualInverted",
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 from .convolution import Convolution
 from ..activations import Activations
 from ..regularizations import DropOut
-from .utils import check_strides, check_residue, update_kwargs
+from .utils import check_strides, check_residue, update_kwargs, compute_flops
 from copy import deepcopy
 # =========================================================================== #
 
@@ -45,8 +46,8 @@ class ResidualOriginal(nn.Module):
                                             strides, **kwargs)
         if not pre_nm and activation is not None:
             if activation.lower() in Activations.available():
-                self.activation = Activations(activation.lower(), out_channels,
-                                              **kwgs)
+                self.activation = Activations(self.Block2.tensor_size,
+                                              activation.lower(), **kwgs)
         self.tensor_size = self.Block2.tensor_size
 
     def forward(self, tensor):
@@ -58,6 +59,9 @@ class ResidualOriginal(nn.Module):
         if hasattr(self, "activation"):
             tensor = self.activation(tensor)
         return tensor
+
+    def flops(self):
+        return compute_flops(self) + np.prod(self.tensor_size[1:])
 # =========================================================================== #
 
 
@@ -92,8 +96,8 @@ class ResidualComplex(nn.Module):
                                             strides, **kwargs)
         if not pre_nm and activation is not None:
             if activation.lower() in Activations.available():
-                self.activation = Activations(activation.lower(), out_channels,
-                                              **kwgs)
+                self.activation = Activations(self.Block3.tensor_size,
+                                              activation.lower(), **kwgs)
         self.tensor_size = self.Block3.tensor_size
 
     def forward(self, tensor):
@@ -105,6 +109,9 @@ class ResidualComplex(nn.Module):
         if hasattr(self, "activation"):
             tensor = self.activation(tensor)
         return tensor
+
+    def flops(self):
+        return compute_flops(self) + np.prod(self.tensor_size[1:])
 # =========================================================================== #
 
 
@@ -137,10 +144,11 @@ class SEResidualComplex(nn.Module):
         self.Block3 = \
             Convolution(self.Block2.tensor_size, 1, out_channels, 1, **kwargs)
 
-        se = [Convolution((1, out_channels, 1, 1), 1, out_channels//r, 1,
-                          False, "relu", bias=True),
+        se = [nn.AvgPool2d(self.Block3.tensor_size[2:], stride=(1, 1)),
+              Convolution((1, out_channels, 1, 1), 1, out_channels//r, 1,
+                          False, "relu"),
               Convolution((1, out_channels//r, 1, 1), 1, out_channels, 1,
-                          False, "sigm", bias=True)]
+                          False, "sigm")]
         self.SE = nn.Sequential(*se)
 
         if check_residue(strides, tensor_size, out_channels):
@@ -148,8 +156,8 @@ class SEResidualComplex(nn.Module):
                                             strides, **kwargs)
         if not pre_nm and activation is not None:
             if activation.lower() in Activations.available():
-                self.activation = Activations(activation.lower(), out_channels,
-                                              **kwgs)
+                self.activation = Activations(self.Block3.tensor_size,
+                                              activation.lower(), **kwgs)
         self.tensor_size = self.Block3.tensor_size
 
     def forward(self, tensor):
@@ -158,11 +166,14 @@ class SEResidualComplex(nn.Module):
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") \
             else tensor
         tensor = self.Block3(self.Block2(self.Block1(tensor)))
-        tensor = tensor * self.SE(F.avg_pool2d(tensor, tensor.shape[2:]))
+        tensor = tensor * self.SE(tensor)
         tensor = tensor + residue
         if hasattr(self, "activation"):
             tensor = self.activation(tensor)
         return tensor
+
+    def flops(self):
+        return compute_flops(self) + np.prod(self.tensor_size[1:]) * 2
 # =========================================================================== #
 
 
@@ -201,6 +212,9 @@ class ResidualNeXt(nn.Module):
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") \
             else tensor
         return self.Block3(self.Block2(self.Block1(tensor))) + residue
+
+    def flops(self):
+        return compute_flops(self) + np.prod(self.tensor_size[1:])
 # =========================================================================== #
 
 
@@ -230,7 +244,7 @@ class SEResidualNeXt(nn.Module):
                           False, "relu"),
               Convolution((1, out_channels//r, 1, 1), 1, out_channels, 1,
                           False, "sigm")]
-        self.SqueezeExcitation = nn.Sequential(*se)
+        self.SE = nn.Sequential(*se)
 
         if check_residue(strides, tensor_size, out_channels):
             kwargs["activation"] = ""
@@ -244,7 +258,10 @@ class SEResidualNeXt(nn.Module):
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue")\
             else tensor
         tensor = self.Block3(self.Block2(self.Block1(tensor)))
-        return tensor * self.SqueezeExcitation(tensor) + residue
+        return tensor * self.SE(tensor) + residue
+
+    def flops(self):
+        return compute_flops(self) + np.prod(self.tensor_size[1:])
 # =========================================================================== #
 
 
@@ -284,6 +301,11 @@ class ResidualInverted(nn.Module):
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue")\
             else tensor
         return self.Block3(self.Block2(self.Block1(tensor))) + residue
+
+    def flops(self):
+        # residue addition
+        flops = 0 if self.skip_residue else np.prod(self.tensor_size[1:])
+        return compute_flops(self) + flops
 # =========================================================================== #
 
 
@@ -323,23 +345,31 @@ class ResidualShuffle(nn.Module):
                                   strides=strides, **kwargs)
         self.Block3 = Convolution(self.Block2.tensor_size, 1, **kwargs)
 
+        self._flops = 0
         if check_strides(strides) and tensor_size[1] == out_channels:
-            self.edit_residue = nn.AvgPool2d(3, 2, 1)
+            sz = strides + (1 if strides % 2 == 0 else 0)
+            self.edit_residue = nn.AvgPool2d(sz, strides, sz//2)
+            self._flops += tensor_size[1]*self.Block3.tensor_size[2] * \
+                self.Block3.tensor_size[3]*(sz*sz+1)
         elif not check_strides(strides) and tensor_size[1] != out_channels:
             self.edit_residue = Convolution(tensor_size, 1, out_channels,
                                             **kwargs)
         elif check_strides(strides) and tensor_size[1] != out_channels:
+            sz = strides + (1 if strides % 2 == 0 else 0)
             t_size = (1, tensor_size[1], self.Block3.tensor_size[2],
                       self.Block3.tensor_size[3])
             self.edit_residue = [nn.AvgPool2d(3, 2, 1),
                                  Convolution(t_size, 1, **kwargs)]
             self.edit_residue = nn.Sequential(*self.edit_residue)
+            self._flops = tensor_size[1]*self.Block3.tensor_size[2] * \
+                self.Block3.tensor_size[3]*(sz*sz+1)
 
         self.tensor_size = self.Block3.tensor_size
 
         if activation in ("maxo", "rmxo"):  # switch to retain out_channels
             activation = "relu"
-        self.Activation = Activations(activation, out_channels, **kwgs)
+        self.Activation = Activations(self.Block3.tensor_size,
+                                      activation, **kwgs)
 
     def forward(self, tensor):
         if self.dropout is not None:
@@ -348,6 +378,9 @@ class ResidualShuffle(nn.Module):
             else tensor
         tensor = self.Block3(self.Block2(self.Shuffle(self.Block1(tensor))))
         return self.Activation(tensor + residue)
+
+    def flops(self):
+        return compute_flops(self)+np.prod(self.tensor_size[1:])+self._flops
 # =========================================================================== #
 
 
@@ -381,6 +414,9 @@ class SimpleFire(nn.Module):
             tensor = self.dropout(tensor)
         tensor = self.Shrink(tensor)
         return torch.cat((self.Block3x3(tensor), self.Block1x1(tensor)), 1)
+
+    def flops(self):
+        return compute_flops(self)
 # =========================================================================== #
 
 
@@ -421,11 +457,14 @@ class CarryModular(nn.Module):
                   activation, 0., normalization, pre_nm, groups, weight_nm,
                   equalized, shift, bias, **kwargs)
 
+        self._flops = 0
         if check_strides(strides):
             if isinstance(carry_network, str):
                 self.network2 = nn.AvgPool2d((3, 3), stride=(2, 2), padding=1)\
                     if carry_network.lower() == "avg" else \
                     nn.MaxPool2d((3, 3), stride=(2, 2), padding=1)
+                self._flops = tensor_size[1]*(tensor_size[2]//2) * \
+                    (tensor_size[3]//2) * (3*3+1)
             elif (isinstance(carry_network, list) or
                   isinstance(carry_network, tuple)):
                 self.network2 = nn.Sequential(*carry_network)
@@ -446,6 +485,9 @@ class CarryModular(nn.Module):
         if hasattr(self, "pre_network"):  # for dropout
             tensor = self.pre_network(tensor)
         return torch.cat((self.network1(tensor), self.network2(tensor)), 1)
+
+    def flops(self):
+        return compute_flops(self) + self._flops
 # =========================================================================== #
 
 
@@ -475,11 +517,14 @@ class DenseBlock(nn.Module):
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
 
         tensor_size = list(tensor_size)
+        self._flops = 0
         if check_strides(strides):  # Update tensor_size
             tensor_size[0] = 1
+            sz = strides + (1 if strides % 2 == 0 else 0)
             tensor_size = list(F.avg_pool2d(torch.rand(*tensor_size),
-                                            3, 2, 1).size())
-            self.pool = nn.AvgPool2d(3, 2, 1)
+                                            sz, strides, sz//2).size())
+            self.pool = nn.AvgPool2d(sz, strides, sz//2)
+            self._flops += np.prod(tensor_size[1:]) * (sz*sz+1)
 
         for n in range(1, n_blocks+1):
             c = growth_rate*multiplier
@@ -503,6 +548,10 @@ class DenseBlock(nn.Module):
             tensor = torch.cat((tensor,
                                 getattr(self, "block"+str(n))(tensor)), 1)
         return tensor
+
+    def flops(self):
+        return compute_flops(self) + np.prod(self.tensor_size[1:])*3*3 + \
+            self._flops
 # =========================================================================== #
 
 
@@ -562,50 +611,64 @@ class ContextNet_Bottleneck(nn.Module):
             return self.network(tensor) + self.edit_residue(tensor)
         return self.network(tensor) + tensor
 
+    def flops(self):
+        return compute_flops(self) + np.prod(self.tensor_size[1:])
+
 
 # from tensormonk.layers import Convolution
 # from tensormonk.activations import Activations
 # from tensormonk.regularizations import DropOut
-# from tensormonk.layers.utils import check_strides, check_residue,\
-#     update_kwargs
+# from tensormonk.layers.utils import check_strides, check_residue
+# from tensormonk.layers.utils import update_kwargs, compute_flops
 # tensor_size = (3, 64, 10, 10)
 # x = torch.rand(*tensor_size)
 # test = ResidualOriginal(tensor_size, 3, 64, 2, False, "relu", 0.,
 #                         "batch", False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
 # test = ResidualComplex(tensor_size, 3, 64, 2, False, "relu", 0., "batch",
 #                        False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
-# test = ResidualInverted(tensor_size, 3, 96, 1, False, "relu", 0., "batch",
+# test = ResidualInverted(tensor_size, 3, 64, 1, False, "relu", 0., "batch",
 #                         False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
 # test = ResidualShuffle(tensor_size, 3, 64, 2, False, "relu", 0., "batch",
 #                        False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
 # test = SimpleFire(tensor_size, 3, 64, 2, False, "relu", 0.1, None, False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
 # test = CarryModular(tensor_size, 3, 128, 2, False, "relu", 0., None, False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
 # test = SEResidualComplex(tensor_size, 3, 64, 2, False, "relu", 0., "batch",
 #                          False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
 # test = ResidualNeXt(tensor_size, 3, 64, 2, False, "relu", 0., "batch", False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
 # test = SEResidualNeXt(tensor_size, 3, 64, 2, False, "relu", 0., "batch",
 #                       False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
 # test = DenseBlock(tensor_size, 3, 128, 2, True, "relu", 0., "batch", False)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()
 # test = ContextNet_Bottleneck(tensor_size, 3, 128, 1)
 # test(x).size()
+# test.flops()
 # %timeit test(x).size()

@@ -65,8 +65,8 @@ class Convolution(nn.Module):
     def __init__(self,
                  tensor_size,
                  filter_size,
-                 out_channels,
-                 strides=1,
+                 out_channels: int,
+                 strides: int = 1,
                  pad: bool = True,
                  activation: str = "relu",
                  dropout: float = 0.,
@@ -83,6 +83,7 @@ class Convolution(nn.Module):
                  **kwargs):
         super(Convolution, self).__init__()
         show_msg = "x".join(["_"]+[str(x)for x in tensor_size[1:]]) + " -> "
+        _flops = 0
         # Checks
         if not type(tensor_size) in [list, tuple]:
             raise TypeError("Convolution: tensor_size must be tuple/list: "
@@ -215,17 +216,19 @@ class Convolution(nn.Module):
                 strides[0] + 1
             w = (w + 2*padding[1] - dilation[1]*(filter_size[1] - 1) - 1) / \
                 strides[1] + 1
-        self.tensor_size = (tensor_size[0], out_channels,
-                            math.floor(h), math.floor(w))
+        self.tensor_size = (None, out_channels, math.floor(h), math.floor(w))
 
         # Modules
         if pre_nm and normalization is not None:
             self.Normalization = Normalizations(tensor_size,
                                                 normalization, **kwargs)
             show_msg += normalization + " -> "
+            _flops += Normalizations(tensor_size, normalization,
+                                     just_flops=True, **kwargs)
         if pre_nm and activation in Activations.available():
-            self.Activation = Activations(activation, tensor_size[1], **kwargs)
+            self.Activation = Activations(tensor_size, activation, **kwargs)
             show_msg += activation + " -> "
+            _flops += self.Activation.flops()
 
         if transpose:
             out_pad = (0, 0)
@@ -266,16 +269,19 @@ class Convolution(nn.Module):
             self.scale = math.sqrt(2 / np.sqrt(fan_in))
             self.Convolution.weight.data.normal_(0, 1).div_(self.scale)
 
-        if (not pre_nm) and normalization is not None:
+        if not pre_nm:
             t_size = (self.tensor_size[0], out_channels*pst_expansion,
                       self.tensor_size[2], self.tensor_size[3])
-            self.Normalization = Normalizations(t_size, normalization,
-                                                **kwargs)
-            show_msg += normalization + " -> "
-        if (not pre_nm) and activation in Activations.available():
-            self.Activation = Activations(activation,
-                                          out_channels*pst_expansion, **kwargs)
-            show_msg += activation + " -> "
+            if normalization is not None:
+                self.Normalization = Normalizations(t_size, normalization,
+                                                    **kwargs)
+                show_msg += normalization + " -> "
+                _flops += Normalizations(t_size, normalization,
+                                         just_flops=True, **kwargs)
+            if activation in Activations.available():
+                self.Activation = Activations(t_size, activation, **kwargs)
+                show_msg += activation + " -> "
+                _flops += self.Activation.flops()
 
         show_msg += "x".join(["_"]+[str(x)for x in self.tensor_size[1:]])
         self.show_msg = show_msg
@@ -283,6 +289,13 @@ class Convolution(nn.Module):
         self.pre_nm = pre_nm
         self.shift = shift
         self.equalized = equalized
+
+        # convolution operations
+        _element_muls_adds = (tensor_size[1]//pre_expansion) * \
+            (filter_size[0] * filter_size[1] * 2 - 1) // groups
+        _flops += _element_muls_adds * self.tensor_size[2] * \
+            self.tensor_size[3] * out_channels * pst_expansion
+        self._flops = _flops
 
     def forward(self, tensor: torch.Tensor) -> torch.Tensor:
         if self.dropout is not None:
@@ -326,13 +339,17 @@ class Convolution(nn.Module):
         w_bound = self.Convolution.weight.data.abs().max()
         self.Convolution.weight.data.mul_(self.scale).div_(w_bound)
 
+    def flops(self):
+        return self._flops
+
 
 # from tensormonk.activations import Activations
 # from tensormonk.normalizations import Normalizations
 # from tensormonk.regularizations import DropOut
-# x = torch.rand(3, 18, 10, 10)
-# test = Convolution((1, 18, 10, 10), 3, 36, 2, True, "relu", 0.1, "batch",
-#                    False, equalized=True, shift=True)
+# tensor_size = (1, 2, 10, 10)
+# test = Convolution(tensor_size, 3, 2, 1, True, None, 0.1, None,
+#                    False, equalized=False, shift=False)
 # test.Convolution.weight.shape
-# test(x).size()
+# test(torch.randn(*tensor_size)).size()
 # test
+# test.flops()

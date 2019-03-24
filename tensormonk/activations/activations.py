@@ -32,14 +32,17 @@ class Activations(nn.Module):
     Swish - https://arxiv.org/pdf/1710.05941v1.pdf
 
     Args:
-        activation: relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish
-        channels: parameter for prelu, default is 1
+        tensor_size: shape of tensor in BCHW
+            (None/any integer >0, channels, height, width)
+        activation: relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish,
+            default=relu
     """
-    def __init__(self, activation: str = "relu", channels: int = 1, **kwargs):
+    def __init__(self, tensor_size: tuple, activation: str = "relu", **kwargs):
         super(Activations, self).__init__()
 
         if activation is not None:
             activation = activation.lower()
+        self.t_size = tensor_size
         self.activation = activation
         self.function = None
         if activation not in self.available():
@@ -49,13 +52,16 @@ class Activations(nn.Module):
 
         self.function = getattr(self, "_" + activation)
         if activation == "prelu":
-            self.weight = nn.Parameter(torch.ones(channels)) * 0.1
+            self.weight = nn.Parameter(torch.ones(1)) * 0.1
         if activation == "lklu":
             self.negslope = kwargs["lklu_negslope"] if "lklu_negslope" in \
                 kwargs.keys() else 0.01
         if activation == "elu":
             self.alpha = kwargs["elu_alpha"] if "elu_alpha" in \
                 kwargs.keys() else 1.0
+
+        self.tensor_size = tensor_size if activation not in ["maxo", "rmxo"] \
+            else (None, tensor_size[1]//2, tensor_size[2], tensor_size[3])
 
     def forward(self, tensor: torch.Tensor):
         if self.function is None:
@@ -102,6 +108,39 @@ class Activations(nn.Module):
     def available():
         return ["elu", "lklu", "maxo", "prelu", "relu", "relu6", "rmxo",
                 "sigm", "squash", "swish", "tanh"]
+
+    def flops(self):
+        import numpy as np
+        flops = 0
+        numel = np.prod(self.t_size[1:])
+        if self.activation == "elu":
+            # max(0, x) + min(0, alpha*(exp(x)-1))
+            flops = numel * 5
+        elif self.activation in ("lklu", "prelu", "sigm"):
+            flops = numel * 3
+        elif self.activation == "maxo":
+            # torch.max(*x.split(x.size(1)//2, 1))
+            flops = numel / 2
+        elif self.activation == "relu":
+            # max(0, x)
+            flops = numel
+        elif self.activation == "relu6":
+            # min(6, max(0, x))
+            flops = numel * 2
+        elif self.activation == "rmxo":
+            # maxo(relu(x))
+            flops = int(numel * 1.5)
+        elif self.activation == "squash":
+            # sum_squares = (tensor**2).sum(2, True)
+            # (sum_squares/(1+sum_squares)) * tensor / sum_squares.pow(0.5)
+            flops = numel*4 + self.t_size[1]*2
+        elif self.activation == "swish":
+            # x * sigm(x)
+            flops = numel * 4
+        elif self.activation == "tanh":
+            # (exp(x) - exp(-x)) / (exp(x) + exp(-x))
+            flops = numel * 7
+        return flops
 
 
 # Activations.available()

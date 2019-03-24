@@ -2,6 +2,7 @@
 
 import torch
 from .convolution import Convolution
+from .utils import compute_flops
 
 
 class PrimaryCapsule(torch.nn.Module):
@@ -66,6 +67,8 @@ class PrimaryCapsule(torch.nn.Module):
                              self.tensor_size[2], self.tensor_size[3])
         return tensor.permute(0, 1, 3, 4, 2).contiguous()
 
+    def flops(self):
+        return compute_flops(self.primaryCapsules)
 
 # from tensormonk.layers import Convolution
 # x = torch.rand(3,3,10,10)

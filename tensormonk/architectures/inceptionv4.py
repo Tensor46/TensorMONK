@@ -4,6 +4,7 @@
 import torch
 from ..layers import Stem2, InceptionA, ReductionA, InceptionB, \
     ReductionB, InceptionC, Linear
+from ..layers.utils import compute_flops
 
 
 class InceptionV4(torch.nn.Sequential):
@@ -46,6 +47,7 @@ class InceptionV4(torch.nn.Sequential):
                  *args, **kwargs):
         super(InceptionV4, self).__init__()
 
+        import numpy as np
         print("Input", tensor_size)
         kwargs = {"activation": activation, "normalization": normalization,
                   "pre_nm": pre_nm, "groups": groups, "weight_nm": weight_nm,
@@ -79,6 +81,7 @@ class InceptionV4(torch.nn.Sequential):
 
         self.add_module("AveragePool", torch.nn.AvgPool2d(t_size[2:]))
         print("AveragePool", (1, t_size[1], 1, 1))
+        self.pool_flops = (np.prod(t_size[2:]) * 2 - 1) * t_size[1]
         self.tensor_size = (6, t_size[1], 1, 1)
 
         if n_embedding is not None and n_embedding > 0:
@@ -87,10 +90,16 @@ class InceptionV4(torch.nn.Sequential):
             self.tensor_size = (6, n_embedding)
             print("Linear", (1, n_embedding))
 
+    def flops(self):
+        # all operations
+        return compute_flops(self) + self.pool_flops
+
 
 # from tensormonk.layers import Stem2, InceptionA, ReductionA, InceptionB, \
 #     ReductionB, InceptionC, Linear
+# from tensormonk.layers.utils import compute_flops
 # tensor_size = (1, 3, 299, 299)
 # tensor = torch.rand(*tensor_size)
 # test = InceptionV4(tensor_size)
 # %timeit test(tensor).size()
+# test.flops() / 1000 / 1000 / 1000

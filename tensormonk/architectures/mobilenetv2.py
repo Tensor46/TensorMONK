@@ -2,6 +2,7 @@
 
 import torch
 from ..layers import Convolution, ResidualInverted, Linear
+from ..layers.utils import compute_flops
 
 
 class MobileNetV2(torch.nn.Sequential):
@@ -41,6 +42,7 @@ class MobileNetV2(torch.nn.Sequential):
                  *args, **kwargs):
         super(MobileNetV2, self).__init__()
 
+        import numpy as np
         block_params = [(16, 1, 1), (24, 2, 6), (24, 1, 6), (32, 2, 6),
                         (32, 1, 6), (32, 1, 6), (64, 2, 6), (64, 1, 6),
                         (64, 1, 6), (64, 1, 6), (96, 1, 6), (96, 1, 6),
@@ -74,6 +76,7 @@ class MobileNetV2(torch.nn.Sequential):
 
         self.add_module("AveragePool", torch.nn.AvgPool2d(t_size[2:]))
         print("AveragePool", (1, 1280, 1, 1))
+        self.pool_flops = (np.prod(t_size[2:]) * 2 - 1) * t_size[1]
         self.tensor_size = (1, 1280)
 
         if n_embedding is not None and n_embedding > 0:
@@ -82,9 +85,15 @@ class MobileNetV2(torch.nn.Sequential):
             self.tensor_size = (1, n_embedding)
             print("Linear", (1, n_embedding))
 
+    def flops(self):
+        # all operations
+        return compute_flops(self) + self.pool_flops
+
 
 # from tensormonk.layers import Convolution, ResidualInverted, Linear
+# from tensormonk.layers.utils import compute_flops
 # tensor_size = (1, 3, 224, 224)
 # tensor = torch.rand(*tensor_size)
 # test = MobileNetV2(tensor_size, n_embedding=None)
 # test(tensor).size()
+# test.flops() / 1000 / 1000 / 1000

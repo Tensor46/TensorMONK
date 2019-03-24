@@ -3,11 +3,12 @@
 __all__ = ["Normalizations", ]
 
 import torch
+import numpy as np
 from .pixelwise import PixelWise
 
 
 def Normalizations(tensor_size=None, normalization=None, available=False,
-                   **kwargs):
+                   just_flops=False, **kwargs):
     r"""Does normalization on 4D tensor.
 
     Args:
@@ -30,12 +31,22 @@ def Normalizations(tensor_size=None, normalization=None, available=False,
         "Normalization must be None/" + "/".join(list_available)
 
     if normalization == "batch":
+        if just_flops:
+            # inference -> (x - mean) / (std + eps) * gamma + beta
+            _eps_adds = tensor_size[1]
+            _element_muls_adds = 4
+            return _element_muls_adds * np.prod(tensor_size[1:]) + _eps_adds
         return torch.nn.BatchNorm2d(tensor_size[1])
 
     elif normalization == "group":
         affine = kwargs["affine"] if "affine" in \
             kwargs.keys() else False
 
+        if just_flops:
+            # inference -> (x - mean) / (std + eps) * gamma + beta
+            _eps_adds = tensor_size[1]
+            _element_muls_adds = (4 if affine else 2)
+            return _element_muls_adds * np.prod(tensor_size[1:]) + _eps_adds
         if "groups" in kwargs.keys():
             return torch.nn.GroupNorm(kwargs["groups"], tensor_size[1],
                                       affine=affine)
@@ -48,13 +59,33 @@ def Normalizations(tensor_size=None, normalization=None, available=False,
     elif normalization == "instance":
         affine = kwargs["affine"] if "affine" in \
             kwargs.keys() else False
+        if just_flops:
+            # inference -> (x - mean) / (std + eps)
+            _eps_adds = tensor_size[1]
+            _element_muls_adds = (4 if affine else 2)
+            flops = _element_muls_adds * np.prod(tensor_size[1:]) + _eps_adds
+            # mean computation on the fly as track_running_stats=False
+            flops += np.prod(tensor_size[1:])
+            # std computation on the fly as track_running_stats=False
+            flops += np.prod(tensor_size[1:])*3 + np.prod(tensor_size[2:]) + \
+                + tensor_size[1]
+            # inference -> (x - mean) / (std + eps) * gamma + beta
+            return flops
         return torch.nn.InstanceNorm2d(tensor_size[1], affine=affine)
 
     elif normalization == "layer":
         elementwise_affine = kwargs["elementwise_affine"] if \
             "elementwise_affine" in kwargs.keys() else True
+        if just_flops:
+            # inference -> (x - mean) / (std + eps) * gamma + beta
+            _eps_adds = tensor_size[1]
+            _element_muls_adds = 4 if elementwise_affine else 2
+            return _element_muls_adds * np.prod(tensor_size[1:]) + _eps_adds
         return torch.nn.LayerNorm(tensor_size[1:],
                                   elementwise_affine=elementwise_affine)
 
     elif normalization == "pixelwise":
+        if just_flops:
+            # inference -> x / x.pow(2).sum(1).pow(0.5).add(eps)
+            return np.prod(tensor_size[1:])*3 + np.prod(tensor_size[2:])*2
         return PixelWise()

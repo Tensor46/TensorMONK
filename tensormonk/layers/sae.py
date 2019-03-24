@@ -43,6 +43,9 @@ class ConvolutionalSAE(nn.Module):
             self.Optimizer.step()
         return features
 
+    def flops(self):
+        return self.encoder.flops() + self.decoder.flops()
+
 
 # from tensormonk.layers import Convolution
 # tensor_size = (1, 3, 10, 10)

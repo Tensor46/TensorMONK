@@ -3,6 +3,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
+from ..activations import Activations
 
 
 class RoutingCapsule(nn.Module):
@@ -28,7 +30,6 @@ class RoutingCapsule(nn.Module):
                  iterations: int = 3,
                  *args, **kwargs):
         super(RoutingCapsule, self).__init__()
-        import numpy as np
         self.iterations = iterations
         # Ex from paper
         #   For tensor_size=(1,32,6,6,8), n_capsules=10 and capsule_length=16
@@ -38,6 +39,8 @@ class RoutingCapsule(nn.Module):
         weight_size = (int(np.prod(tensor_size[1:-1])), tensor_size[-1],
                        n_capsules*capsule_length)
         self.weight = nn.Parameter(torch.randn(*weight_size).normal_(0., 0.1))
+        self.activation = Activations((None, int(np.prod(tensor_size[1:-1])),
+                                       tensor_size[-1]), "squash")
         self.tensor_size = (6, n_capsules, capsule_length)
 
     def forward(self, tensor):
@@ -45,9 +48,7 @@ class RoutingCapsule(nn.Module):
             tensor.size()
         # Initial squash
         tensor = tensor.view(batch_size, -1, n_primary_capsules)
-        sum_squares = tensor.view(batch_size, -1, n_primary_capsules
-                                  ).pow(2).sum(2).unsqueeze(2)
-        tensor = (sum_squares/(1+sum_squares)) * tensor / (sum_squares**0.5)
+        tensor = self.activation(tensor)
 
         # from the given example:
         #   tensor is of size _ x 32 x 6 x 6 x 8
@@ -77,8 +78,7 @@ class RoutingCapsule(nn.Module):
             # s size = _ x 10 x 16
             s = (c.unsqueeze(5)*u).sum(3).sum(2).sum(1)
             # squash -- v size = _ x 10 x 16
-            sum_squares = (s**2).sum(2).unsqueeze(2)
-            v = (sum_squares/(1+sum_squares)) * s / (sum_squares**0.5)
+            v = self.activation(s)
             # bias update -- size = _ x 32 x 6 x 6 x 10
             if i < self.iterations-1:
                 bias = bias + (u * v.view(batch_size, 1, 1, 1,
@@ -86,7 +86,23 @@ class RoutingCapsule(nn.Module):
                                           self.tensor_size[2])).sum(5)
         return v
 
+    def flops(self):
+        # activations
+        flops = self.activation.flops() * (1 + self.iterations)
+        # matmul
+        flops += np.prod(self.weight.shape) * self.weight.shape[1]
+        # softmax
+        flops += (self.weight.shape[0] * self.tensor_size[1] * 3) * \
+            self.iterations
+        # s computation
+        flops += (self.weight.shape[0] * (self.weight.shape[2] + 1)) * \
+            self.iterations
+        # bias update _x32x6x6x10x16
+        flops += self.weight.shape[0] * (self.weight.shape[2] + 2)
+        return flops
 
-# x = torch.rand(3,32,10,10,8)
-# test = RoutingCapsule((3,32,10,10,8), 10, 16, 3,)
+# from tensormonk.activations import Activations
+# x = torch.rand(3, 32, 10, 10, 8)
+# test = RoutingCapsule((3, 32, 10, 10, 8), 10, 16, 3,)
 # test(x).size()
+# test.flops()

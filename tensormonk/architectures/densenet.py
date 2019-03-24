@@ -9,6 +9,7 @@ except Exception as e:
 import torch
 from ..layers import Convolution, DenseBlock, Linear
 from ..utils import ImageNetNorm
+from ..layers.utils import compute_flops
 
 
 def map_pretrained(state_dict, type):
@@ -141,6 +142,7 @@ class DenseNet(torch.nn.Sequential):
                  *args, **kwargs):
         super(DenseNet, self).__init__()
 
+        import numpy as np
         type = type.lower()
         assert type in ("d121", "d169", "d201", "d264"),\
             "DenseNet: type must be d121/d169/d201/d264"
@@ -154,6 +156,7 @@ class DenseNet(torch.nn.Sequential):
 
         self.type = type
         self.in_tensor_size = tensor_size
+        self.pool_flops = 0
 
         if type == "d121":
             block_params, k = [6, 12, 24, 16], 32
@@ -192,6 +195,7 @@ class DenseNet(torch.nn.Sequential):
             t_size = (1, 64, h//2 + (1 if h % 2 == 1 else 0),
                       w//2 + (1 if w % 2 == 1 else 0))
             print("MaxPool", t_size)
+            self.pool_flops += np.prod(t_size[1:]) * (3 * 3)
         else:
             # Addon -- To make it flexible for other tensor_size's
             print("DenseNet: MaxPool is ignored if min(h, w) <=  128")
@@ -219,6 +223,7 @@ class DenseNet(torch.nn.Sequential):
 
         self.add_module("AveragePool", torch.nn.AvgPool2d(t_size[2:]))
         print("AveragePool", (1, t_size[1], 1, 1))
+        self.pool_flops += (np.prod(t_size[2:]) * 2 - 1) * t_size[1]
         self.tensor_size = (1, t_size[1])
 
         if n_embedding is not None and n_embedding > 0:
@@ -237,12 +242,18 @@ class DenseNet(torch.nn.Sequential):
             print(" ... pretrained not available")
             self.pretrained = False
 
+    def flops(self):
+        # all operations
+        return compute_flops(self) + self.pool_flops
+
 
 # from tensormonk.layers import Convolution, DenseBlock, Linear
+# from tensormonk.layers.utils import compute_flops
 # from tensormonk.utils import ImageNetNorm
 # tensor_size = (1, 3, 224, 224)
 # tensor = torch.rand(*tensor_size)
-# test = DenseNet(tensor_size, "d121", pretrained=True)
+# test = DenseNet(tensor_size, "d121", pretrained=False)
+# test.flops() / 1000 / 1000 / 1000
 # test(torch.rand(*tensor_size)).shape
 # %timeit test(torch.rand(*tensor_size)).shape
 # import torchvision.utils as tutils

@@ -92,7 +92,7 @@ class Linear(nn.Module):
         # get activation function
         if activation is not None:
             if activation in Activations.available():
-                self.activation = Activations(activation, out_features,
+                self.activation = Activations((None, out_features), activation,
                                               **kwargs)
                 show_msg += activation + " -> "
         # out tensor size
@@ -118,6 +118,14 @@ class Linear(nn.Module):
 
     def __repr__(self):
         return self.show_msg
+
+    def flops(self):
+        flops = np.prod(self.weight.shape) * self.weight.shape[1]
+        if hasattr(self, "bias"):
+            flops += self.bias.numel()
+        if hasattr(self, "activation"):
+            flops += self.activation.flops()
+        return flops
 
 
 # from tensormonk.activations import Activations

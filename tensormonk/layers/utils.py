@@ -44,3 +44,14 @@ def update_kwargs(kwargs, *args):
     if len(args) > 14 and args[14] is not None:
         kwargs["dropblock"] = args[14]
     return kwargs
+
+
+def compute_flops(sequential):
+    flops = 0
+    for x in sequential._modules.values():
+        if hasattr(x, "flops"):
+            flops += x.flops()
+        else:
+            if hasattr(x, "_modules"):
+                flops += compute_flops(x)
+    return flops
