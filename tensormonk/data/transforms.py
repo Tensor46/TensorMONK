@@ -39,7 +39,7 @@ class RandomBlur(nn.Module):
         super(RandomBlur, self).__init__()
 
         if not isinstance(width, int):
-            raise TypeError("RandomBlur: RandomBlur must be int: "
+            raise TypeError("RandomBlur: width must be int: "
                             "{}".format(type(width).__name__))
         if width < 3:
             raise ValueError("RandomBlur: width must be >= 3"
@@ -69,6 +69,50 @@ class RandomBlur(nn.Module):
         if c > 1:
             kernels = kernels.repeat(c, 1, 1, 1)
         return F.conv2d(tensor, kernels, padding=[self.pad]*2, groups=c)
+
+
+class RandomNoise(nn.Module):
+    r"""Add Gaussian Noise to tensor.
+
+    Args:
+        mean (float): mean of gaussian distrubution, default = 0.
+        std (float): std of gaussian distrubution, default = 0.01
+        clamp ({float, list, tuple}, optional): when float clamps all values
+            between (-clamp, +clamp). When list or tuple clamp = (min, max)
+            default=None
+
+    Return:
+        4D BCHW torch.Tensor with size same as input tensor
+    """
+    def __init__(self, mean: float = 0., std: float = 0.01, clamp=None):
+        super(RandomNoise, self).__init__()
+
+        if not isinstance(mean, float):
+            raise TypeError("RandomNoise: mean must be float: "
+                            "{}".format(type(mean).__name__))
+        if not isinstance(std, float):
+            raise TypeError("RandomNoise: std must be float: "
+                            "{}".format(type(std).__name__))
+        if isinstance(clamp, float):
+            clamp = (-clamp, clamp)
+        if clamp is not None:
+            if not (isinstance(clamp, list) or isinstance(clamp, tuple)):
+                raise TypeError("RandomNoise: clamp must be float/list/tuple: "
+                                "{}".format(type(clamp).__name__))
+        self.mean = mean
+        self.std = std
+        self.clamp = clamp
+
+    def forward(self, tensor):
+        if tensor.is_cuda:
+            noise = torch.cuda.FloatTensor(*tensor.shape)
+        else:
+            noise = torch.FloatTensor(*tensor.shape)
+        noise.normal_(self.mean, self.std)
+        tensor.add_(noise)
+        if self.clamp is not None:
+            tensor.clamp_(*self.clamp[:2])
+        return tensor
 
 
 class ElasticSimilarity(nn.Module):
@@ -322,8 +366,10 @@ class RandomTransforms(nn.Module):
 # from torchvision.transforms import ToPILImage
 # from tensormonk.layers.dog import GaussianKernel
 # toimage = ToPILImage()
-# test = RandomTransformations(
+# test = RandomTransforms(
 #     (ElasticSimilarity(), RandomBlur()), (0.9, 0.9))
+# test = RandomTransforms(
+#     (RandomNoise(0., 0.01, (0, 1)), ), (0.9, ))
 # img = ImPIL.open("../data/test.png")
 # npim = np.array(img, np.float32).transpose(2, 0, 1) / 255.
 # toimage(test(torch.from_numpy(npim.copy()).unsqueeze(0))[0])
