@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from random import random
+from random import random, choices
 from ..layers.dog import GaussianKernel
 
 
@@ -23,6 +23,29 @@ class Flip(nn.Module):
 
     def forward(self, tensor: torch.Tensor):
         return tensor.flip(3 if self.horizontal else 2)
+
+
+class RandomColor(nn.Module):
+    r"""Does random color channel switch when channels = 3.
+
+    Return:
+        4D BCHW torch.Tensor with size same as input tensor
+    """
+    def __init__(self):
+        super(RandomColor, self).__init__()
+        channel_shuffles = torch.Tensor([(0, 2, 1), (1, 0, 2), (1, 2, 0),
+                                         (2, 0, 1), (2, 1, 0)]).long()
+        self.channel_shuffles = channel_shuffles
+
+    def forward(self, tensor: torch.Tensor):
+        n, c, h, w = tensor.shape
+        if c == 3:
+            multiplier = torch.arange(0, n).mul(3).view(-1, 1)
+            idx = self.channel_shuffles[choices(range(5), k=n)] + multiplier
+            idx = idx.view(-1).to(tensor.device)
+            tensor = tensor.view(-1, h, w)[idx].contiguous()
+            tensor = tensor.view(n, c, h, w).contiguous()
+        return tensor
 
 
 class RandomBlur(nn.Module):
