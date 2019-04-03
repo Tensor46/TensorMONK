@@ -54,9 +54,6 @@ class MyModel(EasyTrainer):
             tensor = tensor.cuda()
             target_gcxcywh_boxes = target_gcxcywh_boxes.cuda()
             targets = targets.cuda()
-        # if hasattr(self, "transformations"):
-        #     tensor = self.transformations(tensor)
-        #     tensor.requires_grad_(True)
         if not training:
             tensor.requires_grad_(False)
             target_gcxcywh_boxes.requires_grad_(False)
@@ -99,9 +96,9 @@ if __name__ == '__main__':
     CONFIG_SSD320["n_labels"] = n_labels
 
     # define networks
-    from tensormonk.architectures import MobileNetV2SSD320
+    from tensormonk.architectures import TinySSD320
     translator = SSDUtils.Translator(**CONFIG_SSD320)
-    detector = BaseNetwork(network=MobileNetV2SSD320,
+    detector = BaseNetwork(network=TinySSD320,
                            optimizer=None,
                            arguments={"translator": translator,
                                       **CONFIG_SSD320})
@@ -110,20 +107,12 @@ if __name__ == '__main__':
                            arguments={"translator": translator,
                                       **CONFIG_SSD320})
 
-    # few more transformations
-    from tensormonk.data import RandomBlur, RandomColor, RandomNoise, \
-        RandomTransforms
-    transformations = BaseNetwork(
-        network=RandomTransforms,
-        arguments={"functions": [RandomBlur(), RandomColor(), RandomNoise()],
-                   "probabilities": [0.5, 0.5, 0.5]})
-
-    model = MyModel(name="mobile_ssd320",
+    model = MyModel(name="tinyssd320",
                     path="./models",
                     networks={"detector": detector, "loss": loss_net},
                     optimizer=BaseOptimizer(args.optimizer,
                                             {"lr": args.learningRate}),
-                    transformations=transformations,
+                    transformations=None,
                     meters=["loss", "top1", "top5", "test_top1", "test_top5"],
                     n_checkpoint=-1,
                     default_gpu=args.default_gpu,
