@@ -87,8 +87,8 @@ class RandomBlur(nn.Module):
         if self.track + n >= self.n_kernels:
             self.track = 0
         track = self.track
-        kernels = self.kernels[self.rand_idx[track:track+n]].to(tensor.device)
-        self.track += n
+        kernels = self.kernels[self.rand_idx[track]].to(tensor.device)
+        self.track += 1
         if c > 1:
             kernels = kernels.repeat(c, 1, 1, 1)
         return F.conv2d(tensor, kernels, padding=[self.pad]*2, groups=c)
