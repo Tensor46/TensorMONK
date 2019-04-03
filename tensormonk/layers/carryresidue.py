@@ -4,7 +4,7 @@ __all__ = ["ResidualOriginal", "ResidualComplex", "ResidualInverted",
            "ResidualShuffle", "ResidualNeXt",
            "SEResidualComplex", "SEResidualNeXt",
            "SimpleFire", "CarryModular", "DenseBlock",
-           "ContextNet_Bottleneck"]
+           "ContextNet_Bottleneck", "SeparableConvolution"]
 
 import torch
 import torch.nn as nn
@@ -265,6 +265,33 @@ class SEResidualNeXt(nn.Module):
 # =========================================================================== #
 
 
+class SeparableConvolution(nn.Module):
+    r""" SeparableConvolution """
+    def __init__(self, tensor_size, filter_size, out_channels, strides=1,
+                 pad=True, activation="relu", dropout=0., normalization=None,
+                 pre_nm=False, groups=1, weight_nm=False, equalized=False,
+                 shift=False, bias=False, dropblock=True, **kwargs):
+        super(SeparableConvolution, self).__init__()
+
+        self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
+        self.Block1 = Convolution(
+            tensor_size, filter_size, tensor_size[1], strides, pad, activation,
+            0., normalization, pre_nm, tensor_size[1], weight_nm, equalized,
+            shift, bias, dropblock, **kwargs)
+        self.Block2 = Convolution(self.Block1.tensor_size, 1, out_channels,
+                                  1, True, None)
+        self.tensor_size = self.Block2.tensor_size
+
+    def forward(self, tensor):
+        if self.dropout is not None:  # for dropout
+            tensor = self.dropout(tensor)
+        return self.Block2(self.Block1(tensor))
+
+    def flops(self):
+        return compute_flops(self)
+# =========================================================================== #
+
+
 class ResidualInverted(nn.Module):
     r""" Support for MobileNetV2 - https://arxiv.org/pdf/1801.04381.pdf
     All args are similar to Convolution."""
@@ -278,11 +305,12 @@ class ResidualInverted(nn.Module):
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
                                activation, 0., normalization, pre_nm, None,
                                weight_nm, equalized, shift, bias)
+        channels = int(out_channels*t)
 
-        self.Block1 = Convolution(tensor_size, 1, out_channels*t, 1, **kwargs)
+        self.Block1 = Convolution(tensor_size, 1, channels, 1, **kwargs)
         self.Block2 = \
-            Convolution(self.Block1.tensor_size, filter_size, out_channels*t,
-                        strides, groups=out_channels*t, **kwargs)
+            Convolution(self.Block1.tensor_size, filter_size, channels,
+                        strides, groups=channels, **kwargs)
         kwargs["activation"] = ""
         self.Block3 = Convolution(self.Block2.tensor_size, 1, out_channels,
                                   1, **kwargs)
