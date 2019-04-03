@@ -6,7 +6,9 @@ __all__ = ["CapsuleNet", "SimpleNet", "ShuffleNet",
            "LinearVAE", "ConvolutionalVAE", "PGGAN",
            "ContextNet", "FeatureNet", "FeatureCapNet",
            "PointNet", "UNet", "AnatomyNet",
-           "NeuralDecisionForest", "Models"]
+           "NeuralDecisionForest",
+           "TinySSD320", "MobileNetV2SSD320",
+           "Models"]
 
 from .capsulenet import CapsuleNet
 from .simplenet import SimpleNet
@@ -23,8 +25,10 @@ from .contextnet import ContextNet
 from .pointnet import PointNet
 from .unet import UNet, AnatomyNet
 from .trees import NeuralDecisionForest
+from .tinySSD320 import TinySSD320
+from .mobilenetv2SSD320 import MobileNetV2SSD320
 
-del trees, unet, pointnet, contextnet
+del trees, unet, pointnet, contextnet, mobilenetv2SSD320, tinySSD320
 del capsulenet, simplenet, pggan, linearvae, convolutionalvae
 del shufflenet, mobilenetv1, mobilenetv2, densenet, residualnet, inceptionv4
 

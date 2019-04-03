@@ -1,13 +1,14 @@
 """ TensorMONK :: data """
 
-__all__ = ["DataSets", "FewPerLabel", "FolderITTR",
+__all__ = ["DataSets", "PascalVOC", "FewPerLabel", "FolderITTR",
            "Flip", "ElasticSimilarity",
-           "RandomBlur", "RandomNoise", "RandomTransforms"]
+           "RandomBlur", "RandomColor", "RandomNoise", "RandomTransforms"]
 
 from .datasets import DataSets
+from .pascalvoc import PascalVOC
 from .fewperlabel import FewPerLabel
 from .folderittr import FolderITTR
-from .transforms import Flip, ElasticSimilarity, RandomBlur, \
+from .transforms import Flip, ElasticSimilarity, RandomBlur, RandomColor,\
     RandomNoise, RandomTransforms
 
-del datasets, fewperlabel, folderittr, transforms
+del datasets, fewperlabel, folderittr, transforms, pascalvoc

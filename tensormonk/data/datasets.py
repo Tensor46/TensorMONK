@@ -1,12 +1,14 @@
 """ TensorMONK :: data """
 
 import os
+import torch
 from torch.utils.data import DataLoader
 import multiprocessing
 from torchvision import datasets
 from torchvision.transforms import RandomApply, ColorJitter, \
     RandomResizedCrop, RandomRotation, Compose, ToTensor, Normalize, \
     RandomHorizontalFlip, Resize
+from .pascalvoc import PascalVOC
 
 
 def DataSets(dataset: str = "MNIST",
@@ -17,10 +19,10 @@ def DataSets(dataset: str = "MNIST",
              augment: bool = False,
              normalize: bool = True):
     r"""Train, validation and test dataset iterator for
-    MNIST/FashionMNIST/CIFAR10/CIFAR100
+    MNIST/FashionMNIST/CIFAR10/CIFAR100/PascalVOC2007/PascalVOC2012
 
     Args:
-        dataset (string): name of dataset, MNIST/FashionMNIST/CIFAR10/CIFAR100
+        dataset (string): name of dataset
         data_path (string): path to dataset, default = "../data"
         tensor_size (list/tuple, optional): BCHW of output, default = based on
             dataset
@@ -37,8 +39,10 @@ def DataSets(dataset: str = "MNIST",
     """
 
     dataset = dataset.lower()
-    assert dataset in ["mnist", "fashionmnist", "cifar10", "cifar100"],\
-        "DataSets: available options MNIST/FashionMNIST/CIFAR10/CIFAR100"
+    assert dataset in ["mnist", "fashionmnist", "cifar10", "cifar100",
+                       "pascalvoc2007", "pascalvoc2012"],\
+        ("DataSets: available options MNIST/FashionMNIST/CIFAR10/CIFAR100/"
+         "PascalvVOC2007/PascalVOC2012")
 
     # data path
     folder = os.path.join(data_path, dataset)
@@ -86,6 +90,30 @@ def DataSets(dataset: str = "MNIST",
     elif dataset == "emnist":
         # TODO
         pass
+
+    elif dataset.startswith("pascalvoc"):
+        assert dataset in ["pascalvoc2007", "pascalvoc2012"]
+
+        def collate_fn(a_batch):
+            images, boxes, labels = [], [], []
+            for _image, _boxes, _labels in a_batch:
+                images.append(_image)
+                boxes.append(_boxes)
+                labels.append(_labels)
+            return torch.stack(images, 0), boxes, labels
+
+        n_labels = 21
+        trData = PascalVOC(data_path + "/VOCdevkit/VOC" + dataset[-4:],
+                           tensor_size, train=True, retain_difficult=False)
+        trData = DataLoader(trData, batch_size=n_samples,
+                            shuffle=True, num_workers=cpus,
+                            collate_fn=collate_fn)
+        teData = PascalVOC(data_path + "/VOCdevkit/VOC" + dataset[-4:],
+                           tensor_size, train=False, retain_difficult=False)
+        teData = DataLoader(teData, batch_size=n_samples,
+                            shuffle=False, num_workers=cpus,
+                            collate_fn=collate_fn)
+        return trData, None, teData, n_labels, tensor_size
 
     # test data
     teData = loader(root=folder, train=False, download=True,
