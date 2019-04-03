@@ -5,7 +5,7 @@ __all__ = ["Convolution", "ConvolutionalSAE", "Linear",
            "ResidualShuffle", "ResidualNeXt", "SEResidualComplex",
            "SEResidualNeXt", "SimpleFire", "CarryModular", "DenseBlock",
            "Stem2", "InceptionA", "InceptionB", "InceptionC", "ReductionA",
-           "ReductionB", "ContextNet_Bottleneck",
+           "ReductionB", "ContextNet_Bottleneck", "SeparableConvolution",
            "PrimaryCapsule", "RoutingCapsule", "DetailPooling",
            "DoG", "DoGBlob", "GaussianBlur", "DoH", "HessianBlob", "SSIM",
            "SelfAttention"]
@@ -15,7 +15,8 @@ from .linear import Linear
 from .convolution import Convolution
 from .carryresidue import ResidualOriginal, ResidualComplex, \
     ResidualInverted, ResidualShuffle, ResidualNeXt, SEResidualComplex, \
-    SEResidualNeXt, SimpleFire, CarryModular, DenseBlock, ContextNet_Bottleneck
+    SEResidualNeXt, SimpleFire, CarryModular, DenseBlock, \
+    ContextNet_Bottleneck, SeparableConvolution
 from .inception import Stem2, InceptionA, InceptionB, InceptionC, ReductionA,\
     ReductionB
 from .primarycapsule import PrimaryCapsule
