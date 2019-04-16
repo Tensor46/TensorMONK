@@ -13,18 +13,22 @@ class SelfAttention(nn.Module):
     r""" Self-Attention from Self-Attention Generative Adversarial Networks
 
     Args:
+        tensor_size: shape of tensor in BCHW
+            (None/any integer >0, channels, height, width)
         shrink (int, optional): used to compute output channels of key and
             query, i.e, tensor_size[1] / shrink, default = 8
         scale_factor (float, optional): Used to speedup the module by
             computing the attention at a lower scale (after interpolation).
     """
 
-    def __init__(self, tensor_size, shrink=8, scale_factor=1., **kwargs):
+    def __init__(self, tensor_size, shrink=8, scale_factor=1.,
+                 return_attention=False, **kwargs):
         super(SelfAttention, self).__init__()
 
         self.shrink = shrink
         self.scale_factor = scale_factor
         self.oc = int(tensor_size[1] / shrink)
+        self.return_attention = return_attention
 
         self.key = Convolution(tensor_size, 1, self.oc, 1, True, None)
         self.query = Convolution(tensor_size, 1, self.oc, 1, True, None)
@@ -48,8 +52,12 @@ class SelfAttention(nn.Module):
 
         if self.scale_factor != 1:
             o = F.interpolate(o, size=_tensor.shape[2:])
-            return _tensor + o, attention
-        return tensor + o, attention
+            if self.return_attention:
+                return _tensor + o, attention
+            return _tensor + o
+        if self.return_attention:
+            return tensor + o*self.gamma, attention
+        return tensor + o*self.gamma
 
     def flops(self):
         flops = 0
@@ -64,8 +72,8 @@ class SelfAttention(nn.Module):
         flops += (h * w) * (h * w * 3)
         # o - bmm
         flops += c * ((2 * h * w) - 1) * h * w
-        # tensor + o
-        flops += c * h * w
+        # tensor + o*gamma
+        flops += c * h * w * 2
         return compute_flops(self) + flops
 
 
