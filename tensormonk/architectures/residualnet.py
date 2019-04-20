@@ -244,8 +244,7 @@ class ResidualNet(nn.Sequential):
             self.pool_flops += (np.prod(t_size[2:]) * 2 - 1) * t_size[1]
 
             if n_embedding is not None and n_embedding > 0:
-                self.add_module("embedding", Linear((1, oc), n_embedding,
-                                                    bias=False))
+                self.add_module("embedding", Linear((1, oc), n_embedding))
                 self.tensor_size = (1, n_embedding)
                 print("Linear", (1, n_embedding))
         else:
