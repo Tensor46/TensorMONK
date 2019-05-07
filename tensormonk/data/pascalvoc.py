@@ -50,9 +50,11 @@ class PascalVOC(object):
         np_labels, ltrb_boxes = self.parse_xml(xml, self.retain_difficult)
         if self.train:
             # image augmentations that require box adjustment
-            image, ltrb_boxes = PillowUtils.random_pad(image, ltrb_boxes, 0.6)
+            image, ltrb_boxes = PillowUtils.random_pad(image, ltrb_boxes,
+                                                       probability=0.6)
             image, ltrb_boxes = PillowUtils.random_crop(image, ltrb_boxes)
-            image, ltrb_boxes = PillowUtils.random_flip(image, ltrb_boxes, 0.5)
+            image, ltrb_boxes = PillowUtils.random_flip(image, ltrb_boxes,
+                                                        probability=0.5)
             # image augmentations
             image = self.random_transforms(image)
 
