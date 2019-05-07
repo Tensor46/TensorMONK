@@ -85,7 +85,7 @@ class MyModel(EasyTrainer):
 
 
 if __name__ == '__main__':
-    r""" An example to train 3 layer cnn on mnist and fashion mnist """
+    r""" An example to train SSD320 on PascalVOC2012 """
     args = parse_args()
     from tensormonk.data import DataSets
 
