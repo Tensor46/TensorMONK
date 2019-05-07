@@ -35,7 +35,6 @@ class TinySSD320(nn.Module):
         super(TinySSD320, self).__init__()
 
         self._tensor_size = tensor_size
-        self.translator = translator
         self.n_labels = n_labels
 
         # transforms for detection (contains priors)
