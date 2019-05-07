@@ -20,19 +20,19 @@ class ObjectUtils:
 
 
         (0, 0)                                (0, image_width)
-        * ---------------- x ---------------- * i
-        |                                     | m
-        |        (l, t)              (r, t)   | a
-        |        *---------w---------*        | g
-        |        |   w is box width  |        | e
-        |        |  h is box height  |        |
-        y        h         *(cx, cy) h        y h
-        |        |                   |        | e
-        |        |                   |        | i
-        |        *---------w---------*        | g
-        |        (l, b)              (r, b)   | h
-        |                                     | t
         * ---------------- x ---------------- *
+        |                                     | i
+        |        (l, t)              (r, t)   | m
+        |        *---------w---------*        | a
+        |        |   w is box width  |        | g
+        |        |  h is box height  |        | e
+        y        h         *(cx, cy) h        y
+        |        |                   |        | h
+        |        |                   |        | e
+        |        *---------w---------*        | i
+        |        (l, b)              (r, b)   | g
+        |                                     | h
+        * ---------------- x ---------------- * t
                  i m a g e   w i d t h        (image_height, image_width)
 
 
@@ -71,11 +71,11 @@ class ObjectUtils:
 
         if isinstance(boxes, np.ndarray):
             if boxes.ndim == 1:
-                boxes = boxes.reshape(-1, 4)
+                boxes = boxes.reshape(1, -1)
             boxes = boxes.astype(np.float32)
         if isinstance(boxes, torch.Tensor):
             if boxes.dim() == 1:
-                boxes = boxes.view(-1, 4)
+                boxes = boxes.view(1, -1)
             boxes = boxes.float()
         return boxes
 
@@ -216,7 +216,7 @@ class ObjectUtils:
         """
         if isinstance(ltrb_boxes, np.ndarray):
             if not ltrb_boxes.size:
-                return []
+                return np.array([]).astype(np.int32)
 
             retain = []
             scores = scores.squeeze()
@@ -242,7 +242,7 @@ class ObjectUtils:
 
         """ Torch Implementation """
         if not ltrb_boxes.numel():
-            return []
+            return torch.Tensor([]).long()
         retain = []
         scores.squeeze_()
         l, t, r, b = [ltrb_boxes[:, x] for x in range(4)]
@@ -263,7 +263,7 @@ class ObjectUtils:
             iou = intersection / (area[idx[:-1]]+area[idx[-1]]-intersection)
             # remove boxes with iou above iou_threshold
             idx = idx[:-1][iou < iou_threshold]
-        return torch.Tensor(retain).long()
+        return torch.Tensor(retain).long().to(ltrb_boxes.device)
 
 
 class Translator(nn.Module):
@@ -323,7 +323,7 @@ class Translator(nn.Module):
         self.n_objects = detect_n_objects
 
     def forward(self, boxes, labels=None, predictions=None):
-        """ The order of inputs determine the what has to be done! """
+        """ The order of inputs determine what has to be done! """
 
         if labels is None and predictions is None:
             return self.decode(boxes)
@@ -489,10 +489,7 @@ class SSDUtils:
         """ Normalized ltrb to gcxcywh (encoded using priors & variance) """
 
         boxes = ObjectUtils.ltrb_to_cxcywh(boxes)
-        boxes = torch.cat((
-            (boxes[:, :2] - priors[:, :2]) / (var1 * priors[:, 2:]),
-            torch.log(boxes[:, 2:] / priors[:, 2:]) / var2), 1)
-        return boxes
+        return SSDUtils.cxcywh_to_gcxcywh(boxes, priors, var1, var2)
 
     @staticmethod
     def gcxcywh_to_ltrb(boxes: torch.Tensor, priors: torch.Tensor,
@@ -523,13 +520,11 @@ class SSDUtils:
                 # extra default box
                 if isinstance(layer_info.next_scale, float):
                     scale = (layer_info.scale * layer_info.next_scale)**0.5
-                else:
-                    scale = 1
-                wh = torch.zeros(*cxcy_locations.shape).float()
-                wh.add_(scale)
-                wh[:, 0] *= ar**0.5
-                wh[:, 1] /= ar**0.5
-                cxcywh_boxes += [torch.cat((cxcy_locations, wh), 1)]
+                    wh = torch.zeros(*cxcy_locations.shape).float()
+                    wh.add_(scale)
+                    wh[:, 0] *= ar**0.5
+                    wh[:, 1] /= ar**0.5
+                    cxcywh_boxes += [torch.cat((cxcy_locations, wh), 1)]
         return torch.cat(cxcywh_boxes, 1).view(-1, 4)
 
     @staticmethod
@@ -570,7 +565,7 @@ class SSDUtils:
     @staticmethod
     def SSD320_priors() -> torch.Tensor:
         """"
-        Expected architecture for input size of 300x300
+        Expected architecture for input size of 320x320
           None x 3 x 320 x 320
           None x _ x 160 x 160
           None x _ x  80 x  80
