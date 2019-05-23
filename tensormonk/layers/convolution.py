@@ -289,6 +289,7 @@ class Convolution(nn.Module):
         self.pre_nm = pre_nm
         self.shift = shift
         self.equalized = equalized
+        self.normalization = normalization
 
         # convolution operations
         _element_muls_adds = (tensor_size[1]//pre_expansion) * \
@@ -297,12 +298,15 @@ class Convolution(nn.Module):
             self.tensor_size[3] * out_channels * pst_expansion
         self._flops = _flops
 
-    def forward(self, tensor: torch.Tensor) -> torch.Tensor:
+    def forward(self, tensor: torch.Tensor,
+                targets_or_latents: torch.Tensor = None) -> torch.Tensor:
         if self.dropout is not None:
             tensor = self.dropout(tensor)
         if self.pre_nm:  # normalization -> activation -> convolution
             if hasattr(self, "Normalization"):
-                tensor = self.Normalization(tensor)
+                tensor = self.Normalization(tensor, targets_or_latents) \
+                    if self.normalization == "cbatch" else \
+                    self.Normalization(tensor)
             if hasattr(self, "Activation"):
                 tensor = self.Activation(tensor)
 
@@ -314,7 +318,9 @@ class Convolution(nn.Module):
 
         if not self.pre_nm:  # convolution -> normalization -> activation
             if hasattr(self, "Normalization"):
-                tensor = self.Normalization(tensor)
+                tensor = self.Normalization(tensor, targets_or_latents) \
+                    if self.normalization == "cbatch" else \
+                    self.Normalization(tensor)
             if hasattr(self, "Activation"):
                 tensor = self.Activation(tensor)
         return tensor

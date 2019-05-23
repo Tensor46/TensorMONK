@@ -5,6 +5,7 @@ __all__ = ["Normalizations", ]
 import torch
 import numpy as np
 from .pixelwise import PixelWise
+from .categoricalbatch import CategoricalBNorm
 
 
 def Normalizations(tensor_size=None, normalization=None, available=False,
@@ -14,7 +15,7 @@ def Normalizations(tensor_size=None, normalization=None, available=False,
     Args:
         tensor_size: shape of tensor in BCHW
             (None/any integer >0, channels, height, width)
-        normalization: None/batch/group/instance/layer/pixelwise
+        normalization: None/batch/group/instance/layer/pixelwise/cbatch
         available: if True, returns all available normalization methods
         groups: for group (GroupNorm), when not provided groups is the center
             value of all possible - ex: for a tensor_size[1] = 128, groups is
@@ -22,7 +23,8 @@ def Normalizations(tensor_size=None, normalization=None, available=False,
         affine: for group and instance normalization, default False
         elementwise_affine: for layer normalization. default True
     """
-    list_available = ["batch", "group", "instance", "layer", "pixelwise"]
+    list_available = ["batch", "group", "instance", "layer", "pixelwise",
+                      "cbatch"]
     if available:
         return list_available
 
@@ -89,3 +91,12 @@ def Normalizations(tensor_size=None, normalization=None, available=False,
             # inference -> x / x.pow(2).sum(1).pow(0.5).add(eps)
             return np.prod(tensor_size[1:])*3 + np.prod(tensor_size[2:])*2
         return PixelWise()
+
+    elif normalization == "cbatch":
+        if just_flops:
+            # inference -> (x - mean) / (std + eps) * gamma
+            # TODO: update for n_latent
+            _eps_adds = tensor_size[1]
+            _element_muls_adds = 3
+            return _element_muls_adds * np.prod(tensor_size[1:]) + _eps_adds
+        return CategoricalBNorm(tensor_size, **kwargs)
