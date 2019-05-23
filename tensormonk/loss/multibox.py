@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 
 class MultiBoxLoss(nn.Module):
-    """
+    r"""
     Training objective of Single Shot MultiBox Detector (SSD)
     Original paper -- https://arxiv.org/pdf/1512.02325.pdf
 
