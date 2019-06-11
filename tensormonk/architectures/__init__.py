@@ -1,7 +1,7 @@
 """ TensorMONK :: architectures """
 
 __all__ = ["CapsuleNet", "SimpleNet", "ShuffleNet",
-           "MobileNetV1", "MobileNetV2",
+           "MobileNetV1", "MobileNetV2", "EfficientNet",
            "ResidualNet", "InceptionV4", "DenseNet",
            "LinearVAE", "ConvolutionalVAE", "PGGAN",
            "ContextNet", "FeatureNet", "FeatureCapNet",
@@ -27,10 +27,12 @@ from .unet import UNet, AnatomyNet
 from .trees import NeuralDecisionForest
 from .tinySSD320 import TinySSD320
 from .mobilenetv2SSD320 import MobileNetV2SSD320
+from .efficientnet import EfficientNet
 
 del trees, unet, pointnet, contextnet, mobilenetv2SSD320, tinySSD320
 del capsulenet, simplenet, pggan, linearvae, convolutionalvae
 del shufflenet, mobilenetv1, mobilenetv2, densenet, residualnet, inceptionv4
+del efficientnet
 
 
 def Models(Architecture):
