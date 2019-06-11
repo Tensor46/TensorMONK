@@ -207,16 +207,9 @@ class Convolution(nn.Module):
             padding = (padding[0]*dilation[0], padding[1]*dilation[1])
 
         # out tensor size
-        h, w = tensor_size[2:]
-        if transpose:
-            h = (h - 1) * strides[0] - 2*padding[0] + filter_size[0]
-            w = (w - 1) * strides[1] - 2*padding[1] + filter_size[1]
-        else:
-            h = (h + 2*padding[0] - dilation[0]*(filter_size[0] - 1) - 1) / \
-                strides[0] + 1
-            w = (w + 2*padding[1] - dilation[1]*(filter_size[1] - 1) - 1) / \
-                strides[1] + 1
-        self.tensor_size = (None, out_channels, math.floor(h), math.floor(w))
+        self.tensor_size = self.compute_osize(
+            tensor_size, filter_size, out_channels, strides, padding,
+            dilation, transpose)
 
         # Modules
         if pre_nm and normalization is not None:
@@ -231,7 +224,7 @@ class Convolution(nn.Module):
             _flops += self.Activation.flops()
 
         if transpose:
-            out_pad = (0, 0)
+            out_pad, (h, w) = (0, 0), tensor_size[2:]
             if maintain_out_size:
                 out_pad = (tensor_size[2]*strides[0] - self.tensor_size[2],
                            tensor_size[3]*strides[1] - self.tensor_size[3])
@@ -247,7 +240,6 @@ class Convolution(nn.Module):
                 "x".join(map(str, self.Convolution.weight.shape)))
         else:
             if shift:
-                # self.add_module("Shift", Shift3x3())
                 show_msg += "shift -> "
             self.Convolution = \
                 nn.Conv2d(tensor_size[1]//pre_expansion,
@@ -347,6 +339,20 @@ class Convolution(nn.Module):
 
     def flops(self):
         return self._flops
+
+    @staticmethod
+    def compute_osize(tensor_size, filter_size, out_channels, strides, padding,
+                      dilation, transpose):
+        h, w = tensor_size[2:]
+        if transpose:
+            h = (h - 1) * strides[0] - 2*padding[0] + filter_size[0]
+            w = (w - 1) * strides[1] - 2*padding[1] + filter_size[1]
+        else:
+            h = (h + 2*padding[0] - dilation[0]*(filter_size[0] - 1) - 1) / \
+                strides[0] + 1
+            w = (w + 2*padding[1] - dilation[1]*(filter_size[1] - 1) - 1) / \
+                strides[1] + 1
+        return (None, out_channels, math.floor(h), math.floor(w))
 
 
 # from tensormonk.activations import Activations
