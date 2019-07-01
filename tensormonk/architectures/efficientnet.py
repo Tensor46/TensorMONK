@@ -81,9 +81,10 @@ class EfficientNet(torch.nn.Module):
                 isinstance(tensor_size, tuple) or tensor_size is None):
             raise TypeError("EfficientNet: tensor_size is not valid: "
                             "{}".format(type(tensor_size).__name__))
-        if not isinstance(architecture, str):
-            raise TypeError("EfficientNet: architecture must be string: "
-                            "{}".format(type(architecture).__name__))
+        if architecture is not None:
+            if not isinstance(architecture, str):
+                raise TypeError("EfficientNet: architecture must be string: "
+                                "{}".format(type(architecture).__name__))
         self.model_config = self.get_model_config(tensor_size, architecture)
         self.layer_configs = self.get_layer_configs(self.model_config)
         self.in_size = tuple([1, ] + list(self.model_config.tensor_size[1:]))
