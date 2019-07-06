@@ -1,6 +1,7 @@
 """ TensorMONK :: utils """
 
 import torch
+from torch import Tensor
 import numpy as np
 from skimage.filters import gabor_kernel
 
@@ -8,7 +9,7 @@ from skimage.filters import gabor_kernel
 class Kernels(object):
 
     @staticmethod
-    def gaussian(sigma: float, width: int, normalize: bool = True):
+    def gaussian(sigma: float, width: int, normalize: bool = True) -> Tensor:
         if width is None:
             width = int(2.0 * 3.0 * sigma + 1.0)
         if width % 2 == 0:
@@ -24,8 +25,14 @@ class Kernels(object):
         return torch.from_numpy(w).view(1, 1, width, width)
 
     @staticmethod
+    def log(sigma: float, width: int, normalize: bool = True) -> Tensor:
+        width, pad = (width, True) if width is None else (width+4, False)
+        gaussian = Kernels.gaussian(sigma, width, normalize)
+        return Kernels.laplacian(gaussian, pad)
+
+    @staticmethod
     def gabor(sigma: float, wave_length: float, theta: float, gamma: float,
-              n_stds: float = 3.):
+              n_stds: float = 3.) -> Tensor:
         sigma_x = sigma
         sigma_y = float(sigma) / gamma
         kernels = gabor_kernel(frequency=1/wave_length, theta=theta,
@@ -39,9 +46,20 @@ class Kernels(object):
                           torch.from_numpy(gab_imag)))
 
     @staticmethod
-    def sobel(normalize: bool = True):
-        kernel = torch.Tensor([[[1, 2, 1], [0, 0, 0], [-1, -2, -1]],
-                               [[1, 0, -1], [2, 0, -2], [1, 0, -1]]])
+    def laplacian(tensor: Tensor, pad: bool) -> Tensor:
+        if pad:
+            tensor = torch.nn.functional.pad(tensor, (2, 2, 2, 2))
+        gx = tensor[:, :, 1:-1, 2:] - tensor[:, :, 1:-1, :-2]
+        gy = tensor[:, :, 2:, 1:-1] - tensor[:, :, :-2, 1:-1]
+
+        gxx = gx[:, :, 1:-1, 2:] - gx[:, :, 1:-1, :-2]
+        gyy = gy[:, :, 2:, 1:-1] - gy[:, :, :-2, 1:-1]
+        return gxx + gyy
+
+    @staticmethod
+    def sobel(normalize: bool = True) -> Tensor:
+        kernel = Tensor([[[1, 2, 1], [0, 0, 0], [-1, -2, -1]],
+                         [[1, 0, -1], [2, 0, -2], [1, 0, -1]]])
         kernel.unsqueeze_(1)
         if normalize:
             l2 = kernel.pow(2).sum(2, True).sum(3, True).pow(0.5)
@@ -50,7 +68,7 @@ class Kernels(object):
 
     @staticmethod
     def anisotropic_gaussian(sigma_x: float, sigma_y: float, theta: float,
-                             width: int = None):
+                             width: int = None) -> Tensor:
         if width is None:
             width = int(max(2. * 3. * sigma_x + 1., 2. * 3. * sigma_y + 1.))
         if width % 2 == 0:
@@ -68,21 +86,16 @@ class Kernels(object):
 
     @staticmethod
     def anisotropic_log(sigma_x: float, sigma_y: float, theta: float,
-                        width: int):
+                        width: int) -> Tensor:
         if width % 2 == 0:
             width += 1
         gaussian = Kernels.anisotropic_gaussian(sigma_x, sigma_y, theta,
                                                 width+4)
-        gx = gaussian[:, :, 1:-1, 2:] - gaussian[:, :, 1:-1, :-2]
-        gy = gaussian[:, :, 2:, 1:-1] - gaussian[:, :, :-2, 1:-1]
-
-        gxx = gx[:, :, 1:-1, 2:] - gx[:, :, 1:-1, :-2]
-        gyy = gy[:, :, 2:, 1:-1] - gy[:, :, :-2, 1:-1]
-        return gxx + gyy
+        return Kernels.laplacian(gaussian, pad=False)
 
     @staticmethod
-    def top_n_kernels(kernels: torch.Tensor, n_kernels: int,
-                      method: str = "kpca"):
+    def top_n_kernels(kernels: Tensor, n_kernels: int,
+                      method: str = "kpca") -> Tensor:
         n, c, h, w = kernels.shape
 
         if method.lower() == "kpca":
