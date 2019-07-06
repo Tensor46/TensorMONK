@@ -224,7 +224,7 @@ class ObjectUtils:
             area = ((ltrb_boxes[:, 2] - ltrb_boxes[:, 0]) *
                     (ltrb_boxes[:, 3] - ltrb_boxes[:, 1]))
             idx = np.argsort(scores)
-            while idx.numel():
+            while idx.size:
                 # add best scored
                 retain.append(idx[-1])
                 if idx.size == 1 or len(retain) == n_objects:
