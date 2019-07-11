@@ -125,7 +125,7 @@ class LMDB(object):
                 readahead=False, meminit=False, subdir=False)
             self._load_len()
             self._load_attributes()
-            self.encrypt = bool(self.__getitem__(b"encrypt").decode())
+            self.encrypt = "True" == self.__getitem__(b"encrypt").decode()
             if self.encrypt:
                 self.__set_encrypt(False)
         elif write and not os.path.isfile(self.file_name):
