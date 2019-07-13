@@ -734,7 +734,7 @@ class MBBlock(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="swish", dropout=0.,
                  normalization="batch", pre_nm=False,
-                 expansion=1, seblock=False, r=16, **kwargs):
+                 expansion=1, seblock=False, r=4, **kwargs):
         super(MBBlock, self).__init__()
         self.p = dropout
         channels = int(tensor_size[1] * expansion)
@@ -748,8 +748,14 @@ class MBBlock(nn.Module):
         self.depthwise = Convolution(t_size, filter_size, channels, strides,
                                      True, activation, 0., normalization,
                                      pre_nm, groups=channels, **kwargs)
+        if seblock:
+            self.squeeze = Convolution(self.depthwise.tensor_size, 1,
+                                       tensor_size[1]//r, True, activation)
+            self.excitation = Convolution(self.squeeze.tensor_size, 1,
+                                          self.depthwise.tensor_size[1],
+                                          True, "sigm")
         self.shrink = Convolution(self.depthwise.tensor_size, 1, out_channels,
-                                  1, True, activation, 0., normalization,
+                                  1, True, None, 0., normalization,
                                   pre_nm, **kwargs)
 
         if seblock:
@@ -759,11 +765,12 @@ class MBBlock(nn.Module):
     def forward(self, tensor):
         o = self.expand(tensor) if hasattr(self, "expand") else tensor
         o = self.depthwise(o)
+        if hasattr(self, "squeeze"):
+            o = o * self.excitation(self.squeeze(F.adaptive_avg_pool2d(o, 1)))
         o = self.shrink(o)
-
-        if hasattr(self, "seblock"):
-            o = self.seblock(o)
-        if self.p > 0. and tensor.shape[1:] == o.shape[1:]:
+        if self.p > 0. and self.training:
+            o = drop_connect(o, self.p)
+        if tensor.shape[1:] == o.shape[1:]:
             return tensor + drop_connect(o, self.p)
         return o
 
