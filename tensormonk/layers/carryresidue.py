@@ -757,9 +757,6 @@ class MBBlock(nn.Module):
         self.shrink = Convolution(self.depthwise.tensor_size, 1, out_channels,
                                   1, True, None, 0., normalization,
                                   pre_nm, **kwargs)
-
-        if seblock:
-            self.seblock = SEBlock(self.shrink.tensor_size, r)
         self.tensor_size = self.shrink.tensor_size
 
     def forward(self, tensor):
