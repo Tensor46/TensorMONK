@@ -55,7 +55,8 @@ class Categorical(nn.Module):
         snnl_measure (str): "euclidean"/"cosine", default = "euclidean"
         snnl_alpha (float): alpha in eq-2, default = 0.01
         snnl_temperature (float): temperature in eq-1, default = 100 per
-            appendix. When None, it is a trainable parameter.
+            appendix. When None, it is a trainable parameter with a deafult
+            temperature of 10.
         scale (float): s in aaml/angular_margin/lmcl/large_margin
             default = 10
         margin (float): m in aaml/angular_margin/lmcl/large_margin
@@ -261,7 +262,7 @@ class Categorical(nn.Module):
         return tensor.mm(self.weight.t())
 
     def cross_entropy(self, tensor: Tensor, targets: Tensor,
-                      is_reponses: bool = False) -> Tensor:
+                      is_reponses: bool = False):
         r""" Taylor softmax, and softmax/cross entropy """
         if is_reponses:
             # used by other loss functions (angular_margin/gaussian_mixture/
@@ -335,7 +336,7 @@ class Categorical(nn.Module):
         cos_theta = (cos_theta * s).view(tensor.size(0), -1)
         return self.cross_entropy(cos_theta, targets, True), (top1, top5)
 
-    def soft_nn(self, tensor: Tensor, targets: Tensor) -> Tensor:
+    def soft_nn(self, tensor: Tensor, targets: Tensor):
         r""" Soft nearest neighbor loss """
         loss, (top1, top5) = self.cross_entropy(tensor, targets)
 
@@ -377,7 +378,7 @@ class Categorical(nn.Module):
 
     @staticmethod
     def focal_loss(responses: Tensor, targets: Tensor,
-                   alpha: float, gamma: float):
+                   alpha: float, gamma: float) -> Tensor:
         # https://arxiv.org/pdf/1708.02002.pdf  ::  eq-5
         p = responses.softmax(1)
         hot_targets = one_hot(targets, responses.shape[1])
