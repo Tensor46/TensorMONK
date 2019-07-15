@@ -53,23 +53,31 @@ def xcorr_1d(tensor: torch.Tensor):
 def euclidean(tensor_a: torch.Tensor, tensor_b: torch.Tensor):
     assert tensor_a.dim() == 2 and tensor_b.dim() == 2, \
         "euclidean :: tensor_a and tensor_b must be 2D"
-    assert tensor_a.size(0) == tensor_b.size(0) and \
-        tensor_a.size(1) == tensor_b.size(1), \
+    assert tensor_a.size(1) == tensor_b.size(1), \
         "euclidean :: tensor_a and tensor_b must have same shape"
     tensor_a = tensor_a.unsqueeze(1)
     tensor_b = tensor_b.unsqueeze(0)
     return (tensor_a - tensor_b).pow(2).sum(2).pow(0.5)
 
 
+def sq_euclidean(tensor_a: torch.Tensor, tensor_b: torch.Tensor):
+    assert tensor_a.dim() == 2 and tensor_b.dim() == 2, \
+        "euclidean :: tensor_a and tensor_b must be 2D"
+    assert tensor_a.size(1) == tensor_b.size(1), \
+        "euclidean :: tensor_a and tensor_b must have same shape"
+    tensor_a = tensor_a.unsqueeze(1)
+    tensor_b = tensor_b.unsqueeze(0)
+    return (tensor_a - tensor_b).pow(2).sum(2)
+
+
 def cosine(tensor_a: torch.Tensor, tensor_b: torch.Tensor):
     assert tensor_a.dim() == 2 and tensor_b.dim() == 2, \
         "cosine :: tensor_a and tensor_b must be 2D"
-    assert tensor_a.size(0) == tensor_b.size(0) and \
-        tensor_a.size(1) == tensor_b.size(1), \
+    assert tensor_a.size(1) == tensor_b.size(1), \
         "cosine :: tensor_a and tensor_b must have same shape"
-    tensor_a = tensor_a.unsqueeze(1)
-    tensor_b = tensor_b.unsqueeze(0)
-    return (tensor_a * tensor_b).sum(2)
+    tensor_a = torch.nn.functional.normalize(tensor_a, 2, 1)
+    tensor_b = torch.nn.functional.normalize(tensor_b, 2, 1)
+    return tensor_a.mm(tensor_b.t())
 
 
 class MeasuresMeta(type):
@@ -78,6 +86,7 @@ class MeasuresMeta(type):
         self.xcorrelation = xcorr_1d
         self.cosine = cosine
         self.euclidean = euclidean
+        self.sq_euclidean = sq_euclidean
         super(MeasuresMeta, self).__init__(name, bases, dct)
 
 

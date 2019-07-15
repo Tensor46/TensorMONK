@@ -4,7 +4,7 @@ __all__ = ["ResidualOriginal", "ResidualComplex", "ResidualInverted",
            "ResidualShuffle", "ResidualNeXt",
            "SEResidualComplex", "SEResidualNeXt",
            "SimpleFire", "CarryModular", "DenseBlock",
-           "ContextNet_Bottleneck", "SeparableConvolution"]
+           "ContextNet_Bottleneck", "SeparableConvolution", "MBBlock"]
 
 import torch
 import torch.nn as nn
@@ -15,6 +15,49 @@ from ..activations import Activations
 from ..regularizations import DropOut
 from .utils import check_strides, check_residue, update_kwargs, compute_flops
 from copy import deepcopy
+import random
+
+
+def drop_connect(tensor: torch.Tensor, p: float):
+    n = tensor.size(0)
+    retain = (torch.rand(n, dtype=tensor.dtype) + 1 - p).floor()
+    if retain.sum() == 0:
+        retain[random.randint(0, n-1)] = 1
+    retain = retain.view(-1, *([1] * (tensor.dim()-1))).to(tensor.device)
+    return tensor / (1 - p) * retain
+
+
+class SEBlock(nn.Module):
+    r""" Squeeze-and-Excitation """
+    def __init__(self, tensor_size, r=16, **kwargs):
+        super(SEBlock, self).__init__()
+
+        show_msg = "x".join(["_"]+[str(x)for x in tensor_size[1:]]) + " += "
+        self.squeeze = nn.Parameter(torch.randn(
+            tensor_size[1]//r, tensor_size[1], 1, 1))
+        self.excitation = nn.Parameter(torch.randn(
+            tensor_size[1], tensor_size[1]//r, 1, 1))
+        nn.init.kaiming_uniform_(self.squeeze)
+        nn.init.kaiming_uniform_(self.excitation)
+        show_msg += "(pool -> conv({}) -> ".format(
+            "x".join(map(str, self.squeeze.shape))) + "relu -> "
+        show_msg += "conv({}) -> ".format(
+            "x".join(map(str, self.excitation.shape))) + "sigm)"
+        self.show_msg = show_msg
+        self.r = r
+        self.tensor_size = tensor_size
+
+    def forward(self, tensor):
+        se = F.avg_pool2d(tensor, tensor.shape[2:])
+        se = F.relu(F.conv2d(se, self.squeeze, None))
+        se = torch.sigmoid(F.conv2d(se, self.excitation, None))
+        return tensor * se
+
+    def flops(self):
+        return self.tensor_size[1]*self.r*2 + np.prod(self.tensor_size[1:])*2
+
+    def __repr__(self):
+        return self.show_msg
 # =========================================================================== #
 
 
@@ -25,10 +68,15 @@ class ResidualOriginal(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, **kwargs):
+                 shift=False, bias=False, dropblock=True,
+                 dropconnect=False, seblock=False, r=16, **kwargs):
 
         super(ResidualOriginal, self).__init__()
+        self.is_dropconnect = dropconnect
+        self.p = dropout
+        dropout = 0. if dropconnect else dropout
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
+
         kwgs = deepcopy(kwargs)
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
                                activation, 0., normalization, pre_nm, None,
@@ -38,7 +86,8 @@ class ResidualOriginal(nn.Module):
                                   strides, **kwargs)
         self.Block2 = Convolution(self.Block1.tensor_size, filter_size,
                                   out_channels, 1, **kwargs)
-
+        if seblock:
+            self.seblock = SEBlock(self.Block2.tensor_size, r)
         if check_residue(strides, tensor_size, out_channels):
             if not pre_nm:
                 kwargs["activation"] = ""
@@ -55,7 +104,12 @@ class ResidualOriginal(nn.Module):
             tensor = self.dropout(tensor)
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") \
             else tensor
-        tensor = self.Block2(self.Block1(tensor)) + residue
+        tensor = self.Block2(self.Block1(tensor))
+        if hasattr(self, "seblock"):
+            tensor = self.seblock(tensor)
+        if self.is_dropconnect and self.p > 0.:
+            tensor = drop_connect(tensor, self.p)
+        tensor = tensor + residue
         if hasattr(self, "activation"):
             tensor = self.activation(tensor)
         return tensor
@@ -73,8 +127,12 @@ class ResidualComplex(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, **kwargs):
+                 shift=False, bias=False, dropblock=True,
+                 dropconnect=False, seblock=False, r=16, **kwargs):
         super(ResidualComplex, self).__init__()
+        self.is_dropconnect = dropconnect
+        self.p = dropout
+        dropout = 0. if dropconnect else dropout
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
         kwgs = deepcopy(kwargs)
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
@@ -90,7 +148,8 @@ class ResidualComplex(nn.Module):
             kwargs["activation"] = ""
         self.Block3 = \
             Convolution(self.Block2.tensor_size, 1, out_channels, 1, **kwargs)
-
+        if seblock:
+            self.seblock = SEBlock(self.Block3.tensor_size, r)
         if check_residue(strides, tensor_size, out_channels):
             self.edit_residue = Convolution(tensor_size, 1, out_channels,
                                             strides, **kwargs)
@@ -105,7 +164,12 @@ class ResidualComplex(nn.Module):
             tensor = self.dropout(tensor)
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") \
             else tensor
-        tensor = self.Block3(self.Block2(self.Block1(tensor))) + residue
+        tensor = self.Block3(self.Block2(self.Block1(tensor)))
+        if hasattr(self, "seblock"):
+            tensor = self.seblock(tensor)
+        if self.is_dropconnect and self.p > 0.:
+            tensor = drop_connect(tensor, self.p)
+        tensor = tensor + residue
         if hasattr(self, "activation"):
             tensor = self.activation(tensor)
         return tensor
@@ -186,8 +250,12 @@ class ResidualNeXt(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=32, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, **kwargs):
+                 shift=False, bias=False, dropblock=True,
+                 dropconnect=False, seblock=False, r=16, **kwargs):
         super(ResidualNeXt, self).__init__()
+        self.is_dropconnect = dropconnect
+        self.p = dropout
+        dropout = 0. if dropconnect else dropout
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
 
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
@@ -200,6 +268,8 @@ class ResidualNeXt(nn.Module):
                         strides, groups=groups, **kwargs)
         self.Block3 = \
             Convolution(self.Block2.tensor_size, 1, out_channels, 1, **kwargs)
+        if seblock:
+            self.seblock = SEBlock(self.Block3.tensor_size, r)
         if check_residue(strides, tensor_size, out_channels):
             kwargs["activation"] = ""
             self.edit_residue = Convolution(tensor_size, 1, out_channels,
@@ -211,7 +281,13 @@ class ResidualNeXt(nn.Module):
             tensor = self.dropout(tensor)
         residue = self.edit_residue(tensor) if hasattr(self, "edit_residue") \
             else tensor
-        return self.Block3(self.Block2(self.Block1(tensor))) + residue
+        tensor = self.Block3(self.Block2(self.Block1(tensor)))
+        if hasattr(self, "seblock"):
+            tensor = self.seblock(tensor)
+        if self.is_dropconnect and self.p > 0.:
+            tensor = drop_connect(tensor, self.p)
+        tensor = tensor + residue
+        return tensor
 
     def flops(self):
         return compute_flops(self) + np.prod(self.tensor_size[1:])
@@ -298,14 +374,18 @@ class ResidualInverted(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, t=1, **kwargs):
+                 shift=False, bias=False, dropblock=True, t=1, t_in=False,
+                 dropconnect=False, seblock=False, r=16, **kwargs):
         super(ResidualInverted, self).__init__()
+        self.is_dropconnect = dropconnect
+        self.p = dropout
+        dropout = 0. if dropconnect else dropout
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
 
         kwargs = update_kwargs(kwargs, None, None, None, None, True,
                                activation, 0., normalization, pre_nm, None,
                                weight_nm, equalized, shift, bias)
-        channels = int(out_channels*t)
+        channels = int((tensor_size[1] if t_in else out_channels) * t)
 
         self.Block1 = Convolution(tensor_size, 1, channels, 1, **kwargs)
         self.Block2 = \
@@ -314,7 +394,8 @@ class ResidualInverted(nn.Module):
         kwargs["activation"] = ""
         self.Block3 = Convolution(self.Block2.tensor_size, 1, out_channels,
                                   1, **kwargs)
-
+        if seblock:
+            self.seblock = SEBlock(self.Block3.tensor_size, r)
         self.skip_residue = True if check_strides(strides) else False
         if not self.skip_residue and tensor_size[1] != out_channels:
             self.edit_residue = Convolution(tensor_size, 1, out_channels,
@@ -324,11 +405,15 @@ class ResidualInverted(nn.Module):
     def forward(self, tensor):
         if self.dropout is not None:  # for dropout
             tensor = self.dropout(tensor)
-        if self.skip_residue:  # For strides > 1
-            return self.Block3(self.Block2(self.Block1(tensor)))
-        residue = self.edit_residue(tensor) if hasattr(self, "edit_residue")\
-            else tensor
-        return self.Block3(self.Block2(self.Block1(tensor))) + residue
+        if not self.skip_residue:  # For strides > 1
+            residue = self.edit_residue(tensor) if \
+                hasattr(self, "edit_residue") else tensor
+        tensor = self.Block3(self.Block2(self.Block1(tensor)))
+        if hasattr(self, "seblock"):
+            tensor = self.seblock(tensor)
+        if self.is_dropconnect and self.p > 0.:
+            tensor = drop_connect(tensor, self.p)
+        return tensor if self.skip_residue else tensor + residue
 
     def flops(self):
         # residue addition
@@ -641,6 +726,50 @@ class ContextNet_Bottleneck(nn.Module):
 
     def flops(self):
         return compute_flops(self) + np.prod(self.tensor_size[1:])
+# =========================================================================== #
+
+
+class MBBlock(nn.Module):
+    r""" Support for EfficientNets - https://arxiv.org/pdf/1905.11946.pdf """
+    def __init__(self, tensor_size, filter_size, out_channels, strides=1,
+                 pad=True, activation="swish", dropout=0.,
+                 normalization="batch", pre_nm=False,
+                 expansion=1, seblock=False, r=4, **kwargs):
+        super(MBBlock, self).__init__()
+        self.p = dropout
+        channels = int(tensor_size[1] * expansion)
+
+        if expansion > 1:
+            self.expand = Convolution(tensor_size, 1, channels, 1, True,
+                                      activation, 0., normalization, pre_nm,
+                                      **kwargs)
+        t_size = self.expand.tensor_size if expansion > 1 else tensor_size
+
+        self.depthwise = Convolution(t_size, filter_size, channels, strides,
+                                     True, activation, 0., normalization,
+                                     pre_nm, groups=channels, **kwargs)
+        if seblock:
+            self.squeeze = Convolution(self.depthwise.tensor_size, 1,
+                                       tensor_size[1]//r, 1, True, activation)
+            self.excitation = Convolution(self.squeeze.tensor_size, 1,
+                                          self.depthwise.tensor_size[1], 1,
+                                          True, "sigm")
+        self.shrink = Convolution(self.depthwise.tensor_size, 1, out_channels,
+                                  1, True, None, 0., normalization,
+                                  pre_nm, **kwargs)
+        self.tensor_size = self.shrink.tensor_size
+
+    def forward(self, tensor):
+        o = self.expand(tensor) if hasattr(self, "expand") else tensor
+        o = self.depthwise(o)
+        if hasattr(self, "squeeze"):
+            o = o * self.excitation(self.squeeze(F.adaptive_avg_pool2d(o, 1)))
+        o = self.shrink(o)
+        if tensor.shape[1:] == o.shape[1:]:
+            if self.p > 0. and self.training:
+                o = drop_connect(o, self.p)
+            return tensor + o
+        return o
 
 
 # from tensormonk.layers import Convolution
@@ -699,4 +828,8 @@ class ContextNet_Bottleneck(nn.Module):
 # test = ContextNet_Bottleneck(tensor_size, 3, 128, 1)
 # test(x).size()
 # test.flops()
+# %timeit test(x).size()
+# test = MBBlock(tensor_size, 3, 64, 1, True, "swish", 0.5, seblock=True)
+# test(torch.rand(*tensor_size)).size()
+# test
 # %timeit test(x).size()
