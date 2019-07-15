@@ -765,10 +765,10 @@ class MBBlock(nn.Module):
         if hasattr(self, "squeeze"):
             o = o * self.excitation(self.squeeze(F.adaptive_avg_pool2d(o, 1)))
         o = self.shrink(o)
-        if self.p > 0. and self.training:
-            o = drop_connect(o, self.p)
         if tensor.shape[1:] == o.shape[1:]:
-            return tensor + drop_connect(o, self.p)
+            if self.p > 0. and self.training:
+                o = drop_connect(o, self.p)
+            return tensor + o
         return o
 
 
