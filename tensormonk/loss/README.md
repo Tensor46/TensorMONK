@@ -5,7 +5,8 @@
 # Examples
 # Enabling hard negative mining with additive angular margin loss
 loss_fn = tensormonk.loss.Categorical(
-    tensor_size=(1, 64), n_labels=10, loss_type="angular_margin",
+    tensor_size=(1, 64), n_labels=10,
+    loss_type="angular_margin", scale=30., margin=0.3,
     add_hard_negative=True, hard_negative_p=0.2)
 # usage
 embedding = some_network(tensor)
@@ -14,7 +15,8 @@ loss.backward()
 
 # Enabling center and focal loss for a 2 class problem with taylor softmax
 loss_fn = tensormonk.loss.Categorical(
-    tensor_size=(1, 64), n_labels=2, loss_type="taylor_smax", measure="dot",
+    tensor_size=(1, 64), n_labels=2,
+    loss_type="taylor_smax", measure="dot",
     add_center=True, center_alpha=0.01, center_scale=0.5
     add_focal=True, focal_alpha=torch.Tensor([1.]*10), focal_gamma=2.)
 ```
