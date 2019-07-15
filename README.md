@@ -46,16 +46,17 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 * [Self-Attention Generative Adversarial Networks](https://arxiv.org/pdf/1805.08318.pdf)
 
 ### Image Recognition Models
-* [Dynamic Routing Between Capsules](https://arxiv.org/pdf/1710.09829.pdf)
+* [Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf)
+* [Deep Residual Learning for Image Recognition](https://arxiv.org/pdf/1512.03385.pdf)
 * [Densely Connected Convolutional Networks](https://arxiv.org/pdf/1608.06993.pdf)
+* [Dynamic Routing Between Capsules](https://arxiv.org/pdf/1710.09829.pdf)
+* [EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks](https://arxiv.org/pdf/1905.11946.pdf)
 * [Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning](https://arxiv.org/pdf/1602.07261.pdf)
 * [MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications](https://arxiv.org/pdf/1704.04861.pdf)
 * [MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/pdf/1801.04381.pdf)
-* [Deep Residual Learning for Image Recognition](https://arxiv.org/pdf/1512.03385.pdf)
-* [Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431.pdf)
-* [Squeeze-and-Excitation Networks](https://arxiv.org/pdf/1709.01507.pdf)
 * [Shift: A Zero FLOP, Zero Parameter Alternative to Spatial Convolutions](https://arxiv.org/pdf/1711.08141.pdf)
 * [ShuffleNet: An Extremely Efficient Convolutional Neural Network for Mobile Devices](https://arxiv.org/pdf/1707.01083.pdf)
+* [Squeeze-and-Excitation Networks](https://arxiv.org/pdf/1709.01507.pdf)
 
 ### Image Segmentation Models
 * [AnatomyNet: Deep Learning for Fast and Fully Automated Whole-volume Segmentation of Head and Neck Anatomy](https://arxiv.org/pdf/1808.05238.pdf)
@@ -67,6 +68,8 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 
 ### Loss Functions
 * [AN EXPLORATION OF SOFTMAX ALTERNATIVES BELONGING TO THE SPHERICAL LOSS FAMILY](https://arxiv.org/pdf/1511.05042.pdf)
+* [Analyzing and Improving Representations with the Soft Nearest Neighbor Loss](https://arxiv.org/pdf/1902.01889.pdf)
+* [ArcFace: Additive Angular Margin Loss for Deep Face Recognition](https://arxiv.org/pdf/1801.07698.pdf)
 * [CosFace: Large Margin Cosine Loss for Deep Face Recognition](https://arxiv.org/pdf/1801.09414.pdf)
 * [Rethinking Feature Distribution for Loss Functions in Image Classification](https://arxiv.org/pdf/1803.02988.pdf)
 * [Tversky loss function for image segmentation using 3D fully convolutional deep networks](https://arxiv.org/pdf/1706.05721.pdf)
