@@ -257,8 +257,9 @@ class Categorical(nn.Module):
     def predictions(self, tensor: Tensor, measure: str = "dot") -> Tensor:
         if measure == "euclidean":
             # TODO: euclidean computation is not scalable to larger n_labels
+            # euclidean is squared euclidean for stability
             responses = (tensor.unsqueeze(1) - self.weight.unsqueeze(0))
-            return responses.pow(2).sum(2).pow(0.5)
+            return responses.pow(2).sum(2)
         elif measure == "cosine":
             self.weight.data = F.normalize(self.weight.data, p=2, dim=1)
             tensor = F.normalize(tensor, p=2, dim=1)
