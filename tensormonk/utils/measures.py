@@ -62,9 +62,9 @@ def euclidean(tensor_a: torch.Tensor, tensor_b: torch.Tensor):
 
 def sq_euclidean(tensor_a: torch.Tensor, tensor_b: torch.Tensor):
     assert tensor_a.dim() == 2 and tensor_b.dim() == 2, \
-        "euclidean :: tensor_a and tensor_b must be 2D"
+        "sq_euclidean :: tensor_a and tensor_b must be 2D"
     assert tensor_a.size(1) == tensor_b.size(1), \
-        "euclidean :: tensor_a and tensor_b must have same shape"
+        "sq_euclidean :: tensor_a and tensor_b must have same shape"
     tensor_a = tensor_a.unsqueeze(1)
     tensor_b = tensor_b.unsqueeze(0)
     return (tensor_a - tensor_b).pow(2).sum(2)
