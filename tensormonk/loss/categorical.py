@@ -231,6 +231,11 @@ class Categorical(nn.Module):
             raise TypeError("Categorical: add_hard_negative must be bool: "
                             "{}".format(type(add_hard_negative).__name__))
         self.add_hard_negative = add_hard_negative
+        if self.add_focal and self.add_hard_negative:
+            warnings.warn("Categorical: Both focal and hard negative mining "
+                          "can not be True, add_hard_negative is set to "
+                          "False")
+            self.add_hard_negative = False
         if self.add_hard_negative:
             if not isinstance(hard_negative_p, float):
                 raise TypeError("Categorical: hard_negative_p is not float")
@@ -358,15 +363,13 @@ class Categorical(nn.Module):
             loss = loss + self.snnl_alpha * snnl  # eq - 2
         return loss, (top1, top5)
 
-    @staticmethod
-    def hard_negative_mining(responses: Tensor, targets: Tensor,
-                             hard_negative_p: float):
+    def hard_negative_mining(self, responses: Tensor, targets: Tensor):
         # get class probabilities and find n hard negatives
         n_labels = responses.shape[1]
         p = responses.softmax(1)
         hot_targets = one_hot(targets, n_labels)
         p[hot_targets.byte()] = 0
-        n = int(n_labels * hard_negative_p)
+        n = int(n_labels * self.hard_negative_p)
         hard_negatives = torch.argsort(p.detach(), dim=1)[:, -n:]
         # actual class prediction and n hard_negatives are computed
         new_responses = torch.cat(
