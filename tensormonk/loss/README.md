@@ -1,5 +1,25 @@
 ### Loss Functions
 * [CapsuleLoss](https://arxiv.org/pdf/1710.09829.pdf)
+```python
+# Example
+# Capsule loss -- assuming, the output of routing capsule is of size nx10x32,
+# where n is batch size, 10 is number of labels, and 32 is the features from a
+# capsule
+loss_fn = tensormonk.loss.CapsuleLoss(n_labels=10)
+# ex: values
+routing_features = torch.rand(4, 10, 32)
+targets = torch.Tensor([4, 6, 4, 6]).long()
+# usage
+loss, (top1, top5) = loss_fn(routing_features, targets)
+loss.backward()
+
+# Enabling center and focal loss for a 2 class problem with taylor softmax
+loss_fn = tensormonk.loss.Categorical(
+    tensor_size=(1, 64), n_labels=2,
+    loss_type="taylor_smax", measure="dot",
+    add_center=True, center_alpha=0.01, center_scale=0.5
+    add_focal=True, focal_alpha=torch.Tensor([1.]*2), focal_gamma=2.)
+```
 * Categorical: Cross entropy / [taylor softmax](https://arxiv.org/pdf/1511.05042.pdf) / [additive angular margin loss](https://arxiv.org/pdf/1801.07698.pdf)[large margin cosine loss](https://arxiv.org/pdf/1801.09414.pdf) / [large-margin Gaussian Mixture](https://arxiv.org/pdf/1803.02988.pdf) / [soft nearest neighbor loss](https://arxiv.org/pdf/1902.01889.pdf)
 ```python
 # Examples
@@ -24,7 +44,7 @@ loss_fn = tensormonk.loss.Categorical(
 * [MultiBoxLoss](https://arxiv.org/pdf/1512.02325.pdf): Single Shot MultiBox Detector (SSD) loss function
 ```python
 # Example
-# Using multi-box loss for SSD of input size 320x320
+# Using multi-box loss for input of size 300x300 (SSD300)
 from tensormonk.utils import SSDUtils
 from tensormonk.loss import MultiBoxLoss
 
