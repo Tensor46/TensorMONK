@@ -16,63 +16,72 @@ class Categorical(nn.Module):
     categorical responses.
 
     Args:
-        tensor_size (int/list/tuple): shape of tensor in
-            (None/any integer >0, channels, height, width) or
-            (None/any integer >0, in_features) or in_features
-        n_labels (int): number of labels
-        loss_type (str): loss function, options = entr/smax/tsmax/lmcl,
-            default = entr
-            entr/smax             :: log_softmax + negative log likelihood
-            tsmax/taylor_smax     :: taylor series + log_softmax + negative log
-                                     likelihood
-                https://arxiv.org/pdf/1511.05042.pdf
-            aaml/angular_margin   :: additive angular margin loss (ArcFace)
-                https://arxiv.org/pdf/1801.07698.pdf  eq-3
-            lmcl/large_margin     :: large margin cosine loss (CosFace)
-                https://arxiv.org/pdf/1801.09414.pdf  eq-4
-            lmgm/gaussian_mixture :: large margin gaussian mixture loss
+        tensor_size (int/list/tuple, required)
+            Shape of tensor in (None/any integer >0, channels, height, width)
+            or (None/any integer >0, in_features) or in_features
+        n_labels (int, required)
+            Number of labels
+        loss_type (str, default="entr")
+            "entr" / "smax"
+                log_softmax + negative log likelihood
+            "tsmax" / "taylor_smax"
+                taylor series + log_softmax + negative log likelihood
+                (https://arxiv.org/pdf/1511.05042.pdf)
+            "aaml" / "angular_margin"
+                additive angular margin loss (ArcFace)
+                (https://arxiv.org/pdf/1801.07698.pdf  eq-3)
+            "lmcl" / "large_margin"
+                large margin cosine loss (CosFace)
+                (https://arxiv.org/pdf/1801.09414.pdf  eq-4)
+            "lmgm" / "gaussian_mixture"
+                large margin gaussian mixture loss
                 https://arxiv.org/pdf/1803.02988.pdf  eq-17
-            snnl                  :: soft nearest neighbor loss
+            "snnl"
+                soft nearest neighbor loss
                 https://arxiv.org/pdf/1902.01889.pdf  eq-1
-        measure (str): cosine/dot/euclidean, default = dot
-            aaml/angular_margin & lmcl/large_margin only use cosine.
-            lmgm/gaussian_mixture must have cosine/euclidean.
-        add_center (bool): adds center loss to final loss
+        measure (str, default="dot")
+            Options = "cosine" / "dot" / "euclidean". Large angular margin/
+            large margin cosine loss only use cosine. Gaussian mixture loss
+            only use "cosine" / "euclidean".
+        add_center (bool, default=False)
+            Adds center loss to final loss -
             https://ydwen.github.io/papers/WenECCV16.pdf
-        center_alpha (float): alpha for center loss, default = 0.01
-        center_scale (float): scale for center loss, default = 0.5
-        add_focal (bool): enables focal loss
-            https://arxiv.org/pdf/1708.02002.pdf
-        focal_alpha (float/Tensor): alpha for focal loss, default = 0.5
-            Actual focal loss implementation requires alpha as a tensor of
-            length n_labels that contains class imbalance.
-        focal_gamma (float): gamma for focal loss, default = 2.
-        add_hard_negative (bool): enables hard negative mining
-        hard_negative_p (float): probability of hard negatives retained,
-            default = 0.2.
-        lmgm_alpha (float): alpha in eq-17, default = 0.01
-        lmgm_coefficient (float): lambda in eq-17, default = 0.1
-        snnl_measure (str): "euclidean"/"cosine", default = "euclidean"
-        snnl_alpha (float): alpha in eq-2, default = 0.01
-        snnl_temperature (float): temperature in eq-1, default = 100 per
-            appendix. When None, it is a trainable parameter with a deafult
-            temperature of 10.
-        scale (float): s in aaml/angular_margin/lmcl/large_margin
-            default = 10
-        margin (float): m in aaml/angular_margin/lmcl/large_margin
-            default = 0.3
+        center_alpha (float, default = 0.01)
+            Alpha for center loss.
+        center_scale (float, default=0.5)
+            Scale for center loss.
+        add_focal (bool, default=False)
+            Enables focal loss - https://arxiv.org/pdf/1708.02002.pdf
+        focal_alpha (float/Tensor, default=0.5)
+            Alpha for focal loss. Actual focal loss implementation requires
+            alpha as a tensor of length n_labels that contains class imbalance.
+        focal_gamma (float, default=2)
+            Gamma for focal loss, default = 2.
+        add_hard_negative (bool, default=False)
+            Enables hard negative mining
+        hard_negative_p (float, default=0.2)
+            Probability of hard negatives retained.
+        lmgm_alpha (float, default=0.01)
+            Alpha in eq-17.
+        lmgm_coefficient (float, default=0.1)
+            lambda in eq-17
+        snnl_measure (str, default="euclidean")
+            Squared euclidean or cosine, when cosine the score are subtracted
+            by 1
+        snnl_alpha (float, default=0.01)
+            Alpha in eq-2, hyper-parameter multiplied to soft nearest nieghbor
+            loss before adding to cross entropy
+        snnl_temperature (float, default=100)
+            Temperature in eq-1. When None, it is a trainable parameter with a
+            deafult temperature of 10.
+        scale (float, default=10)
+            scale, s, for large angular margin/large margin cosine loss
+        margin (float, default=0.3)
+            margin, m, for large angular margin/large margin cosine loss
 
     Return:
         loss, (top1, top5)
     """
-
-    METHODS = ("entr", "smax",
-               "tsmax", "taylor_smax",
-               "aaml", "angular_margin",
-               "lmcl", "large_margin",
-               "lmgm", "gaussian_mixture",
-               "snnl", "soft_nn")
-    MEASURES = ("cosine", "dot", "euclidean")
 
     def __init__(self,
                  tensor_size: tuple,
@@ -97,6 +106,14 @@ class Categorical(nn.Module):
                  **kwargs):
         super(Categorical, self).__init__()
 
+        METHODS = ("entr", "smax",
+                   "tsmax", "taylor_smax",
+                   "aaml", "angular_margin",
+                   "lmcl", "large_margin",
+                   "lmgm", "gaussian_mixture",
+                   "snnl", "soft_nn")
+        MEASURES = ("cosine", "dot", "euclidean")
+
         # Checks
         n_embedding = compute_n_embedding(tensor_size)
         if not isinstance(n_labels, int):
@@ -111,17 +128,17 @@ class Categorical(nn.Module):
             raise TypeError("Categorical: loss_type must be str: "
                             "{}".format(type(loss_type).__name__))
         self.loss_type = loss_type.lower()
-        if self.loss_type not in Categorical.METHODS:
+        if self.loss_type not in METHODS:
             raise ValueError("Categorical :: loss_type != " +
-                             "/".join(Categorical.METHODS) +
+                             "/".join(METHODS) +
                              "{}".format(self.loss_type))
         if not isinstance(measure, str):
             raise TypeError("Categorical: measure must be str: "
                             "{}".format(type(measure).__name__))
         self.measure = measure.lower()
-        if self.measure not in Categorical.MEASURES:
+        if self.measure not in MEASURES:
             raise ValueError("Categorical: measure != " +
-                             "/".join(Categorical.MEASURES) +
+                             "/".join(MEASURES) +
                              "{}".format(self.measure))
 
         # loss function
@@ -312,7 +329,7 @@ class Categorical(nn.Module):
         return self.cross_entropy(cos_theta, targets, True), (top1, top5)
 
     def gaussian_mixture(self, tensor: Tensor, targets: Tensor):
-        r""" Large margin gaussian mixture or lmgm """
+        """ Large margin gaussian mixture or lmgm """
         # TODO euclidean computation is not scalable to larger n_labels
         # mahalanobis with identity covariance per paper = squared
         # euclidean -- does euclidean for stability
