@@ -51,20 +51,14 @@ def xcorr_1d(tensor: torch.Tensor):
 
 
 def euclidean(tensor_a: torch.Tensor, tensor_b: torch.Tensor):
-    assert tensor_a.dim() == 2 and tensor_b.dim() == 2, \
-        "euclidean :: tensor_a and tensor_b must be 2D"
-    assert tensor_a.size(1) == tensor_b.size(1), \
-        "euclidean :: tensor_a and tensor_b must have same shape"
-    tensor_a = tensor_a.unsqueeze(1)
-    tensor_b = tensor_b.unsqueeze(0)
-    return (tensor_a - tensor_b).pow(2).sum(2).pow(0.5)
+    return sq_euclidean(tensor_a, tensor_b).pow(0.5)
 
 
 def sq_euclidean(tensor_a: torch.Tensor, tensor_b: torch.Tensor):
     assert tensor_a.dim() == 2 and tensor_b.dim() == 2, \
-        "sq_euclidean :: tensor_a and tensor_b must be 2D"
+        "euclidean/sq_euclidean :: tensor_a and tensor_b must be 2D"
     assert tensor_a.size(1) == tensor_b.size(1), \
-        "sq_euclidean :: tensor_a and tensor_b must have same shape"
+        "euclidean/sq_euclidean :: tensor_a and tensor_b must have same shape"
     tensor_a = tensor_a.unsqueeze(1)
     tensor_b = tensor_b.unsqueeze(0)
     return (tensor_a - tensor_b).pow(2).sum(2)
