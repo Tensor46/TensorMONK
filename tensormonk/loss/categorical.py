@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch.autograd.function import Function
-from .utils import compute_n_embedding, compute_top15, one_hot, one_hot_idx
+from .utils import compute_n_embedding, compute_top15, one_hot_idx
 from ..utils import Measures
 import warnings
 
@@ -300,8 +300,7 @@ class Categorical(nn.Module):
                 responses = 1 + responses + 0.5*(responses**2)
 
         if self.add_hard_negative:
-            responses, targets = self.hard_negative_mining(
-                responses, targets, self.hard_negative_p)
+            responses, targets = self.hard_negative_mining(responses, targets)
 
         if self.add_focal:
             """ The loss function is a dynamically scaled cross entropy loss,
@@ -383,16 +382,18 @@ class Categorical(nn.Module):
 
     def hard_negative_mining(self, responses: Tensor, targets: Tensor):
         # get class probabilities and find n hard negatives
-        n_labels = responses.shape[1]
         p = responses.softmax(1)
-        hot_targets = one_hot(targets, n_labels)
-        p[hot_targets.byte()] = 0
-        n = int(n_labels * self.hard_negative_p)
+        # zero out the genuine to find hard negatives
+        genuine_idx = one_hot_idx(targets, self.n_labels)
+        p = p.view(-1).contiguous()
+        p[genuine_idx] = 0
+        p = p.view(-1, self.n_labels)
+        n = max(1, int(self.n_labels * self.hard_negative_p))
         hard_negatives = torch.argsort(p.detach(), dim=1)[:, -n:]
         # actual class prediction and n hard_negatives are computed
         new_responses = torch.cat(
-            (responses[hot_targets.byte()].unsqueeze(1),
-             responses.gather(1, hard_negatives)), 1)
+            (responses.gather(1, targets.view(-1, 1)),
+             responses.gather(1, hard_negatives.view(-1, n))), 1)
         # the new target is always zero given the above concatenate
         new_targets = targets.mul(0)
         return new_responses, new_targets
@@ -401,9 +402,18 @@ class Categorical(nn.Module):
     def focal_loss(responses: Tensor, targets: Tensor,
                    alpha: float, gamma: float) -> Tensor:
         # https://arxiv.org/pdf/1708.02002.pdf  ::  eq-5
+        n, n_labels = responses.shape
         p = responses.softmax(1)
-        hot_targets = one_hot(targets, responses.shape[1])
-        pt = p * hot_targets + (1 - p) * (1 - hot_targets)
+        # hot_targets = one_hot(targets, responses.shape[1])
+        # pt = p * hot_targets + (1 - p) * (1 - hot_targets)
+        # zero out the genuine to find hard negatives
+        genuine_idx = one_hot_idx(targets, n_labels)
+        p = p.view(-1)
+        pt_1st_term = p.mul(0)
+        pt_1st_term[genuine_idx] = p[genuine_idx]
+        pt_2nd_term = 1 - p
+        pt_2nd_term[genuine_idx] = 0
+        pt = pt_1st_term.view(n, -1) + pt_2nd_term.view(n, -1)
         if isinstance(alpha, Tensor):
             # alpha is Tensor with per label balance
             alpha = alpha.view(1, -1)
