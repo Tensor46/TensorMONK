@@ -13,14 +13,14 @@ class Meter(object):
         self.values = []
         self.ndigits = ndigits
 
-    def update(self, current: torch.Tensor):
+    def update(self, current: torch.Tensor) -> None:
         if isinstance(current, torch.Tensor):
             current = float(current.detach().mean().cpu().numpy())
             current = round(current, self.ndigits)
         self.values.append(current)
         return
 
-    def average(self, n: int = 1000):
+    def average(self, n: int = 1000) -> float:
         if len(self.values) == -1:
             if len(self.values) == 0:
                 avg = 0.
@@ -40,17 +40,17 @@ class Meter(object):
 
 
 class AverageMeter(object):
-    def __init__(self, ndigits=2):
+    def __init__(self, ndigits: int = 2):
         self.value = 0
         self.n = 0
         self.ndigits = ndigits
 
-    def update(self, current):
+    def update(self, current: float) -> None:
         self.value += current
         self.n += 1
         return
 
-    def average(self):
+    def average(self) -> float:
         if self.n == 0:
             return 0.
         return round(self.value / self.n, self.ndigits)
@@ -61,7 +61,7 @@ class AverageMeter(object):
 
 
 class AccuracyMeter(object):
-    def __init__(self, ndigits=2):
+    def __init__(self, ndigits: int = 2):
         self.correct = 0
         self.total = 0
         self.top1 = AverageMeter()
@@ -80,18 +80,18 @@ class AccuracyMeter(object):
         self.total += targets.numel()
         return
 
-    def top15(self):
+    def top15(self) -> (float, float):
         if self.total == 0:
             return 0., 0.
         return round(self.top1.average() * 100., self.ndigits), \
             round(self.top5.average() * 100., self.ndigits)
 
-    def accuracy(self):
+    def accuracy(self) -> float:
         if self.total == 0:
             return 0.
         return round(100. * self.correct / self.total, self.ndigits)
 
-    def error(self):
+    def error(self) -> float:
         if self.total == 0:
             return 100.
         return round(100. - self.accuracy(), self.ndigits)
