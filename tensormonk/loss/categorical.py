@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch.autograd.function import Function
+from .center_function import CenterFunction
 from .utils import compute_n_embedding, compute_top15, one_hot_idx
 from ..utils import Measures
 import warnings
@@ -14,7 +14,6 @@ import warnings
 class Categorical(nn.Module):
     r""" Categorical with weight's to convert embedding to n_labels
     categorical responses.
-
     Args:
         tensor_size (int/list/tuple, required)
             Shape of tensor in (None/any integer >0, channels, height, width)
@@ -131,7 +130,7 @@ class Categorical(nn.Module):
         if self.loss_type not in METHODS:
             raise ValueError("Categorical :: loss_type != " +
                              "/".join(METHODS) +
-                             "{}".format(self.loss_type))
+                             " : {}".format(self.loss_type))
         if not isinstance(measure, str):
             raise TypeError("Categorical: measure must be str: "
                             "{}".format(type(measure).__name__))
@@ -143,7 +142,7 @@ class Categorical(nn.Module):
 
         # loss function
         if self.loss_type in ("entr", "smax", "tsmax", "taylor_smax"):
-            self.loss_function = self.cross_entropy
+            self.loss_function = self._cross_entropy
         elif self.loss_type in ("aaml", "angular_margin"):
             if not isinstance(scale, (int, float)):
                 raise TypeError("Categorical: scale for aaml/angular_margin "
@@ -153,7 +152,7 @@ class Categorical(nn.Module):
                                 "must be float")
             self.scale = scale
             self.margin = margin
-            self.loss_function = self.angular_margin
+            self.loss_function = self._angular_margin
         elif self.loss_type in ("lmgm", "gaussian_mixture"):
             if not (isinstance(lmgm_alpha, float) and
                     isinstance(lmgm_coefficient, float)):
@@ -165,7 +164,7 @@ class Categorical(nn.Module):
                                      "cosine/euclidean for loss_type=lmgm")
             self.lmgm_alpha = lmgm_alpha
             self.lmgm_coefficient = lmgm_coefficient
-            self.loss_function = self.gaussian_mixture
+            self.loss_function = self._gaussian_mixture
         elif self.loss_type in ("lmcl", "large_margin"):
             if not isinstance(scale, (int, float)):
                 raise TypeError("Categorical: scale for lmcl/large_margin "
@@ -175,7 +174,7 @@ class Categorical(nn.Module):
                                 "must be float")
             self.scale = scale
             self.margin = margin
-            self.loss_function = self.large_margin
+            self.loss_function = self._large_margin
         elif self.loss_type in ("snnl", "soft_nn"):
             self.snnl_measure = snnl_measure.lower()
             if not isinstance(self.snnl_measure, str):
@@ -194,7 +193,7 @@ class Categorical(nn.Module):
                 self.temperature = snnl_temperature
             self.snnl_measure = snnl_measure
             self.snnl_alpha = snnl_alpha
-            self.loss_function = self.soft_nn
+            self.loss_function = self._soft_nn
         self.weight = nn.Parameter(
             F.normalize(torch.randn(n_labels, n_embedding), 2, 1))
 
@@ -271,28 +270,25 @@ class Categorical(nn.Module):
             loss = loss + center_loss
         return loss, (top1, top5)
 
-    def predictions(self, tensor: Tensor, measure: str = "dot") -> Tensor:
+    def _predictions(self, tensor: Tensor, measure: str = "dot") -> Tensor:
         if measure == "euclidean":
             # TODO: euclidean computation is not scalable to larger n_labels
             # euclidean is squared euclidean for stability
-            responses = (tensor.unsqueeze(1) - self.weight.unsqueeze(0))
-            return responses.pow(2).sum(2)
+            return Measures.sqr_euclidean_pairwise(tensor, self.weight)
         elif measure == "cosine":
-            self.weight.data = F.normalize(self.weight.data, p=2, dim=1)
-            tensor = F.normalize(tensor, p=2, dim=1)
-            return tensor.mm(self.weight.t()).clamp(-1., 1.)
+            return Measures.cosine_pairwise(tensor, self.weight)
         # default is "dot" product
         return tensor.mm(self.weight.t())
 
-    def cross_entropy(self, tensor: Tensor, targets: Tensor,
-                      is_reponses: bool = False):
+    def _cross_entropy(self, tensor: Tensor, targets: Tensor,
+                       is_reponses: bool = False):
         r""" Taylor softmax, and softmax/cross entropy """
         if is_reponses:
             # used by other loss functions (angular_margin/gaussian_mixture/
             # large_margin)
             responses = tensor
         else:
-            responses = self.predictions(tensor, self.measure)
+            responses = self._predictions(tensor, self.measure)
             if self.measure == "euclidean":
                 responses.neg_()
             (top1, top5) = compute_top15(responses.data, targets.data)
@@ -300,23 +296,22 @@ class Categorical(nn.Module):
                 responses = 1 + responses + 0.5*(responses**2)
 
         if self.add_hard_negative:
-            responses, targets = self.hard_negative_mining(responses, targets)
+            responses, targets = self._hard_negative_mining(responses, targets)
 
         if self.add_focal:
             """ The loss function is a dynamically scaled cross entropy loss,
             where the scaling factor decays to zero as confidence in the
             correct class increases. """
-            loss = self.focal_loss(responses, targets, self.focal_alpha,
-                                   self.focal_gamma)
+            loss = self._focal_loss(responses, targets)
         else:
             loss = F.nll_loss(responses.log_softmax(1), targets)
         if is_reponses:
             return loss
         return loss, (top1, top5)
 
-    def angular_margin(self, tensor: Tensor, targets: Tensor):
+    def _angular_margin(self, tensor: Tensor, targets: Tensor):
         r""" Additive angular margin loss or ArcFace """
-        cos_theta = self.predictions(tensor, "cosine")
+        cos_theta = self._predictions(tensor, "cosine")
         (top1, top5) = compute_top15(cos_theta.data, targets.data)
 
         m, s = min(0.5, self.margin), max(self.scale, 2.)
@@ -325,15 +320,15 @@ class Categorical(nn.Module):
         cos_theta[true_idx] = cos_theta[true_idx].mul(math.cos(m)) - \
             cos_theta[true_idx].pow(2).neg().add(1).pow(0.5).mul(math.sin(m))
         cos_theta = (cos_theta * s).view(tensor.size(0), -1)
-        return self.cross_entropy(cos_theta, targets, True), (top1, top5)
+        return self._cross_entropy(cos_theta, targets, True), (top1, top5)
 
-    def gaussian_mixture(self, tensor: Tensor, targets: Tensor):
+    def _gaussian_mixture(self, tensor: Tensor, targets: Tensor):
         """ Large margin gaussian mixture or lmgm """
         # TODO euclidean computation is not scalable to larger n_labels
         # mahalanobis with identity covariance per paper = squared
         # euclidean -- does euclidean for stability
         # Switch to measure="cosine" if you have out of memory issues
-        responses = self.predictions(tensor, self.measure)
+        responses = self._predictions(tensor, self.measure)
         if self.measure != "euclidean":  # invert when not euclidean
             responses.neg_().add_(1)
         (top1, top5) = compute_top15(responses.data.neg(), targets.data)
@@ -342,13 +337,13 @@ class Categorical(nn.Module):
         responses = responses.view(-1)
         loss = self.lmgm_coefficient * (responses[true_idx]).mean()
         responses[true_idx] = responses[true_idx] * (1 + self.lmgm_alpha)
-        loss = loss + self.cross_entropy(-responses.view(tensor.size(0), -1),
-                                         targets, True)
+        loss = loss + self._cross_entropy(-responses.view(tensor.size(0), -1),
+                                          targets, True)
         return loss, (top1, top5)
 
-    def large_margin(self, tensor: Tensor, targets: Tensor):
+    def _large_margin(self, tensor: Tensor, targets: Tensor):
         r""" Large margin cosine loss or CosFace """
-        cos_theta = self.predictions(tensor, "cosine")
+        cos_theta = self._predictions(tensor, "cosine")
         (top1, top5) = compute_top15(cos_theta.data, targets.data)
 
         m, s = min(0.5, self.margin), max(self.scale, 2.)
@@ -356,31 +351,30 @@ class Categorical(nn.Module):
         cos_theta = cos_theta.view(-1)
         cos_theta[true_idx] = cos_theta[true_idx] - m
         cos_theta = (cos_theta * s).view(tensor.size(0), -1)
-        return self.cross_entropy(cos_theta, targets, True), (top1, top5)
+        return self._cross_entropy(cos_theta, targets, True), (top1, top5)
 
-    def soft_nn(self, tensor: Tensor, targets: Tensor):
+    def _soft_nn(self, tensor: Tensor, targets: Tensor):
         r""" Soft nearest neighbor loss """
-        loss, (top1, top5) = self.cross_entropy(tensor, targets)
+        loss, (top1, top5) = self._cross_entropy(tensor, targets)
 
         # soft nearest -- requires multiple samples per label in a batch
-        same_class = targets.data.view(-1, 1).eq(targets.data.view(1, -1))
+        same_label = targets.data.view(-1, 1).eq(targets.data.view(1, -1))
         valid = torch.eye(targets.numel()).to(targets.device).eq(0)
-        if any((same_class * valid).sum(1)):
+        if any((same_label * valid).sum(1)):
             # soft nearest neighbor loss is valid
             if self.snnl_measure == "cosine":
-                distance = 1 - Measures.cosine(tensor, tensor)
+                distance = 1 - Measures.cosine_pairwise(tensor, tensor)
             else:
-                distance = Measures.sq_euclidean(tensor, tensor)
-            num = distance * (same_class * valid).to(distance.dtype).detach()
+                distance = Measures.sqr_euclidean_pairwise(tensor, tensor)
+            num = distance * (same_label * valid).to(distance.dtype).detach()
             num = (num).div(self.temperature).neg().exp().sum(1)
             den = distance * valid.to(distance.dtype).detach()
             den = (den).div(self.temperature).neg().exp().sum(1)
             snnl = (num / den.add(1e-6)).log().mean()  # eq - 1
-            # print(loss.data.item(), snnl.data.item())
             loss = loss + self.snnl_alpha * snnl  # eq - 2
         return loss, (top1, top5)
 
-    def hard_negative_mining(self, responses: Tensor, targets: Tensor):
+    def _hard_negative_mining(self, responses: Tensor, targets: Tensor):
         # get class probabilities and find n hard negatives
         p = responses.softmax(1)
         # zero out the genuine to find hard negatives
@@ -398,9 +392,7 @@ class Categorical(nn.Module):
         new_targets = targets.mul(0)
         return new_responses, new_targets
 
-    @staticmethod
-    def focal_loss(responses: Tensor, targets: Tensor,
-                   alpha: float, gamma: float) -> Tensor:
+    def _focal_loss(self, responses: Tensor, targets: Tensor) -> Tensor:
         # https://arxiv.org/pdf/1708.02002.pdf  ::  eq-5
         n, n_labels = responses.shape
         p = responses.softmax(1)
@@ -414,42 +406,18 @@ class Categorical(nn.Module):
         pt_2nd_term = 1 - p
         pt_2nd_term[genuine_idx] = 0
         pt = pt_1st_term.view(n, -1) + pt_2nd_term.view(n, -1)
-        if isinstance(alpha, Tensor):
+        if isinstance(self.focal_alpha, Tensor):
             # alpha is Tensor with per label balance
-            alpha = alpha.view(1, -1)
-            return (- alpha * (1-pt).pow(gamma) * pt.log()).sum(1).mean()
-        return (- alpha * (1-pt).pow(gamma) * pt.log()).sum(1).mean()
-
-
-class CenterFunction(Function):
-
-    @staticmethod
-    def forward(ctx, tensor, targets, centers, alpha, scale):
-        ctx.save_for_backward(tensor, targets, centers, alpha, scale)
-        target_centers = centers.index_select(0, targets)
-        return scale / 2 * (tensor - target_centers).pow(2).sum(1).mean()
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        tensor, targets, centers, alpha, scale = ctx.saved_variables
-        targets = targets.long()
-        n = targets.size(0)
-        grad_centers = torch.zeros(centers.size()).to(tensor.device)
-        delta = centers.index_select(0, targets) - tensor
-        counter = torch.histc(targets.float(), bins=centers.shape[1], min=0,
-                              max=centers.shape[1]-1)
-        grad_centers.scatter_add_(0, targets.view(-1, 1).expand(tensor.size()),
-                                  delta)
-        idx = counter.nonzero().view(-1)
-        grad_centers[idx] = grad_centers[idx] / counter[idx].unsqueeze(1)
-        grad_centers.mul_(alpha)
-        grad_tensor = - grad_output * delta / n
-        return grad_tensor, None, grad_centers, None, None
+            return (- self.focal_alpha.view(1, -1) *
+                    (1-pt).pow(self.focal_gamma) * pt.log()).sum(1).mean()
+        return (- self.focal_alpha * (1-pt).pow(self.focal_gamma) *
+                pt.log()).sum(1).mean()
 
 
 # from tensormonk.loss.utils import (compute_n_embedding, compute_top15,
 #                                    one_hot, one_hot_idx)
 # from tensormonk.utils import Measures
+# from tensormonk.loss.center_function import CenterFunction
 # tensor = torch.rand(3, 256)
 # test = Categorical(256, 10, "smax", add_center=True)
 # targets = torch.tensor([1, 3, 6])
