@@ -13,16 +13,17 @@ class PillowUtils:
 
     @staticmethod
     def to_pil(image, t_size: tuple = None, ltrb_boxes: np.ndarray = None):
-        """
-        Converts file_name or np.ndarray or 3D torch.Tensor to pillow image.
+        r"""Converts file_name or ndarray or 3D torch.Tensor to pillow image.
         Adjusts the ltrb_boxes when ltrb_boxes are provided along with t_size.
 
         Args:
-            image ({str/np.ndarray/torch.Tensor}): input
-            t_size (tuple, optional): BCHW (Ex: (None, 3, 60, 60)) used to
-                convert to grey scale or resize
-            ltrb_boxes (np.ndarray, optional): Must be pixel locations in
-                (left, top, right, bottom).
+            image (str/np.ndarray/torch.Tensor):
+                input
+            t_size (tuple, optional)
+                BCHW (Ex: (None, 3, 60, 60)) used to convert to grey scale or
+                resize
+            ltrb_boxes (np.ndarray, optional)
+                Must be pixel locations in (left, top, right, bottom).
         """
         if ImPIL.isImageType(image):
             o = image
@@ -52,9 +53,8 @@ class PillowUtils:
                    ltrb_boxes: np.ndarray = None,
                    points: np.ndarray = None,
                    pad: float = 0.36, fill: int = 0):
-        """
-        Does random padding with fill value. When ltrb_boxes is not None, the
-        locations are adjusted to new image.
+        r"""Does random padding with fill value. When ltrb_boxes and/or points
+        are not None, the boxes and/or points are adjusted to new image.
 
         Args:
             image ({str/np.ndarray/torch.Tensor}): input
@@ -137,10 +137,9 @@ class PillowUtils:
                            ignore_intersection: tuple = (0.5, 0.9),
                            aspect_ratio_bounds: tuple = (0.5, 2)):
 
-        """
-        Does random crop and adjusts the boxes while maintaining mimimum box
-        size! When points (xy locations within a bounding box) are provided,
-        adjusts them as well!
+        r"""Does random crop and adjusts the boxes while maintaining minimum
+        box size. When not None, the points (xy locations within a bounding
+        box) are adjusted.
 
         Args:
             image (pil-image): pillow input image
@@ -165,14 +164,10 @@ class PillowUtils:
         ** requires some speed-up
         """
         valid_points = None
-
-        # maintains min box side
-        min_box_side = 30
-        # ignore's boxes within this range
-        ignore_intersection = (0.5, 0.9)
-        # aspect ratio's allowed on image
-        aspect_ratio_bounds = (0.5, 2)
-
+        # filter boxes with negative width -- not usual but a safe check
+        _valid = np.stack((ltrb[:, 2] - ltrb[:, 0], ltrb[:, 3] - ltrb[:, 1]))
+        _valid = _valid.min(0) > 2
+        labels, ltrb, points = labels[_valid], ltrb[_valid], points[_valid]
         w, h = image.size
         # minimum ltrb side on actual image
         mbox = min((ltrb[:, 3] - ltrb[:, 1]).min(),
@@ -180,6 +175,8 @@ class PillowUtils:
         # min & max possible crop size to maintain min_box_side
         mincw = int(mbox*1.1)
         maxcw = int(min(mincw * min(osize) / min_box_side, min(w, h)))
+        if mincw > maxcw:
+            mincw = maxcw - 1
         # random width and height given all the above conditions
         nw = random.randint(mincw, maxcw)
         nh = random.randint(int(nw*aspect_ratio_bounds[0]),
@@ -266,7 +263,7 @@ class PillowUtils:
                     points: np.ndarray = None,
                     probability: float = 0.75,
                     vertical_flip: bool = True):
-        """ Does random flip and adjusts the boxes & points when not None!
+        r"""Does random flip and adjusts the boxes & points when not None.
 
         Args:
             image (pil-image): pillow input image
@@ -311,8 +308,8 @@ class PillowUtils:
                       points: np.ndarray = None,
                       probability: float = 0.5,
                       vertical_flip: bool = True):
-        """ Does random 90/-90 rotation and adjusts the boxes & points when not
-            None!
+        r"""Does random 90/-90 rotation and adjusts the boxes & points when not
+        None!
 
         Args:
             image (pil-image): pillow input image
@@ -356,13 +353,14 @@ class PillowUtils:
         return image, ltrb_boxes, points
 
     @staticmethod
-    def annotate_boxes(image, ltrb_boxes, text: list = None,
-                       points: list = None):
-        """ Annotates the boxes for visualization!
+    def annotate_boxes(image, ltrb_boxes, points: list = None,
+                       text: list = None):
+        r"""Annotates the boxes and points for visualization.
 
         Args:
             image ({pillow image, 3D torch.Tensor}): input image to annotate
             ltrb_boxes ({2D torch.Tensor/np.ndarray}): annotation boxes
+            points ({2D torch.Tensor/np.ndarray}): annotation points
             text (list): a list of strings to label
 
         Return:
@@ -372,12 +370,14 @@ class PillowUtils:
             image = PillowUtils.tensor_to_pil(image)
         if isinstance(ltrb_boxes, torch.Tensor):
             ltrb_boxes = ltrb_boxes.data.cpu().numpy()
+        if isinstance(points, torch.Tensor):
+            points = points.data.cpu().numpy()
 
         _show = image.copy()
         boxes = ltrb_boxes.copy()
         if points is not None:
             points = points.copy()
-        if boxes.max() <= 1:
+        if boxes.max() <= 2:
             # convert normalized ltrb_boxes to pixel locations
             boxes[:, 0::2] *= image.size[0]
             boxes[:, 1::2] *= image.size[1]
@@ -394,17 +394,17 @@ class PillowUtils:
         draw = ImageDraw.Draw(_show)
         for i, x in enumerate(boxes.astype(np.int64)):
             draw.rectangle((tuple(x[:2].tolist()), tuple(x[2:].tolist())),
-                           outline=(0, 255, 0))
+                           outline="#F1C40F")
             if text is not None:
                 if isinstance(text[i], str):
                     draw.text(tuple((x[:2]).tolist()), text[i],
-                              fill=(255, 0, 0))
+                              fill="#E74C3C")
         if points is not None:
             r = 2
-            for pt in points:
+            for pt in points.reshape(-1, 2).astype(np.int64):
                 x, y = pt[0], pt[1]
                 draw.ellipse((int(x)-r, int(y)-r, int(x)+r, int(y)+r),
-                             fill="#2EFF00")
+                             fill="#00FFBB")
 
         del draw
         return _show
