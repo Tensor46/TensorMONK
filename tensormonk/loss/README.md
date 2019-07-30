@@ -34,6 +34,38 @@ loss_fn = tensormonk.loss.Categorical(
     add_focal=True, focal_alpha=torch.Tensor([1.]*2), focal_gamma=2.)
 ```
 * [DiceLoss / Tversky Loss](https://arxiv.org/pdf/1706.05721.pdf): Segmentation loss function
+* MetricLoss: [triplet](https://arxiv.org/pdf/1503.03832.pdf), [angular_triplet](https://arxiv.org/pdf/1708.01682.pdf), [n-pair](http://www.nec-labs.com/uploads/images/Department-Images/MediaAnalytics/papers/nips16_npairmetriclearning.pdf)
+```python
+# Example
+from tensormonk.loss import MetricLoss
+
+# Using triplet
+loss_fn = MetricLoss(tensor_size=(None, 4), n_labels=10, loss_type="triplet",
+                     measure="euclidean", margin=0.5)
+# usage
+embedding = torch.Tensor([[0.10, 0.60, 0.20, 0.10],
+                          [0.15, 0.50, 0.22, 0.11],
+                          [0.90, 0.50, 0.96, 0.11],
+                          [0.90, 0.10, 0.26, 0.71],
+                          [0.85, 0.20, 0.27, 0.78],
+                          [0.01, 0.90, 0.91, 0.92],
+                          [0.80, 0.45, 0.86, 0.16],
+                          [0.92, 0.56, 0.99, 0.06],
+                          [0.08, 0.56, 0.16, 0.16]])
+targets = torch.Tensor([4, 4, 6, 9, 9, 0, 6, 6, 4]).long()
+loss = loss_fn(embedding, targets)
+loss.backward()
+# triplet sampling is not required - works with any batch with few repeated labels
+targets = torch.Tensor([4, 4, 1, 1, 9, 0, 2, 3, 4]).long()
+loss = loss_fn(embedding, targets)
+loss.backward()
+# Using triplet with hard negative mining
+loss_fn = MetricLoss(tensor_size=(None, 4), n_labels=10, loss_type="triplet",
+                     measure="euclidean", margin=0.5, mining="hard")
+# Using n-pair with semi-hard mining
+loss_fn = MetricLoss(tensor_size=(None, 4), n_labels=10, loss_type="n_pair",
+                     measure="euclidean", margin=0.5, mining="semi")
+```
 * [MultiBoxLoss](https://arxiv.org/pdf/1512.02325.pdf): Single Shot MultiBox Detector (SSD) loss function
 ```python
 # Example
