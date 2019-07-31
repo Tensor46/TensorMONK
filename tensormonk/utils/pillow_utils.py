@@ -354,7 +354,9 @@ class PillowUtils:
 
     @staticmethod
     def annotate_boxes(image, ltrb_boxes, points: list = None,
-                       text: list = None):
+                       text: list = None,
+                       box_color: str = "#F1C40F",
+                       point_color: str = "#00FFBB"):
         r"""Annotates the boxes and points for visualization.
 
         Args:
@@ -394,7 +396,7 @@ class PillowUtils:
         draw = ImageDraw.Draw(_show)
         for i, x in enumerate(boxes.astype(np.int64)):
             draw.rectangle((tuple(x[:2].tolist()), tuple(x[2:].tolist())),
-                           outline="#F1C40F")
+                           outline=box_color)
             if text is not None:
                 if isinstance(text[i], str):
                     draw.text(tuple((x[:2]).tolist()), text[i],
@@ -404,7 +406,7 @@ class PillowUtils:
             for pt in points.reshape(-1, 2).astype(np.int64):
                 x, y = pt[0], pt[1]
                 draw.ellipse((int(x)-r, int(y)-r, int(x)+r, int(y)+r),
-                             fill="#00FFBB")
+                             fill=point_color)
 
         del draw
         return _show
