@@ -25,10 +25,10 @@ def compute_top15(responses, targets):
 
 
 def one_hot(targets, n_labels):
-    identity = torch.eye(n_labels).to(targets.device)
+    identity = torch.eye(n_labels, dtype=torch.int8).to(targets.device)
     onehot_targets = identity.index_select(dim=0,
                                            index=targets.long().view(-1))
-    return onehot_targets.requires_grad_()
+    return onehot_targets.requires_grad_(False)
 
 
 def one_hot_idx(targets, n_labels):
