@@ -317,8 +317,18 @@ class Categorical(nn.Module):
         m, s = min(0.5, self.margin), max(self.scale, 2.)
         true_idx = one_hot_idx(targets, self.n_labels)
         cos_theta = cos_theta.view(-1)
-        cos_theta[true_idx] = cos_theta[true_idx].mul(math.cos(m)) - \
-            cos_theta[true_idx].pow(2).neg().add(1).pow(0.5).mul(math.sin(m))
+        if torch.__version__.startswith("1.2."):  # pytorch 1.2 inplace issue
+            with torch.no_grad():
+                true_tensor = torch.zeros_like(cos_theta)
+                true_tensor[true_idx] = 1
+            cos_theta = cos_theta * (1 - true_tensor) + \
+                ((cos_theta).mul(math.cos(m)) -
+                 (cos_theta).pow(2).neg().add(1).pow(0.5).mul(math.sin(m))) * \
+                true_tensor
+        else:
+            cos_theta[true_idx] = cos_theta[true_idx].mul(math.cos(m)) - \
+                cos_theta[true_idx].pow(2).neg().add(1).pow(0.5).mul(
+                                        math.sin(m))
         cos_theta = (cos_theta * s).view(tensor.size(0), -1)
         return self._cross_entropy(cos_theta, targets, True), (top1, top5)
 
@@ -336,7 +346,14 @@ class Categorical(nn.Module):
         true_idx = one_hot_idx(targets, self.n_labels)
         responses = responses.view(-1)
         loss = self.lmgm_coefficient * (responses[true_idx]).mean()
-        responses[true_idx] = responses[true_idx] * (1 + self.lmgm_alpha)
+        if torch.__version__.startswith("1.2."):  # pytorch 1.2 inplace issue
+            with torch.no_grad():
+                true_tensor = torch.zeros_like(responses)
+                true_tensor[true_idx] = 1
+            responses = responses * (1 - true_tensor) + \
+                responses * true_tensor * (1 + self.lmgm_alpha)
+        else:
+            responses[true_idx] = responses[true_idx] * (1 + self.lmgm_alpha)
         loss = loss + self._cross_entropy(-responses.view(tensor.size(0), -1),
                                           targets, True)
         return loss, (top1, top5)
@@ -349,7 +366,13 @@ class Categorical(nn.Module):
         m, s = min(0.5, self.margin), max(self.scale, 2.)
         true_idx = one_hot_idx(targets, self.n_labels)
         cos_theta = cos_theta.view(-1)
-        cos_theta[true_idx] = cos_theta[true_idx] - m
+        if torch.__version__.startswith("1.2."):  # pytorch 1.2 inplace issue
+            with torch.no_grad():
+                ms = torch.zeros_like(cos_theta)
+                ms[true_idx] = m
+            cos_theta = cos_theta - ms
+        else:
+            cos_theta[true_idx] = cos_theta[true_idx] - m
         cos_theta = (cos_theta * s).view(tensor.size(0), -1)
         return self._cross_entropy(cos_theta, targets, True), (top1, top5)
 
@@ -419,6 +442,6 @@ class Categorical(nn.Module):
 # from tensormonk.utils import Measures
 # from tensormonk.loss.center_function import CenterFunction
 # tensor = torch.rand(3, 256)
-# test = Categorical(256, 10, "smax", add_center=True)
 # targets = torch.tensor([1, 3, 6])
-# test(tensor, targets)
+# test = Categorical(256, 10, "aaml", measure="cosine")
+# test(tensor, targets)[0].backward()
