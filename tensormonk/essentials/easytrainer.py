@@ -15,12 +15,14 @@ class BaseOptimizer:
     r"""BaseOptimizer class that contains optimizer type, and related arguments.
 
     Args:
-        type (required, str): Optimizer type, options = SGD/Adam. Default = sgd
+        type (required, str): Optimizer type, options = SGD/Adam
+            lookahead/lookahead_sgd/lookahead_adam.
+            Default = sgd
         arguments (optional, dict): All the arguments required to build the
             optimizer. Default = {}
-            When arguments={} and type="sgd",
+            When arguments={} and type="sgd"/"lookahead_sgd",
                 lr = 0.1
-            When arguments={} and type="adam",
+            When arguments={} and type="adam"/"radam",
                 lr = 0.001
                 betas = (0.9, 0.999)
                 eps = 1e-8
@@ -56,12 +58,18 @@ class BaseOptimizer:
 
         elif type.lower() == "lookahead":
             self.algorithm = LookAhead
-            if "optimizer" not in arguments.keys():
-                print(" ... Optimizer (LookAhead): optimizer is not defined, "
-                      "using default = SGD")
-                arguments["optimizer"] = torch.optim.SGD
-            if "optimizer_kwargs" not in arguments.keys():
-                arguments["optimizer_kwargs"] = {}
+
+        elif type.lower() == "lookahead_sgd":
+            self.algorithm = LookAhead
+            arguments["optimizer"] = torch.optim.SGD
+            if "lr" not in arguments.keys():
+                arguments["lr"] = 0.1
+
+        elif type.lower() == "lookahead_adam":
+            self.algorithm = LookAhead
+            arguments["optimizer"] = torch.optim.Adam
+            if "lr" not in arguments.keys():
+                arguments["lr"] = 0.1
 
         else:
             raise NotImplementedError
@@ -422,7 +430,7 @@ class EasyTrainer(object):
 
     def _build_optimizers(self, optimizer, networks):
         r"""Builds all optimizer and networks.optimizer (if any) """
-        def _param_groups_fn(named_params, lr):
+        def ex_param_groups_fn(named_params, lr):
             return [{"params": p, "lr": lr} for n, p in named_params]
 
         all_params = []
@@ -433,16 +441,23 @@ class EasyTrainer(object):
                     lr = networks[n].optimizer.arguments["lr"]
                     param_groups_fn = networks[n].optimizer.param_groups_fn
                     if param_groups_fn is None:
-                        param_groups_fn = _param_groups_fn
-                    self.optim_container[n] = networks[n].optimizer.algorithm(
-                        param_groups_fn(named_params, lr),
-                        **networks[n].optimizer.arguments)
+                        self.optim_container[n] = \
+                            networks[n].optimizer.algorithm(
+                            self.model_container[n].parameters(),
+                            **networks[n].optimizer.arguments)
+                    else:
+                        self.optim_container[n] = \
+                            networks[n].optimizer.algorithm(
+                            param_groups_fn(named_params, lr),
+                            **networks[n].optimizer.arguments)
                 elif isinstance(optimizer, BaseOptimizer):
                     lr = optimizer.arguments["lr"]
                     param_groups_fn = optimizer.param_groups_fn
                     if param_groups_fn is None:
-                        param_groups_fn = _param_groups_fn
-                    all_params += param_groups_fn(named_params, lr)
+                        all_params += list(
+                            self.model_container[n].parameters())
+                    else:
+                        all_params += param_groups_fn(named_params, lr)
 
         if len(all_params) > 0 and isinstance(optimizer, BaseOptimizer):
             self.optimizer = optimizer.algorithm(all_params,
