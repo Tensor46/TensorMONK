@@ -10,23 +10,22 @@ class LookAhead(torch.optim.Optimizer):
         params (required, str): parameters or parameter groups
         optimizer (optional, torch.nn.Optimizer): Any pytorch optimizer or
             custom version. Default = torch.optim.SGD
-        optimizer_kwargs (optional, dict): kwargs for the base_optimizer
-            other than params. Default (set of SGD) = {"lr": 0.1}
         k (optional, int): k fast weight steps, default = 6
         alpha (optional, float): slow weights learning rate, default = 0.5
+        kwargs (all the optimizer kwargs): {"lr": 0.1}
 
     Ex:
         model = torch.nn.Linear(6, 6)
         optimizer = LookAhead(params=model.parameters(),
                               optimizer=torch.optim.SGD,
-                              optimizer_kwargs={"lr": 0.1, "momentum": 0.9},
                               k=6,
-                              alpha=0.5)
+                              alpha=0.5,
+                              lr=0.1,
+                              momemtum=0.9)
     """
     def __init__(self,
                  params,
                  optimizer=torch.optim.SGD,
-                 optimizer_kwargs: dict = {"lr": 0.1},
                  k: int = 6,
                  alpha: float = 0.5,
                  **kwargs):
@@ -38,10 +37,8 @@ class LookAhead(torch.optim.Optimizer):
             raise TypeError("LookAhead: alpha must be float")
         if not (0 < alpha < 1):
             raise ValueError("LookAhead: alpha must be > 0 and < 1")
-        if not isinstance(optimizer_kwargs, dict):
-            raise TypeError("LookAhead: optimizer_kwargs must be dict")
 
-        _optimizer = optimizer(params, **optimizer_kwargs)
+        _optimizer = optimizer(params, **kwargs)
         # parameters for slow weights
         params_clone = []
         for group in _optimizer.param_groups:
