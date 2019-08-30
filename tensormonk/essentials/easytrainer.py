@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from .utils import Meter
 from ..plots import VisPlots
+from ..optimizers import LookAhead
 from collections import OrderedDict
 from collections.abc import Iterable
 
@@ -45,13 +46,22 @@ class BaseOptimizer:
 
         if type.lower() == "sgd":
             self.algorithm = torch.optim.SGD
-            if len(arguments) == 0 or "lr" not in arguments.keys():
+            if "lr" not in arguments.keys():
                 arguments["lr"] = 0.1
 
         elif type.lower() == "adam":
             self.algorithm = torch.optim.Adam
-            if len(arguments) == 0 or "lr" not in arguments.keys():
+            if "lr" not in arguments.keys():
                 arguments["lr"] = 0.001
+
+        elif type.lower() == "lookahead":
+            self.algorithm = LookAhead
+            if "optimizer" not in arguments.keys():
+                print(" ... Optimizer (LookAhead): optimizer is not defined, "
+                      "using default = SGD")
+                arguments["optimizer"] = torch.optim.SGD
+            if "optimizer_kwargs" not in arguments.keys():
+                arguments["optimizer_kwargs"] = {}
 
         else:
             raise NotImplementedError
@@ -427,13 +437,12 @@ class EasyTrainer(object):
                     self.optim_container[n] = networks[n].optimizer.algorithm(
                         param_groups_fn(named_params, lr),
                         **networks[n].optimizer.arguments)
-                else:
-                    if isinstance(optimizer, BaseOptimizer):
-                        lr = optimizer.arguments["lr"]
-                        param_groups_fn = optimizer.param_groups_fn
-                        if param_groups_fn is None:
-                            param_groups_fn = _param_groups_fn
-                        all_params += param_groups_fn(named_params, lr)
+                elif isinstance(optimizer, BaseOptimizer):
+                    lr = optimizer.arguments["lr"]
+                    param_groups_fn = optimizer.param_groups_fn
+                    if param_groups_fn is None:
+                        param_groups_fn = _param_groups_fn
+                    all_params += param_groups_fn(named_params, lr)
 
         if len(all_params) > 0 and isinstance(optimizer, BaseOptimizer):
             self.optimizer = optimizer.algorithm(all_params,
@@ -477,10 +486,9 @@ class EasyTrainer(object):
                 torch.cuda.set_device(default_gpu)
                 self.transformations.cuda()
             if self.is_cuda and gpus > 1:
-                _gpus = list(range(gpus))
                 self.transformations = \
                     nn.DataParallel(self.transformations,
-                                    device_ids=_gpus).cuda()
+                                    device_ids=list(range(gpus))).cuda()
             self.transformations.eval()
             n_params = np.sum([p.numel() for p in
                                self.transformations.parameters()])
