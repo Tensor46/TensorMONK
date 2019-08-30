@@ -1,6 +1,6 @@
 """ TensorMONK :: layers :: Activations """
 
-__all__ = ["Activations", "maxout", "squash", "swish"]
+__all__ = ["Activations", "maxout", "mish", "squash", "swish"]
 
 import torch
 import torch.nn as nn
@@ -26,15 +26,20 @@ def maxout(tensor: torch.Tensor) -> torch.Tensor:
     return torch.max(*tensor.split(tensor.size(1)//2, 1))
 
 
+def mish(tensor: torch.Tensor) -> torch.Tensor:
+    return tensor * tensor.exp().add(1).log().tanh()
+
+
 class Activations(nn.Module):
     r""" All the usual activations along with maxout, relu + maxout and swish.
     MaxOut (maxo) - https://arxiv.org/pdf/1302.4389.pdf
     Swish - https://arxiv.org/pdf/1710.05941v1.pdf
+    Mish - https://arxiv.org/pdf/1908.08681v1.pdf
 
     Args:
         tensor_size: shape of tensor in BCHW
             (None/any integer >0, channels, height, width)
-        activation: relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish,
+        activation: relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish/mish,
             default=relu
     """
     def __init__(self, tensor_size: tuple, activation: str = "relu", **kwargs):
@@ -98,6 +103,9 @@ class Activations(nn.Module):
     def _swish(self, tensor):
         return swish(tensor)
 
+    def _mish(self, tensor):
+        return mish(tensor)
+
     def _squash(self, tensor):
         return squash(tensor)
 
@@ -106,8 +114,8 @@ class Activations(nn.Module):
 
     @staticmethod
     def available():
-        return ["elu", "lklu", "maxo", "prelu", "relu", "relu6", "rmxo",
-                "sigm", "squash", "swish", "tanh"]
+        return ["elu", "lklu", "maxo", "mish", "prelu", "relu", "relu6",
+                "rmxo", "sigm", "squash", "swish", "tanh"]
 
     def flops(self):
         import numpy as np
@@ -121,6 +129,9 @@ class Activations(nn.Module):
         elif self.activation == "maxo":
             # torch.max(*x.split(x.size(1)//2, 1))
             flops = numel / 2
+        elif self.activation == "mish":
+            # x * tanh(ln(1 + e^x))
+            flops = numel * 5
         elif self.activation == "relu":
             # max(0, x)
             flops = numel
