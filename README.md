@@ -79,3 +79,6 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 
 ### Regularizations
 * [DropBlock: A regularization method for convolutional networks](https://arxiv.org/pdf/1810.12890.pdf)
+
+### Optimizer
+* [Lookahead Optimizer: k steps forward, 1 step back](https://arxiv.org/pdf/1907.08610.pdf)
