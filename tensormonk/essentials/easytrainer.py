@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from .utils import Meter
 from ..plots import VisPlots
-from ..optimizers import LookAhead, RAdam
+from ..optimizers import LookAhead
 from collections import OrderedDict
 from collections.abc import Iterable
 
