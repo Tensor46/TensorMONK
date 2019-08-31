@@ -4,9 +4,10 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+import warnings
 from .utils import Meter
 from ..plots import VisPlots
-from ..optimizers import LookAhead
+from ..optimizers import LookAhead, RAdam
 from collections import OrderedDict
 from collections.abc import Iterable
 
@@ -15,8 +16,8 @@ class BaseOptimizer:
     r"""BaseOptimizer class that contains optimizer type, and related arguments.
 
     Args:
-        type (required, str): Optimizer type, options = SGD/Adam
-            lookahead/lookahead_sgd/lookahead_adam.
+        optimizer (required, str): Optimizer type, options = SGD/Adam/
+            RAdam/lookahead/lookahead_sgd/lookahead_adam/lookahead_radam.
             Default = sgd
         arguments (optional, dict): All the arguments required to build the
             optimizer. Default = {}
@@ -27,7 +28,6 @@ class BaseOptimizer:
                 betas = (0.9, 0.999)
                 eps = 1e-8
                 weight_decay = 0
-                amsgrad = True
         param_groups_fn (optional, function): A param_groups function to
             create a list of parameters with different learning rate (useful
             for funetuning). default = None
@@ -40,39 +40,68 @@ class BaseOptimizer:
                 return params
 
     Ex:
-        optimizer = BaseOptimizer(type="sgd", arguments={"lr": 0.1,
+        optimizer = BaseOptimizer(optimizer="sgd", arguments={"lr": 0.1,
             "momentum": 0.9, "weight_decay": 0.00005})
     """
-    def __init__(self, type: str = "sgd", arguments: dict = {},
-                 param_groups_fn=None):
+    def __init__(self, optimizer: str = "sgd", arguments: dict = {},
+                 param_groups_fn=None, **kwargs):
 
-        if type.lower() == "sgd":
+        if "type" in kwargs.keys():
+            optimizer = kwargs["type"]
+            warnings.warn("BaseOptimizer: 'type' is deprecated, use "
+                          "'optimizer' instead", DeprecationWarning)
+        if not isinstance(optimizer, str):
+            raise TypeError("BaseOptimizer: optimizer must be str: "
+                            "{}".format(type(optimizer).__name__))
+        optimizer = optimizer.lower()
+        if not isinstance(arguments, dict):
+            raise TypeError("BaseOptimizer: arguments must be dict: "
+                            "{}".format(type(arguments).__name__))
+
+        if optimizer == "sgd":
             self.algorithm = torch.optim.SGD
             if "lr" not in arguments.keys():
                 arguments["lr"] = 0.1
 
-        elif type.lower() == "adam":
+        elif optimizer == "adam":
             self.algorithm = torch.optim.Adam
             if "lr" not in arguments.keys():
                 arguments["lr"] = 0.001
 
-        elif type.lower() == "lookahead":
+        elif optimizer == "radam":
+            self.algorithm = RAdam
+            if "lr" not in arguments.keys():
+                arguments["lr"] = 0.001
+
+        elif optimizer == "lookahead":
             self.algorithm = LookAhead
 
-        elif type.lower() == "lookahead_sgd":
+        elif optimizer == "lookahead_sgd":
             self.algorithm = LookAhead
             arguments["optimizer"] = torch.optim.SGD
             if "lr" not in arguments.keys():
                 arguments["lr"] = 0.1
 
-        elif type.lower() == "lookahead_adam":
+        elif optimizer == "lookahead_adam":
             self.algorithm = LookAhead
             arguments["optimizer"] = torch.optim.Adam
             if "lr" not in arguments.keys():
-                arguments["lr"] = 0.1
+                arguments["lr"] = 0.001
+
+        elif optimizer == "lookahead_radam":
+            self.algorithm = LookAhead
+            arguments["optimizer"] = RAdam
+            if "lr" not in arguments.keys():
+                arguments["lr"] = 0.001
 
         else:
             raise NotImplementedError
+
+        if optimizer not in ("sgd", "lookahead_sgd") and \
+           arguments["lr"] > 0.001:
+            warnings.warn(("BaseOptimizer: lr = {} is high for "
+                           "{}").format(arguments["lr"], optimizer))
+
         self.arguments = arguments
         self.param_groups_fn = param_groups_fn
 
