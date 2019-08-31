@@ -53,8 +53,8 @@ class SelfAttention(nn.Module):
         if self.scale_factor != 1:
             o = F.interpolate(o, size=_tensor.shape[2:])
             if self.return_attention:
-                return _tensor + o, attention
-            return _tensor + o
+                return _tensor + o*self.gamma, attention
+            return _tensor + o*self.gamma, attention
         if self.return_attention:
             return tensor + o*self.gamma, attention
         return tensor + o*self.gamma
