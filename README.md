@@ -77,8 +77,9 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 ### Object Detection Models
 * [SSD: Single Shot MultiBox Detector](https://arxiv.org/pdf/1512.02325.pdf) (MobileNetV2SSD320 and TinySSD320)
 
-### Regularizations
-* [DropBlock: A regularization method for convolutional networks](https://arxiv.org/pdf/1810.12890.pdf)
-
 ### Optimizer
 * [Lookahead Optimizer: k steps forward, 1 step back](https://arxiv.org/pdf/1907.08610.pdf)
+* [On the Variance of the Adaptive Learning Rate and Beyond](https://arxiv.org/pdf/1908.03265v1.pdf)
+
+### Regularizations
+* [DropBlock: A regularization method for convolutional networks](https://arxiv.org/pdf/1810.12890.pdf)
