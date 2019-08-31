@@ -93,10 +93,15 @@ def roc(genuine_or_scorematrix, impostor_or_labels, filename=None,
     far_samples = [10**x for x in range(-5, 1)]
     gar_samples, thr_samples = [], []
     for x in far_samples:
-        idx = np.where(abs(far - x).clip(1e-6) == 1e-6)[0].max() if x == 1 \
-            else np.argmin(np.abs(far - x))
-        gar_samples.append(round(gar[idx], 6))
-        thr_samples.append(round(bins[(-idx) if was_distance else idx], 6))
+        try:
+            idx = np.where(abs(far - x).clip(1e-6) == 1e-6)[0].max() \
+                if x == 1 else np.argmin(np.abs(far - x))
+            gar_samples.append(round(gar[idx], 6))
+            thr_samples.append(round(bins[(-idx) if was_distance else idx], 6))
+        except IndexError:
+            # when accurate far's cannot be estimated -- precision issues
+            gar_samples.append(np.nan)
+            thr_samples.append(np.nan)
     samples = [gar[np.argmin(np.abs(far - 10**x))] for x in range(-5, 1)]
     if print_show:
         print("reference fars :: 1e-05/1e-04/0.001/0.010/0.100/1.000")
