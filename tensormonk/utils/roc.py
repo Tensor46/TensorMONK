@@ -98,7 +98,7 @@ def roc(genuine_or_scorematrix, impostor_or_labels, filename=None,
                 if x == 1 else np.argmin(np.abs(far - x))
             gar_samples.append(round(gar[idx], 6))
             thr_samples.append(round(bins[(-idx) if was_distance else idx], 6))
-        except IndexError:
+        except ValueError:
             # when accurate far's cannot be estimated -- precision issues
             gar_samples.append(np.nan)
             thr_samples.append(np.nan)
