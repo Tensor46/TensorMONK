@@ -9,12 +9,13 @@ class ShuffleNet(torch.nn.Sequential):
     r"""Versions of ShuffleNet. With the ability to adjust the strides of
     initial convolution and remove max pool the models works for all the
     min(height, width) >= 32. To replicate the paper, use default parameters
-    (and select type). Implemented from https://arxiv.org/pdf/1707.01083.pdf
+    (and select architecture).
+    Implemented from https://arxiv.org/pdf/1707.01083.pdf
 
     Args:
         tensor_size: shape of tensor in BCHW
             (None/any integer >0, channels, height, width)
-        type (string): model type (g1/g2/g3/g4/g8), default = g4
+        architecture (string): model architecture (g1/g2/g3/g4/g8), default=g4
         activation: None/relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish,
             default = relu
         dropout: 0. - 1., default = 0.1 with dropblock=True
@@ -36,7 +37,7 @@ class ShuffleNet(torch.nn.Sequential):
     """
     def __init__(self,
                  tensor_size=(6, 3, 224, 224),
-                 type: str = "g4",
+                 architecture: str = "g4",
                  activation: str = "relu",
                  dropout: float = 0.1,
                  normalization: str = "batch",
@@ -49,30 +50,35 @@ class ShuffleNet(torch.nn.Sequential):
         super(ShuffleNet, self).__init__()
 
         import numpy as np
-        assert type.lower() in ("g1", "g2", "g3", "g4", "g8"), \
-            "ShuffleNet -- type must be g1/g2/g3/g4/g8"
+        if "type" in kwargs.keys():
+            import warnings
+            architecture = kwargs["type"]
+            warnings.warn("ResidualNet: 'type' is deprecated, use "
+                          "'architecture' instead", DeprecationWarning)
+        assert architecture.lower() in ("g1", "g2", "g3", "g4", "g8"), \
+            "ShuffleNet -- architecture must be g1/g2/g3/g4/g8"
 
-        if type.lower() == "g1":
+        if architecture.lower() == "g1":
             groups = 1
             block_params = [(144, 2)] + [(144, 1)]*3 + \
                            [(288, 2)] + [(288, 1)]*7 + \
                            [(576, 2)] + [(576, 1)]*3
-        elif type.lower() == "g2":
+        elif architecture.lower() == "g2":
             groups = 2
             block_params = [(200, 2)] + [(200, 1)]*3 + \
                            [(400, 2)] + [(400, 1)]*7 + \
                            [(800, 2)] + [(800, 1)]*3
-        elif type.lower() == "g3":
+        elif architecture.lower() == "g3":
             groups = 3
             block_params = [(240, 2)] + [(240, 1)]*3 + \
                            [(480, 2)] + [(480, 1)]*7 + \
                            [(960, 2)] + [(960, 1)]*3
-        elif type.lower() == "g4":
+        elif architecture.lower() == "g4":
             groups = 4
             block_params = [(272, 2)] + [(272, 1)]*3 + \
                            [(544, 2)] + [(544, 1)]*7 + \
                            [(1088, 2)] + [(1088, 1)]*3
-        elif type.lower() == "g8":
+        elif architecture.lower() == "g8":
             groups = 8
             block_params = [(384, 2)] + [(384, 1)]*3 + \
                            [(768, 2)] + [(768, 1)]*7 + \
