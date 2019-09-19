@@ -410,7 +410,7 @@ class EasyTrainer(object):
         r"""Builds all networks and load pretrained weights if exists. The
         EasyTrainer params are overwritten by networks[network] parameters.
         """
-        if self.is_pretrained:
+        if self.is_pretrained and not self.ignore_trained:
             content = torch.load(self.file_name)["model_container"]
         for n in list(networks.keys()):
             _pretrained = False
@@ -422,7 +422,7 @@ class EasyTrainer(object):
                     networks[n].network(**networks[n].arguments)
 
             # load pretrained
-            if self.is_pretrained:
+            if self.is_pretrained and not self.ignore_trained:
                 ignore_trained = self.ignore_trained
                 if networks[n].ignore_trained is not None:
                     # networks' parameters will overwrite EasyTrainer's
