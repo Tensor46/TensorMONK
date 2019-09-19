@@ -62,9 +62,12 @@ class MobileNetV1(torch.nn.Sequential):
         if min(tensor_size[2], tensor_size[3]) <= 128:
             block_params[0] = (3, 32, 1, 1)
 
-        kwargs = {"activation": activation, "normalization": normalization,
-                  "weight_nm": weight_nm, "equalized": equalized,
-                  "shift": shift, "dropout": dropout}
+        kwargs["activation"] = activation
+        kwargs["normalization"] = normalization
+        kwargs["weight_nm"] = weight_nm
+        kwargs["equalized"] = equalized
+        kwargs["shift"] = shift
+        kwargs["dropout"] = dropout
 
         print("Input", tensor_size)
         t_size = tensor_size
