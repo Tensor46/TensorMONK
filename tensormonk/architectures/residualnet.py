@@ -15,20 +15,21 @@ from ..layers.utils import compute_flops
 # =========================================================================== #
 
 
-def map_pretrained(state_dict, type):
+def map_pretrained(state_dict, architecture):
     # no fully connected
-    if type == "r18":
+    if architecture == "r18":
         url = r'https://download.pytorch.org/models/resnet18-5c106cde.pth'
-    elif type == "r34":
+    elif architecture == "r34":
         url = r'https://download.pytorch.org/models/resnet34-333f7ec4.pth'
-    elif type == "r50":
+    elif architecture == "r50":
         url = r'https://download.pytorch.org/models/resnet50-19c8e357.pth'
-    elif type == "r101":
+    elif architecture == "r101":
         url = r'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth'
-    elif type == "r152":
+    elif architecture == "r152":
         url = r'https://download.pytorch.org/models/resnet152-b121ed2d.pth'
     else:
-        print(" ... pretrained weights are not avaiable for {}".format(type))
+        print(" ... pretrained weights are not avaiable for {}".format(
+              architecture))
         return state_dict
 
     # download is not in models
@@ -70,7 +71,7 @@ class ResidualNet(nn.Sequential):
     r"""Versions of residual networks. With the ability to change the strides of
     initial convolution and remove max pool the models works for all the
     min(height, width) >= 32. To replicate the paper, use default parameters
-    (and select type)
+    (and select architecture)
         Implemented
         ResNet*   from https://arxiv.org/pdf/1512.03385.pdf
         ResNeXt*  from https://arxiv.org/pdf/1611.05431.pdf
@@ -80,9 +81,9 @@ class ResidualNet(nn.Sequential):
     Args:
         tensor_size: shape of tensor in BCHW
             (None/any integer >0, channels, height, width)
-        type (string): model type
-            Available models        type
-            ================================
+        architecture (string): model architecture
+            Available models        architecture
+            ====================================
             ResNet18                r18
             ResNet34                r34
             ResNet50                r50
@@ -123,7 +124,7 @@ class ResidualNet(nn.Sequential):
 
     def __init__(self,
                  tensor_size=(6, 3, 128, 128),
-                 type: str = "r18",
+                 architecture: str = "r18",
                  activation: str = "relu",
                  dropout: float = 0.1,
                  normalization: str = "batch",
@@ -139,12 +140,18 @@ class ResidualNet(nn.Sequential):
         super(ResidualNet, self).__init__()
 
         import numpy as np
-        type = type.lower()
-        assert type in ("r18", "r34", "r50", "r101", "r152", "rn50", "rn101",
-                        "rn152", "ser50", "ser101", "ser152", "sern50",
-                        "sern101", "sern152"),\
-            """ResidualNet -- type must be r18/r34/r50/r101/r152/rn50/rn101/
-            rn152/ser50/ser101/ser152/sern50/sern101/sern152"""
+        if "type" in kwargs.keys():
+            import warnings
+            architecture = kwargs["type"]
+            warnings.warn("ResidualNet: 'type' is deprecated, use "
+                          "'architecture' instead", DeprecationWarning)
+        architecture = architecture.lower()
+        assert architecture in ("r18", "r34", "r50", "r101", "r152",
+                                "rn50", "rn101", "rn152",
+                                "ser50", "ser101", "ser152", "sern50",
+                                "sern101", "sern152"), \
+            """ResidualNet -- architecture must be r18/r34/r50/r101/r152/rn50/
+            rn101/rn152/ser50/ser101/ser152/sern50/sern101/sern152"""
 
         self.pretrained = pretrained
         if self.pretrained:
@@ -152,13 +159,13 @@ class ResidualNet(nn.Sequential):
                 rgb(preferred)/grey image is required for pretrained"""
             activation, normalization, pre_nm = "relu", "batch", False
             groups, weight_nm, equalized, shift = 1, False, False, False
-        self.model_type = type
+        self.model_type = architecture
         self.in_tensor_size = tensor_size
         self.pool_flops = 0
 
-        if type in ("r18", "r34"):
+        if architecture in ("r18", "r34"):
             BaseBlock = ResidualOriginal
-            if type == "r18":
+            if architecture == "r18":
                 # 2x 64; 2x 128; 2x 256; 2x 512
                 block_params = [(64, 1), (64, 1), (128, 2), (128, 1),
                                 (256, 2), (256, 1), (512, 2), (512, 1)]
@@ -169,28 +176,28 @@ class ResidualNet(nn.Sequential):
                                [(256, 2)] + [(256, 1)]*5 + \
                                [(512, 2)] + [(512, 1)]*2
         else:
-            if type in ("r50", "r101", "r152"):
+            if architecture in ("r50", "r101", "r152"):
                 BaseBlock = ResidualComplex
-            elif type in ("rn50", "rn101", "rn152"):
+            elif architecture in ("rn50", "rn101", "rn152"):
                 BaseBlock = ResidualNeXt
-            elif type in ("ser50", "ser101", "ser152"):
+            elif architecture in ("ser50", "ser101", "ser152"):
                 BaseBlock = SEResidualComplex
-            elif type in ("sern50", "sern101", "sern152"):
+            elif architecture in ("sern50", "sern101", "sern152"):
                 BaseBlock = SEResidualNeXt
 
-            if type.endswith("50"):
+            if architecture.endswith("50"):
                 # 3x 256; 4x 512; 6x 1024; 3x 2048
                 block_params = [(256, 1)]*3 + \
                                [(512, 2)] + [(512, 1)]*3 + \
                                [(1024, 2)] + [(1024, 1)]*5 + \
                                [(2048, 2)] + [(2048, 1)]*2
-            elif type.endswith("101"):
+            elif architecture.endswith("101"):
                 # 3x 256; 4x 512; 23x 1024; 3x 2048
                 block_params = [(256, 1)]*3 + \
                                [(512, 2)] + [(512, 1)]*3 + \
                                [(1024, 2)] + [(1024, 1)]*22 + \
                                [(2048, 2)] + [(2048, 1)]*2
-            elif type.endswith("152"):
+            elif architecture.endswith("152"):
                 # 3x 256; 8x 512; 36x 1024; 3x 2048
                 block_params = [(256, 1)]*3 + \
                                [(512, 2)] + [(512, 1)]*7 + \
