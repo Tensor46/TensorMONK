@@ -8,7 +8,7 @@ from ..layers.utils import compute_flops
 class MobileNetV2(torch.nn.Sequential):
     r"""MobileNetV2 implemented from https://arxiv.org/pdf/1801.04381.pdf
     Designed for input size of (1, 1/3, 224, 224), works for
-    min(height, width) >= 128
+    min(height, width) >= 32
 
     Args:
         tensor_size: shape of tensor in BCHW
@@ -49,13 +49,20 @@ class MobileNetV2(torch.nn.Sequential):
                         (96, 1, 6), (160, 2, 6), (160, 1, 6), (160, 1, 6),
                         (320, 1, 6)]
 
-        kwargs = {"activation": activation, "normalization": normalization,
-                  "weight_nm": weight_nm, "equalized": equalized,
-                  "shift": shift, "groups": 1, "pad": True, "dropout": dropout}
+        if min(tensor_size[2], tensor_size[3]) <= 128:
+            block_params[1] = (24, 1, 6)
+        kwargs["activation"] = activation
+        kwargs["normalization"] = normalization
+        kwargs["weight_nm"] = weight_nm
+        kwargs["equalized"] = equalized
+        kwargs["shift"] = shift
+        kwargs["pad"] = True
+        kwargs["dropout"] = dropout
 
         print("Input", tensor_size)
+        strides = 1 if min(tensor_size[2], tensor_size[3]) <= 64 else 2
         self.add_module("ConvolutionFirst",
-                        Convolution(tensor_size, 3, 32, 2, pre_nm=False,
+                        Convolution(tensor_size, 3, 32, strides, pre_nm=False,
                                     **kwargs))
         t_size = self.ConvolutionFirst.tensor_size
         print("ConvolutionFirst", t_size)
