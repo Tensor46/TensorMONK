@@ -68,7 +68,7 @@ class ResidualOriginal(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True,
+                 shift=False, bias=False, dropblock=False,
                  dropconnect=False, seblock=False, r=16, **kwargs):
 
         super(ResidualOriginal, self).__init__()
@@ -127,7 +127,7 @@ class ResidualComplex(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True,
+                 shift=False, bias=False, dropblock=False,
                  dropconnect=False, seblock=False, r=16, **kwargs):
         super(ResidualComplex, self).__init__()
         self.is_dropconnect = dropconnect
@@ -190,7 +190,7 @@ class SEResidualComplex(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, r=16, **kwargs):
+                 shift=False, bias=False, dropblock=False, r=16, **kwargs):
         super(SEResidualComplex, self).__init__()
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
         kwgs = deepcopy(kwargs)
@@ -250,7 +250,7 @@ class ResidualNeXt(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=32, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True,
+                 shift=False, bias=False, dropblock=False,
                  dropconnect=False, seblock=False, r=16, **kwargs):
         super(ResidualNeXt, self).__init__()
         self.is_dropconnect = dropconnect
@@ -301,7 +301,7 @@ class SEResidualNeXt(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=32, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, r=16, **kwargs):
+                 shift=False, bias=False, dropblock=False, r=16, **kwargs):
         super(SEResidualNeXt, self).__init__()
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
 
@@ -346,7 +346,7 @@ class SeparableConvolution(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, **kwargs):
+                 shift=False, bias=False, dropblock=False, **kwargs):
         super(SeparableConvolution, self).__init__()
 
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
@@ -374,7 +374,7 @@ class ResidualInverted(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, t=1, t_in=False,
+                 shift=False, bias=False, dropblock=False, t=1, t_in=False,
                  dropconnect=False, seblock=False, r=16, **kwargs):
         super(ResidualInverted, self).__init__()
         self.is_dropconnect = dropconnect
@@ -443,7 +443,7 @@ class ResidualShuffle(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=4, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, **kwargs):
+                 shift=False, bias=False, dropblock=False, **kwargs):
         super(ResidualShuffle, self).__init__()
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
         kwgs = deepcopy(kwargs)
@@ -504,7 +504,7 @@ class SimpleFire(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, **kwargs):
+                 shift=False, bias=False, dropblock=False, **kwargs):
         super(SimpleFire, self).__init__()
         self.dropout = DropOut(tensor_size, dropout, dropblock, **kwargs)
 
@@ -553,7 +553,7 @@ class CarryModular(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True, growth_rate=32,
+                 shift=False, bias=False, dropblock=False, growth_rate=32,
                  block=SimpleFire, carry_network="avg", **kwargs):
         super(CarryModular, self).__init__()
         pad = True
@@ -618,7 +618,7 @@ class DenseBlock(nn.Module):
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="relu", dropout=0., normalization=None,
                  pre_nm=False, groups=1, weight_nm=False, equalized=False,
-                 shift=False, bias=False, dropblock=True,
+                 shift=False, bias=False, dropblock=False,
                  growth_rate=16, block=Convolution, n_blocks=4,
                  multiplier=4, **kwargs):
         super(DenseBlock, self).__init__()
