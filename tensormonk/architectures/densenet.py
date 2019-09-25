@@ -3,8 +3,8 @@
 import os
 try:
     import wget
-except Exception as e:
-    print("import wget", e)
+except ImportError:
+    print(" ... wget not found")
     wget = None
 import torch
 from ..layers import Convolution, DenseBlock, Linear
@@ -186,10 +186,14 @@ class DenseNet(torch.nn.Sequential):
         if pretrained:
             self.add_module("ImageNetNorm", ImageNetNorm())
 
-        kwargs = {"activation": activation, "normalization": normalization,
-                  "weight_nm": weight_nm, "equalized": equalized,
-                  "shift": shift, "pad": True, "groups": groups,
-                  "dropout": dropout}
+        kwargs["activation"] = activation
+        kwargs["normalization"] = normalization
+        kwargs["weight_nm"] = weight_nm
+        kwargs["equalized"] = equalized
+        kwargs["shift"] = shift
+        kwargs["groups"] = groups
+        kwargs["dropout"] = dropout
+
         self.add_module("InitialConvolution",
                         Convolution(tensor_size, 7, 64, s,
                                     pre_nm=False, **kwargs))
