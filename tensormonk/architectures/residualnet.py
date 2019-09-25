@@ -3,8 +3,8 @@
 import os
 try:
     import wget
-except Exception as e:
-    print("import wget", e)
+except ImportError:
+    print(" ... wget not found")
     wget = None
 import torch
 import torch.nn as nn
