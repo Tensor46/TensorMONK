@@ -8,7 +8,7 @@ from ..layers.utils import compute_flops
 class MobileNetV1(torch.nn.Sequential):
     r"""MobileNetV1 implemented from https://arxiv.org/pdf/1704.04861.pdf
     Designed for input size of (1, 1/3, 224, 224), works for
-    min(height, width) >= 128
+    min(height, width) >= 32
 
     Args:
         tensor_size: shape of tensor in BCHW
@@ -57,9 +57,17 @@ class MobileNetV1(torch.nn.Sequential):
                         (1, 512, 1, 1), (3, 512, 2, 512),
                         (1, 1024, 1, 1), (3, 1024, 1, 1024), (1, 1024, 1, 1)]
 
-        kwargs = {"activation": activation, "normalization": normalization,
-                  "weight_nm": weight_nm, "equalized": equalized,
-                  "shift": shift, "dropout": dropout}
+        if min(tensor_size[2], tensor_size[3]) <= 64:
+            block_params[3] = (3, 64, 1, 64)
+        if min(tensor_size[2], tensor_size[3]) <= 128:
+            block_params[0] = (3, 32, 1, 1)
+
+        kwargs["activation"] = activation
+        kwargs["normalization"] = normalization
+        kwargs["weight_nm"] = weight_nm
+        kwargs["equalized"] = equalized
+        kwargs["shift"] = shift
+        kwargs["dropout"] = dropout
 
         print("Input", tensor_size)
         t_size = tensor_size

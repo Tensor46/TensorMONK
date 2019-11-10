@@ -3,8 +3,8 @@
 import os
 try:
     import wget
-except Exception as e:
-    print("import wget", e)
+except ImportError:
+    print(" ... wget not found")
     wget = None
 import torch
 from ..layers import Convolution, DenseBlock, Linear
@@ -12,16 +12,17 @@ from ..utils import ImageNetNorm
 from ..layers.utils import compute_flops
 
 
-def map_pretrained(state_dict, type):
+def map_pretrained(state_dict, architecture):
     # no fully connected
-    if type == "d121":
+    if architecture == "d121":
         url = "https://download.pytorch.org/models/densenet121-a639ec97.pth"
-    elif type == "d169":
+    elif architecture == "d169":
         url = "https://download.pytorch.org/models/densenet169-b2777c0a.pth"
-    elif type == "d201":
+    elif architecture == "d201":
         url = "https://download.pytorch.org/models/densenet201-c1103571.pth"
     else:
-        print(" ... pretrained weights are not avaiable for {}".format(type))
+        print(" ... pretrained weights are not avaiable for {}".format(
+              architecture))
         return state_dict
 
     # download is not in models
@@ -95,14 +96,15 @@ class DenseNet(torch.nn.Sequential):
     r"""Versions of DenseNets. With the ability to change the strides of
     initial convolution and remove max pool the models works for all the
     min(height, width) >= 32. To replicate the paper, use default parameters
-    (and select type). Implemented from https://arxiv.org/pdf/1608.06993.pdf
+    (and select architecture). Implemented from
+    https://arxiv.org/pdf/1608.06993.pdf
 
     Args:
         tensor_size: shape of tensor in BCHW
             (None/any integer >0, channels, height, width)
-        type (string): model type
-            Available models        type
-            ============================
+        architecture (string): model architecture
+            Available models        architecture
+            ====================================
             DenseNet-121            d121
             DenseNet-169            d169
             DenseNet-201            d201
@@ -128,7 +130,7 @@ class DenseNet(torch.nn.Sequential):
     """
     def __init__(self,
                  tensor_size=(6, 3, 224, 224),
-                 type: str = "d121",
+                 architecture: str = "d121",
                  activation: str = "relu",
                  dropout: float = 0.1,
                  normalization: str = "batch",
@@ -143,9 +145,14 @@ class DenseNet(torch.nn.Sequential):
         super(DenseNet, self).__init__()
 
         import numpy as np
-        type = type.lower()
-        assert type in ("d121", "d169", "d201", "d264"),\
-            "DenseNet: type must be d121/d169/d201/d264"
+        if "type" in kwargs.keys():
+            import warnings
+            architecture = kwargs["type"]
+            warnings.warn("ResidualNet: 'type' is deprecated, use "
+                          "'architecture' instead", DeprecationWarning)
+        architecture = architecture.lower()
+        assert architecture in ("d121", "d169", "d201", "d264"),\
+            "DenseNet: architecture must be d121/d169/d201/d264"
 
         self.pretrained = pretrained
         if self.pretrained:
@@ -154,17 +161,17 @@ class DenseNet(torch.nn.Sequential):
             activation, normalization, pre_nm = "relu", "batch", True
             groups, weight_nm, equalized, shift = 1, False, False, False
 
-        self.type = type
+        self.architecture = architecture
         self.in_tensor_size = tensor_size
         self.pool_flops = 0
 
-        if type == "d121":
+        if architecture == "d121":
             block_params, k = [6, 12, 24, 16], 32
-        elif type == "d169":
+        elif architecture == "d169":
             block_params, k = [6, 12, 32, 32], 32
-        elif type == "d201":
+        elif architecture == "d201":
             block_params, k = [6, 12, 48, 32], 32
-        elif type == "d264":
+        elif architecture == "d264":
             block_params, k = [6, 12, 64, 48], 32
         else:
             raise NotImplementedError
@@ -179,10 +186,14 @@ class DenseNet(torch.nn.Sequential):
         if pretrained:
             self.add_module("ImageNetNorm", ImageNetNorm())
 
-        kwargs = {"activation": activation, "normalization": normalization,
-                  "weight_nm": weight_nm, "equalized": equalized,
-                  "shift": shift, "pad": True, "groups": groups,
-                  "dropout": dropout}
+        kwargs["activation"] = activation
+        kwargs["normalization"] = normalization
+        kwargs["weight_nm"] = weight_nm
+        kwargs["equalized"] = equalized
+        kwargs["shift"] = shift
+        kwargs["groups"] = groups
+        kwargs["dropout"] = dropout
+
         self.add_module("InitialConvolution",
                         Convolution(tensor_size, 7, 64, s,
                                     pre_nm=False, **kwargs))
@@ -237,7 +248,8 @@ class DenseNet(torch.nn.Sequential):
 
     def load_pretrained(self):
         if self.in_tensor_size[1] == 1 or self.in_tensor_size[1] == 3:
-            self.load_state_dict(map_pretrained(self.state_dict(), self.type))
+            self.load_state_dict(map_pretrained(self.state_dict(),
+                                                self.architecture))
         else:
             print(" ... pretrained not available")
             self.pretrained = False

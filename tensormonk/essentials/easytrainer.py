@@ -194,7 +194,9 @@ class EasyTrainer(object):
         ignore_trained (optional, bool): Ignores any pretrained model.
             default = False
         visplots (optional, bool): When True, enables tensormonk.plots.VisPlots
-        n_visplots (optional, int):
+        n_visplots (optional, int): Frequency of plots
+        distributed (optional, bool): Enables distributed training,
+            default = False
 
     Ex:
         import tensormonk
@@ -230,6 +232,7 @@ class EasyTrainer(object):
                  ignore_trained: bool = False,
                  visplots: bool = False,
                  n_visplots: int = 100,
+                 distributed: bool = False,
                  **kwargs):
 
         # checks
@@ -259,6 +262,9 @@ class EasyTrainer(object):
         if not (n_visplots >= 1):
             raise ValueError("EasyTrainer: n_visplots must be >= 1: "
                              "{}".format(n_visplots))
+        if not isinstance(distributed, bool):
+            raise TypeError("EasyTrainer: distributed must be bool: "
+                            "{}".format(type(distributed).__name__))
 
         self.is_cuda = torch.cuda.is_available()
         self.default_gpu = default_gpu
@@ -267,6 +273,7 @@ class EasyTrainer(object):
         self.ignore_trained = ignore_trained
         self.iteration = 0
         self.n_visplots = n_visplots
+        self.distributed = distributed
         self.kwargs = kwargs
 
         self._check_path(name, path)
@@ -410,7 +417,7 @@ class EasyTrainer(object):
         r"""Builds all networks and load pretrained weights if exists. The
         EasyTrainer params are overwritten by networks[network] parameters.
         """
-        if self.is_pretrained:
+        if self.is_pretrained and not self.ignore_trained:
             content = torch.load(self.file_name)["model_container"]
         for n in list(networks.keys()):
             _pretrained = False
@@ -422,7 +429,7 @@ class EasyTrainer(object):
                     networks[n].network(**networks[n].arguments)
 
             # load pretrained
-            if self.is_pretrained:
+            if self.is_pretrained and not self.ignore_trained:
                 ignore_trained = self.ignore_trained
                 if networks[n].ignore_trained is not None:
                     # networks' parameters will overwrite EasyTrainer's
@@ -442,8 +449,16 @@ class EasyTrainer(object):
             else:
                 default_gpu = self.default_gpu
             if self.is_cuda and gpus == 1:
-                torch.cuda.set_device(default_gpu)
-                self.model_container[n].cuda()
+                if self.distributed:
+                    from torch.nn import parallel
+                    device = torch.device("cuda", default_gpu)
+                    self.model_container[n] = parallel.DistributedDataParallel(
+                        self.model_container[n].to(device),
+                        device_ids=[default_gpu],
+                        output_device=default_gpu)
+                else:
+                    torch.cuda.set_device(default_gpu)
+                    self.model_container[n].cuda()
             if self.is_cuda and gpus > 1:
                 _gpus = list(range(gpus))
                 self.model_container[n] = \

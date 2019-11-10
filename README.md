@@ -36,6 +36,7 @@ Trained on CIFAR10 (pggan-cifar10.py) -- requires more training (more gpus)!
 ### Activation Functions
 * [Maxout Networks](https://arxiv.org/pdf/1302.4389.pdf)
 * [SWISH: A SELF-GATED ACTIVATION FUNCTION](https://arxiv.org/pdf/1710.05941v1.pdf)
+* [Mish: Self Regularized Non-Monotonic Activation Function](https://arxiv.org/abs/1908.08681)
 
 ### Classification
 * [Deep Neural Decision Forests](https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Kontschieder_Deep_Neural_Decision_ICCV_2015_paper.pdf)

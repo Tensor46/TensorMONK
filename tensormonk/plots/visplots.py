@@ -195,6 +195,8 @@ class VisPlots(object):
                 if "weight" in n and "weight_g" not in n and \
                    "Normalization" not in n and "bias" not in n and \
                    p.requires_grad:
+                    if p.grad is None:
+                        continue
                     _n = n.replace("NET46.", "")
                     _n = _n.replace(".weight", "-ws")
                     _n = _n.replace(".Convolution", ".c")

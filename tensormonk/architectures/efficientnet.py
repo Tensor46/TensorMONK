@@ -223,12 +223,16 @@ class EfficientNet(torch.nn.Module):
         modules = []
         for i, layer_config in enumerate(layer_configs):
             if i == 0:
+                strides = 1 if min(*model_config.tensor_size[2:]) <= 32 else \
+                    layer_config.strides
                 modules.append(Convolution(model_config.tensor_size,
                                            layer_config.filter_size,
                                            layer_config.out_channels,
-                                           layer_config.strides,
+                                           strides,
                                            True, **block_kwargs))
                 continue
+            strides = 1 if min(*model_config.tensor_size[2:]) <= 128 and \
+                i == 2 else layer_config.strides
             modules.append(base_block(modules[-1].tensor_size,
                                       layer_config.filter_size,
                                       layer_config.out_channels,
