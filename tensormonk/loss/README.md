@@ -34,6 +34,34 @@ loss_fn = tensormonk.loss.Categorical(
     add_focal=True, focal_alpha=torch.Tensor([1.]*2), focal_gamma=2.)
 ```
 * [DiceLoss / Tversky Loss](https://arxiv.org/pdf/1706.05721.pdf): Segmentation loss function
+* IOULoss: Versions of IOU based loss functions (["iou"](http://www.cs.umanitoba.ca/~ywang/papers/isvc16.pdf), ["log_iou"](https://arxiv.org/pdf/1608.01471.pdf), ["giou"](https://arxiv.org/pdf/1902.09630.pdf), "log_giou")
+```python
+# Example
+from tensormonk.loss import IOULoss
+
+predicted = torch.Tensor([[0.1, 0.2, 0.1, 0.3]])
+predicted.requires_grad_(True)
+targets = torch.Tensor([[0.2, 0.1, 0.2, 0.4]])
+# iou loss with "mean" reduction
+IOULoss(iou_type="iou", reduction="mean")(predicted, targets)
+# log iou loss with "sum" reduction
+IOULoss(iou_type="log_iou", reduction="sum")(predicted, targets)
+# generalized iou loss with no reduction
+IOULoss(iou_type="giou", reduction=None)(predicted, targets)
+```
+* [BalancedL1Loss](https://arxiv.org/pdf/1904.02701.pdf)
+```python
+# Example
+from tensormonk.loss import BalancedL1Loss
+
+predicted = torch.Tensor([[0.1, 0.2, 0.1, 0.3]])
+predicted.requires_grad_(True)
+targets = torch.Tensor([[0.2, 0.1, 0.2, 0.4]])
+# with no reduction
+BalancedL1Loss(alpha=0.5, gamma=1.5, reduction=None)(predicted, targets)
+# with reduction = "mean"
+BalancedL1Loss(alpha=0.5, gamma=1.5, reduction="mean")(predicted, targets)
+```
 * MetricLoss: [triplet](https://arxiv.org/pdf/1503.03832.pdf), [angular_triplet](https://arxiv.org/pdf/1708.01682.pdf), [n-pair](http://www.nec-labs.com/uploads/images/Department-Images/MediaAnalytics/papers/nips16_npairmetriclearning.pdf)
 ```python
 # Example
