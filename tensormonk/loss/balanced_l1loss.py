@@ -78,6 +78,10 @@ class BalancedL1Loss(nn.Module):
                 loss = loss.sum(-1)
             return loss.mean()
 
+    def __repr__(self):
+        return "BalancedL1Loss: alpha={}, gamma={}, reduction = {}".format(
+            self.alpha, self.gamma, self.reduction)
+
 
 # predicted = torch.Tensor([[0.1, 0.2, 2.1, 1.2]])
 # predicted.requires_grad_(True)
