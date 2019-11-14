@@ -163,6 +163,10 @@ class IOULoss(nn.Module):
         else:
             return iou_loss
 
+    def __repr__(self):
+        return "IOU Loss ({}): reduction = {}".format(self.iou_type,
+                                                      self.reduction)
+
 
 # predicted = torch.Tensor([[0.1, 0.2, 0.1, 0.3]])
 # targets = torch.Tensor([[0.2, 0.1, 0.2, 0.4]])
