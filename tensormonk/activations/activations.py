@@ -39,8 +39,8 @@ class Activations(nn.Module):
     Args:
         tensor_size: shape of tensor in BCHW
             (None/any integer >0, channels, height, width)
-        activation: relu/relu6/lklu/elu/prelu/tanh/sigm/maxo/rmxo/swish/mish,
-            default=relu
+        activation: relu/relu6/lklu/elu/gelu/prelu/tanh/selu/sigm/maxo/rmxo
+            /swish/mish, default=relu
     """
     def __init__(self, tensor_size: tuple, activation: str = "relu", **kwargs):
         super(Activations, self).__init__()
@@ -57,7 +57,7 @@ class Activations(nn.Module):
 
         self.function = getattr(self, "_" + activation)
         if activation == "prelu":
-            self.weight = nn.Parameter(torch.ones(1)) * 0.1
+            self.weight = nn.Parameter(torch.ones(1) * 0.1)
         if activation == "lklu":
             self.negslope = kwargs["lklu_negslope"] if "lklu_negslope" in \
                 kwargs.keys() else 0.01
@@ -65,8 +65,10 @@ class Activations(nn.Module):
             self.alpha = kwargs["elu_alpha"] if "elu_alpha" in \
                 kwargs.keys() else 1.0
 
-        self.tensor_size = tensor_size if activation not in ["maxo", "rmxo"] \
-            else (None, tensor_size[1]//2, tensor_size[2], tensor_size[3])
+        t_size = list(tensor_size)
+        t_size[1] = t_size[1] // 2
+        self.tensor_size = tensor_size if activation not in ("maxo", "rmxo") \
+            else tuple(t_size)
 
     def forward(self, tensor: torch.Tensor):
         if self.function is None:
@@ -85,8 +87,14 @@ class Activations(nn.Module):
     def _elu(self, tensor):
         return F.elu(tensor, self.alpha)
 
+    def _gelu(self, tensor):
+        return F.gelu(tensor)
+
     def _prelu(self, tensor):
         return F.prelu(tensor, self.weight)
+
+    def _selu(self, tensor):
+        return F.selu(tensor)
 
     def _tanh(self, tensor):
         return torch.tanh(tensor)
@@ -114,8 +122,8 @@ class Activations(nn.Module):
 
     @staticmethod
     def available():
-        return ["elu", "lklu", "maxo", "mish", "prelu", "relu", "relu6",
-                "rmxo", "sigm", "squash", "swish", "tanh"]
+        return ["elu", "gelu", "lklu", "maxo", "mish", "prelu", "relu",
+                "relu6", "rmxo", "selu", "sigm", "squash", "swish", "tanh"]
 
     def flops(self):
         import numpy as np
