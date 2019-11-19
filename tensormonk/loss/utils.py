@@ -27,7 +27,7 @@ def compute_top15(responses: torch.Tensor, targets: torch.Tensor):
 
 
 @torch.no_grad()
-def one_hot(targets: torch.Tensor, n_labels: torch.Tensor):
+def one_hot(targets: torch.Tensor, n_labels: int):
     identity = torch.eye(n_labels, dtype=torch.int8).to(targets.device)
     onehot_targets = identity.index_select(dim=0,
                                            index=targets.long().view(-1))
@@ -35,7 +35,7 @@ def one_hot(targets: torch.Tensor, n_labels: torch.Tensor):
 
 
 @torch.no_grad()
-def one_hot_idx(targets: torch.Tensor, n_labels: torch.Tensor):
+def one_hot_idx(targets: torch.Tensor, n_labels: int):
     targets = targets.view(-1)
     return targets + \
         torch.arange(0, targets.size(0)).to(targets.device) * n_labels
