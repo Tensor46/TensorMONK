@@ -4,6 +4,7 @@ import torch
 import numpy as np
 import PIL.Image as ImPIL
 import random
+from typing import Union
 from PIL import ImageDraw, ImageOps
 from torchvision import transforms
 
@@ -12,7 +13,8 @@ class PillowUtils:
     tensor_to_pil = transforms.ToPILImage()
 
     @staticmethod
-    def to_pil(image, t_size: tuple = None, ltrb_boxes: np.ndarray = None):
+    def to_pil(image: Union[str, ImPIL.Image, np.ndarray, torch.Tensor],
+               t_size: tuple = None, ltrb_boxes: np.ndarray = None):
         r"""Converts file_name or ndarray or 3D torch.Tensor to pillow image.
         Adjusts the ltrb_boxes when ltrb_boxes are provided along with t_size.
 
@@ -131,7 +133,10 @@ class PillowUtils:
         return image, ltrb_boxes
 
     @staticmethod
-    def extend_random_crop(image, labels, ltrb, points=None,
+    def extend_random_crop(image: ImPIL.Image,
+                           labels: np.ndarray,
+                           ltrb: np.ndarray,
+                           points: np.ndarray = None,
                            osize: tuple = (320, 320),
                            min_box_side: int = 30,
                            ignore_intersection: tuple = (0.5, 0.9),
@@ -353,7 +358,9 @@ class PillowUtils:
         return image, ltrb_boxes, points
 
     @staticmethod
-    def annotate_boxes(image, ltrb_boxes, points: list = None,
+    def annotate_boxes(image: Union[ImPIL.Image, torch.Tensor],
+                       ltrb_boxes: Union[np.ndarray, torch.Tensor, list],
+                       points: Union[np.ndarray, torch.Tensor, list] = None,
                        text: list = None,
                        box_color: str = "#F1C40F",
                        point_color: str = "#00FFBB"):
@@ -375,38 +382,49 @@ class PillowUtils:
         if isinstance(points, torch.Tensor):
             points = points.data.cpu().numpy()
 
+        assert isinstance(image, ImPIL.Image), \
+            "image must be pillow image / 3D torch.Tensor"
         _show = image.copy()
-        boxes = ltrb_boxes.copy()
-        if points is not None:
-            points = points.copy()
-        if boxes.max() <= 2:
-            # convert normalized ltrb_boxes to pixel locations
-            boxes[:, 0::2] *= image.size[0]
-            boxes[:, 1::2] *= image.size[1]
-            if points is not None:
-                points[:, 0] *= image.size[0]
-                points[:, 1] *= image.size[1]
-
         w, h = _show.size
-        boxes[:, 0::2] = np.clip(boxes[:, 0::2], 0, w)
-        boxes[:, 1::2] = np.clip(boxes[:, 1::2], 0, h)
+        draw = ImageDraw.Draw(_show)
+
+        if ltrb_boxes is not None:
+            if isinstance(ltrb_boxes, (list, tuple)):
+                ltrb_boxes = np.array(ltrb_boxes)
+            assert isinstance(ltrb_boxes, np.ndarray), \
+                "ltrb_boxes must be None/list/ndarray/torch.Tensor"
+
+            boxes = ltrb_boxes.copy()
+            if boxes.max() <= 2:
+                # convert normalized ltrb_boxes to pixel locations
+                boxes[:, 0::2] *= w
+                boxes[:, 1::2] *= h
+            boxes[:, 0::2] = np.clip(boxes[:, 0::2], 0, w)
+            boxes[:, 1::2] = np.clip(boxes[:, 1::2], 0, h)
+            for x in boxes.astype(np.int64):
+                draw.rectangle((tuple(x[:2].tolist()), tuple(x[2:].tolist())),
+                               outline=box_color)
+
         if points is not None:
+            if isinstance(points, (list, tuple)):
+                points = np.array(points)
+            assert isinstance(points, np.ndarray), \
+                "points must be None/list/ndarray/torch.Tensor"
+
+            points = points.copy().reshape(-1, 2)
+            if points.max() <= 2:
+                points[:, 0] *= w
+                points[:, 1] *= h
             points[:, 0] = np.clip(points[:, 0], 0, w)
             points[:, 1] = np.clip(points[:, 1], 0, h)
-        draw = ImageDraw.Draw(_show)
-        for i, x in enumerate(boxes.astype(np.int64)):
-            draw.rectangle((tuple(x[:2].tolist()), tuple(x[2:].tolist())),
-                           outline=box_color)
-            if text is not None:
-                if isinstance(text[i], str):
-                    draw.text(tuple((x[:2]).tolist()), text[i],
-                              fill="#E74C3C")
-        if points is not None:
             r = 2
-            for pt in points.reshape(-1, 2).astype(np.int64):
-                x, y = pt[0], pt[1]
-                draw.ellipse((int(x)-r, int(y)-r, int(x)+r, int(y)+r),
+            for x, y in points.astype(np.int64):
+                draw.ellipse((int(x) - r, int(y) - r, int(x) + r, int(y) + r),
                              fill=point_color)
 
+        if text is not None:
+            for txt in text:
+                if isinstance(txt, str):
+                    draw.text(tuple((x[:2]).tolist()), txt, fill="#E74C3C")
         del draw
         return _show
