@@ -750,10 +750,11 @@ class MBBlock(nn.Module):
                                      pre_nm, groups=channels, **kwargs)
         if seblock:
             self.squeeze = Convolution(self.depthwise.tensor_size, 1,
-                                       tensor_size[1]//r, 1, True, activation)
+                                       tensor_size[1]//r, 1, True, activation,
+                                       bias=True)
             self.excitation = Convolution(self.squeeze.tensor_size, 1,
                                           self.depthwise.tensor_size[1], 1,
-                                          True, "sigm")
+                                          True, "sigm", bias=True)
         self.shrink = Convolution(self.depthwise.tensor_size, 1, out_channels,
                                   1, True, None, 0., normalization,
                                   pre_nm, **kwargs)
