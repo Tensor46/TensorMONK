@@ -67,7 +67,7 @@ def hard_negative_mask(prediction: torch.Tensor,
         "hard_negative_mask: prediction must be 2D/3D tensor."
     assert targets.ndim == 2, \
         "hard_negative_mask: targets must be 2D tensor."
-    prediction = prediction.data.detach()
+    prediction = prediction.clone()
     ns = prediction.size(0)
     foreground_mask = targets > 0
 

@@ -21,7 +21,7 @@ class IOULoss(nn.Module):
     "log_giou" -> extension of "giou"
 
     Args:
-        iou_type (str): Variations of iou based loss functions.
+        method (str): Variations of iou based loss functions.
             options = "iou" | "log_iou" | "giou" | "log_giou"
             default = "log_iou"
 
@@ -39,20 +39,20 @@ class IOULoss(nn.Module):
     """
 
     def __init__(self,
-                 iou_type: str = "log_iou",
+                 method: str = "log_iou",
                  reduction: str = None,
                  box_form: str = "d_ltrb",
                  **kwargs):
         super(IOULoss, self).__init__()
 
-        if not isinstance(iou_type, str):
-            raise TypeError("IOULoss: iou_type must be str: "
-                            "{}".format(type(iou_type).__name__))
-        iou_type = iou_type.lower()
-        if iou_type not in ["iou", "log_iou", "giou", "log_giou"]:
-            raise ValueError("IOULoss: iou_type must be "
+        if not isinstance(method, str):
+            raise TypeError("IOULoss: method must be str: "
+                            "{}".format(type(method).__name__))
+        method = method.lower()
+        if method not in ["iou", "log_iou", "giou", "log_giou"]:
+            raise ValueError("IOULoss: method must be "
                              "iou/log_iou/giou/log_giou: "
-                             "{}".format(iou_type))
+                             "{}".format(method))
 
         if not isinstance(box_form, str):
             raise TypeError("IOULoss: box_form must be str: "
@@ -70,7 +70,7 @@ class IOULoss(nn.Module):
                 raise ValueError("IOULoss: reduction must be sum/mean/None: "
                                  "{}".format(reduction))
 
-        self.iou_type = iou_type
+        self.method = method
         self.is_offsets = box_form == "d_ltrb"
         self.reduction = reduction
         self.tensor_size = 1,
@@ -112,7 +112,7 @@ class IOULoss(nn.Module):
             t_area = (t_dl + t_dr) * (t_dt + t_db)
             union = p_area + t_area - intersection
 
-            if self.iou_type in ["giou", "log_giou"]:
+            if self.method in ["giou", "log_giou"]:
                 ac = ((torch.max(p_dl, t_dl) + torch.max(p_dr, t_dr)) *
                       (torch.max(p_dt, t_dt) + torch.max(p_db, t_db)))
 
@@ -134,7 +134,7 @@ class IOULoss(nn.Module):
             union = p_area + t_area - intersection
             ious = (intersection + 1.0) / (union + 1.0)
 
-            if self.iou_type in ["giou", "log_giou"]:
+            if self.method in ["giou", "log_giou"]:
                 ac = ((torch.max(p_cx + p_w, t_cx + t_w) -
                        torch.min(p_cx - p_w, t_cx - t_w)) *
                       (torch.max(p_cy + p_h, t_cy + t_h) -
@@ -142,11 +142,11 @@ class IOULoss(nn.Module):
 
         # iou or generalized iou computation
         ious = intersection / union
-        if self.iou_type in ["giou", "log_giou"]:
+        if self.method in ["giou", "log_giou"]:
             ious = ious - ((ac - union) / ac.add(1e-8))
 
         # - ious.log() / 1 - ious
-        if self.iou_type in ["iou", "giou"]:
+        if self.method in ["iou", "giou"]:
             iou_loss = 1 - ious
         else:
             iou_loss = - torch.log(ious)
@@ -164,7 +164,7 @@ class IOULoss(nn.Module):
             return iou_loss
 
     def __repr__(self):
-        return "IOU Loss ({}): reduction = {}".format(self.iou_type,
+        return "IOU Loss ({}): reduction = {}".format(self.method,
                                                       self.reduction)
 
 

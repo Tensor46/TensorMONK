@@ -41,11 +41,11 @@ class BalancedL1Loss(nn.Module):
                             "{}".format(type(gamma).__name__))
         if reduction is not None:
             if not isinstance(reduction, str):
-                raise TypeError("IOULoss: reduction must be str/None: "
+                raise TypeError("BalancedL1Loss: reduction must be str/None: "
                                 "{}".format(type(reduction).__name__))
             reduction = reduction.lower()
             if reduction not in ["sum", "mean", "mean_of_sum"]:
-                raise ValueError("IOULoss: reduction must be "
+                raise ValueError("BalancedL1Loss: reduction must be "
                                  "sum/mean/mean_of_sum/None: "
                                  "{}".format(reduction))
 
