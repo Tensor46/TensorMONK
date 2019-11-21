@@ -102,9 +102,8 @@ class EfficientNet(torch.nn.Module):
 
         if n_embedding is not None and n_embedding > 0:
             self.add_module("embedding", Linear(self.tensor_size, n_embedding,
-                                                "", 0., False))
+                                                "", 0., True))
             self.tensor_size = (1, n_embedding)
-            print("Linear", (1, n_embedding))
 
     def forward(self, tensor):
         tensor = self.network(tensor)
@@ -239,7 +238,7 @@ class EfficientNet(torch.nn.Module):
                                       layer_config.strides,
                                       dropout=model_config.dropout,
                                       expansion=layer_config.expansion,
-                                      r=modules[-1].tensor_size[1]//4,
+                                      r=4,
                                       **block_kwargs))
             for j in range(layer_config.repeat - 1):
                 modules.append(base_block(modules[-1].tensor_size,
@@ -248,12 +247,22 @@ class EfficientNet(torch.nn.Module):
                                           strides=1,
                                           dropout=model_config.dropout,
                                           expansion=layer_config.expansion,
-                                          r=modules[-1].tensor_size[1]//4,
+                                          r=4,
                                           **block_kwargs))
         modules.append(Convolution(modules[-1].tensor_size, 1,
                                    modules[-1].tensor_size[1] * 4,
                                    1, **block_kwargs))
         return modules
+
+    def _load_pretrained(self, ws_path: str):
+        pstate_dict = torch.load(ws_path)
+        cstate_dict = self.state_dict()
+        for cn, pn in zip(cstate_dict.keys(), pstate_dict.keys()):
+            if cstate_dict[cn].shape == pstate_dict[pn].shape:
+                cstate_dict[cn] = pstate_dict[pn]
+                continue
+            print(cn)
+        self.load_state_dict(cstate_dict)
 
 
 # from tensormonk.layers import Convolution, Linear, MBBlock
