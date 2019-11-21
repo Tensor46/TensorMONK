@@ -2,7 +2,8 @@
 
 __all__ = ["CapsuleLoss", "Categorical", "DiceLoss",
            "MetricLoss", "MultiBoxLoss", "TripletLoss",
-           "BalancedL1Loss", "IOULoss"]
+           "BalancedL1Loss", "IOULoss",
+           "LabelLoss", "BoxesLoss"]
 
 from .categorical import Categorical
 from .capsuleloss import CapsuleLoss
@@ -11,5 +12,8 @@ from .multibox import MultiBoxLoss
 from .segloss import DiceLoss
 from .iou_loss import IOULoss
 from .balanced_l1loss import BalancedL1Loss
+from .label_loss import LabelLoss
+from .boxes_loss import BoxesLoss
 
-del categorical, capsuleloss, metricloss, segloss, multibox, iou_loss
+del (categorical, capsuleloss, metricloss, segloss, multibox, iou_loss,
+     balanced_l1loss, label_loss, boxes_loss)
