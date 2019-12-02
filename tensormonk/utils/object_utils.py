@@ -4,11 +4,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from torch import Tensor
+from typing import Union
 
 
 class ObjectUtils:
-    """
-    Utils required for object detection that accepts numpy array or torch
+    r"""Utils required for object detection that accepts numpy array or torch
     Tensor.
 
     Few Basics
@@ -52,11 +53,9 @@ class ObjectUtils:
     AvailableTypes = ("numpy", "torch")
 
     @staticmethod
-    def to_array(boxes, itype: str = "numpy"):
-        """
-        Return's torch.Tensor/np.ndarray.
-        Accepts list/tuple/np.ndarray/tensor.Tensor
-        """
+    def to_array(boxes: Union[Tensor, np.ndarray], itype: str = "numpy"):
+        r"""Return's torch.Tensor/np.ndarray. Accepts list/tuple/np.ndarray/
+        tensor.Tensor """
 
         if isinstance(boxes, list) or isinstance(boxes, tuple):
             if itype == "torch":
@@ -80,8 +79,9 @@ class ObjectUtils:
         return boxes
 
     @staticmethod
-    def pixel_to_norm01(boxes, w: int, h: int, itype: str = "torch"):
-        """ Normalizes bounding boxes (ltrb/cxcywh) from pixel coordinates to
+    def pixel_to_norm01(boxes: Union[Tensor, np.ndarray],
+                        w: int, h: int, itype: str = "torch"):
+        r"""Normalizes bounding boxes (ltrb/cxcywh) from pixel coordinates to
         normalized 0-1 form given width (w) and height (h) of an image """
 
         boxes = ObjectUtils.to_array(boxes, itype)
@@ -91,7 +91,8 @@ class ObjectUtils:
         return boxes
 
     @staticmethod
-    def norm01_to_pixel(boxes, w: int, h: int, itype: str = "torch"):
+    def norm01_to_pixel(boxes: Union[Tensor, np.ndarray],
+                        w: int, h: int, itype: str = "torch"):
         """ Normalizes bounding boxes (ltrb/cxcywh) from normalized 0-1 form to
         pixel coordinates given width (w) and height (h) of an image """
 
@@ -102,8 +103,9 @@ class ObjectUtils:
         return boxes
 
     @staticmethod
-    def auto_convert(boxes, w: int, h: int, itype: str = "torch"):
-        """ Normalizes bounding boxes (ltrb/cxcywh) from (pixel coordinates to
+    def auto_convert(boxes: Union[Tensor, np.ndarray],
+                     w: int, h: int, itype: str = "torch"):
+        r"""Normalizes bounding boxes (ltrb/cxcywh) from (pixel coordinates to
         normalized 0-1) or (normalized 0-1 form to pixel coordinates) given
         width (w) and height (h) of image """
 
@@ -119,8 +121,8 @@ class ObjectUtils:
         return boxes
 
     @staticmethod
-    def ltrb_to_cxcywh(boxes, itype: str = "torch"):
-        """ Converts bouning boxes from
+    def ltrb_to_cxcywh(boxes: Union[Tensor, np.ndarray], itype: str = "torch"):
+        r"""Converts bounding boxes from
         (left, top, right, bottom) to (center x, center y, width, height) """
 
         boxes = ObjectUtils.to_array(boxes, itype)
@@ -132,8 +134,8 @@ class ObjectUtils:
         return boxes
 
     @staticmethod
-    def cxcywh_to_ltrb(boxes, itype: str = "torch"):
-        """ Converts bouning boxes from
+    def cxcywh_to_ltrb(boxes: Union[Tensor, np.ndarray], itype: str = "torch"):
+        r"""Converts bounding boxes from
         (center x, center y, width, height) to (left, top, right, bottom) """
 
         boxes = ObjectUtils.to_array(boxes, itype)
@@ -145,7 +147,9 @@ class ObjectUtils:
         return boxes
 
     @staticmethod
-    def compute_iou(ltrb_boxes1, ltrb_boxes2):
+    def compute_iou(ltrb_boxes1: Union[Tensor, np.ndarray],
+                    ltrb_boxes2: Union[Tensor, np.ndarray],
+                    return_iof: bool = False):
         """ Computes all combinations of intersection over union for two sets of
         boxes. Accepts np.ndarray or torch.Tensor.
         """
@@ -172,6 +176,8 @@ class ObjectUtils:
             area_2 = ((ltrb_boxes2[:, 2] - ltrb_boxes2[:, 0]) *
                       (ltrb_boxes2[:, 3] - ltrb_boxes2[:, 1]))
             union = area_1[:, np.newaxis] + area_2[np.newaxis, ] - intersection
+            if return_iof:
+                return intersection / union, intersection / area_1[:, None]
             return intersection / union
 
         """ Torch Implementation """
@@ -196,11 +202,14 @@ class ObjectUtils:
         area_2 = ((ltrb_boxes2[:, 2] - ltrb_boxes2[:, 0]) *
                   (ltrb_boxes2[:, 3] - ltrb_boxes2[:, 1]))
         union = area_1.unsqueeze(1) + area_2.unsqueeze(0) - intersection
+        if return_iof:
+            return intersection / union, intersection / area_1.unsqueeze(1)
         return intersection / union
 
     @staticmethod
-    def nms(ltrb_boxes, scores, iou_threshold: float = 0.5,
-            n_objects: int = -1):
+    def nms(ltrb_boxes: Union[Tensor, np.ndarray],
+            scores: Union[Tensor, np.ndarray],
+            iou_threshold: float = 0.5, n_objects: int = -1):
         """ Non-maximal suppression - requires normalized ltrb_boxes and scores.
 
         Args:
