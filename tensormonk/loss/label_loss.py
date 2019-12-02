@@ -1,5 +1,7 @@
 """ TensorMONK's :: loss :: LabelLoss """
 
+__all__ = ["LabelLoss"]
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -40,28 +42,31 @@ class LabelLoss(nn.Module):
             default = "mean"
 
     """
+    KWARGS = ("method", "focal_alpha", "focal_gamma",
+              "pos_to_neg_ratio", "reduction")
+    METHODS = ("ce_with_negative_mining",
+               "focal",
+               "focal_dynamic",
+               "focal_with_negative_mining")
+
     def __init__(self,
                  method: str = "ce_with_negative_mining",
                  focal_alpha: Union[float, Tensor] = 0.1,
                  focal_gamma: float = 2.,
                  pos_to_neg_ratio: float = 1 / 3.,
-                 reduction: str = "mean"):
+                 reduction: str = "mean",
+                 **kwargs):
 
         super(LabelLoss, self).__init__()
-
-        METHODS = ("ce_with_negative_mining",
-                   "focal",
-                   "focal_dynamic",
-                   "focal_with_negative_mining")
 
         # checks
         if not isinstance(method, str):
             raise TypeError("LabelLoss: method must be str: "
                             "{}".format(type(method).__name__))
         self._method = method.lower()
-        if self._method not in METHODS:
+        if self._method not in LabelLoss.METHODS:
             raise ValueError("LabelLoss :: method != " +
-                             "/".join(METHODS) +
+                             "/".join(LabelLoss.METHODS) +
                              " : {}".format(self._method))
 
         if not isinstance(focal_alpha, (float, Tensor)):
@@ -109,7 +114,7 @@ class LabelLoss(nn.Module):
 
     def _focal_loss(self, predictions: Tensor, targets: Tensor):
         # ns = predictions.shape[0]
-        predictions, targets = predictions.squeeze(), targets.squeeze()
+        # predictions, targets = predictions.squeeze(), targets.squeeze()
         _negative_mining = "_negative_mining" in self._method
         _dynamic_focal = "dynamic" in self._method
         alpha, gamma = self._focal_alpha, self._focal_gamma
@@ -190,7 +195,7 @@ class LabelLoss(nn.Module):
         return loss
 
     def _ce_with_negative_mining(self, predictions: Tensor, targets: Tensor):
-        predictions, targets = predictions.squeeze(), targets.squeeze()
+        # predictions, targets = predictions.squeeze(), targets.squeeze()
 
         if predictions.shape == targets.shape:
             # 2-class & binary cross entropy
