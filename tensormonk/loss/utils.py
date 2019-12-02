@@ -80,7 +80,7 @@ def hard_negative_mask(prediction: torch.Tensor,
         for i in range(ns):
             probs = prediction[i]
             # foreground prob to minimum
-            probs[foreground_mask[i]] = False
+            probs[foreground_mask[i]] = 0.
             retain = max(1, int(foreground_mask[i].sum() / pos_to_neg_ratio))
             background_mask[i, torch.argsort(probs)[-retain:]] = True
     else:
@@ -93,7 +93,7 @@ def hard_negative_mask(prediction: torch.Tensor,
         for i in range(ns):
             probs = background_probs[i]
             # foreground prob to minimum
-            probs[foreground_mask[i]] = False
+            probs[foreground_mask[i]] = 0.
             retain = max(1, int(foreground_mask[i].sum() / pos_to_neg_ratio))
             background_mask[i, torch.argsort(probs)[-retain:]] = True
     mask = foreground_mask.bool() | background_mask.bool()
