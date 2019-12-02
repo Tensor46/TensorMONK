@@ -70,7 +70,7 @@ class BoxesLoss(torch.nn.Module):
                                  "sum/mean/mean_of_sum/None: "
                                  "{}".format(reduction))
             if reduction == "mean_of_sum" and \
-               self._method not in ("smooth_l1", "balanced_l1"):
+               self._method not in ("smooth_l1", "balanced_l1", "mse"):
                 import warnings
                 reduction = "mean"
                 warnings.warn(
