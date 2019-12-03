@@ -53,11 +53,11 @@ class BalancedL1Loss(nn.Module):
         self.reduction = reduction
         self.tensor_size = 1,
 
-    def forward(self, predicted: torch.Tensor, targets: torch.Tensor):
-        assert predicted.shape == targets.shape, \
-            "BalancedL1Loss: predicted.shape != targets.shape"
+    def forward(self, p_boxes: torch.Tensor, t_boxes: torch.Tensor):
+        assert p_boxes.shape == t_boxes.shape, \
+            "BalancedL1Loss: p_boxes.shape != t_boxes.shape"
 
-        delta = (predicted - targets).abs()
+        delta = (p_boxes - t_boxes).abs()
         # eq (9): alpha * log(b + 1) = gamma
         b = (euler_constant ** (self.gamma / self.alpha)) - 1
         # eq (8)
@@ -83,10 +83,10 @@ class BalancedL1Loss(nn.Module):
             self.alpha, self.gamma, self.reduction)
 
 
-# predicted = torch.Tensor([[0.1, 0.2, 2.1, 1.2]])
-# predicted.requires_grad_(True)
-# targets = torch.Tensor([[0.2, 0.1, 0.2, 0.4]])
-# BalancedL1Loss(0.5, 1.5)(predicted, targets)
-# BalancedL1Loss(0.5, 1.5, "mean")(predicted, targets)
-# BalancedL1Loss(0.5, 1.5, "sum")(predicted, targets)
-# BalancedL1Loss(0.5, 1.5, "mean_of_sum")(predicted, targets)
+# p_boxes = torch.Tensor([[0.1, 0.2, 2.1, 1.2]])
+# p_boxes.requires_grad_(True)
+# t_boxes = torch.Tensor([[0.2, 0.1, 0.2, 0.4]])
+# BalancedL1Loss(0.5, 1.5)(p_boxes, t_boxes)
+# BalancedL1Loss(0.5, 1.5, "mean")(p_boxes, t_boxes)
+# BalancedL1Loss(0.5, 1.5, "sum")(p_boxes, t_boxes)
+# BalancedL1Loss(0.5, 1.5, "mean_of_sum")(p_boxes, t_boxes)

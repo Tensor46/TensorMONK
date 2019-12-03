@@ -1,4 +1,6 @@
-""" TensorMONK's :: loss :: LabelLoss """
+""" TensorMONK's :: loss :: BoxesLoss """
+
+__all__ = ["BoxesLoss"]
 
 import torch
 import torch.nn.functional as F
@@ -12,8 +14,8 @@ class BoxesLoss(torch.nn.Module):
 
     Args:
         method (str): Loss functions for bounding box predictions.
-            options: "smooth_l1" | "balanced_l1" | "iou" | "log_iou" | "giou" |
-                     "log_giou"
+            options: "smooth_l1" | "balanced_l1" | "mse" | "iou" | "log_iou" |
+                     "giou" | "log_giou"
             default: "log_iou"
 
         l1_alpha (float): Multiplier for |x| < 1 when method is "balanced_l1"
@@ -27,24 +29,28 @@ class BoxesLoss(torch.nn.Module):
                 "mean_of_sum" is only valid for ("smooth_l1" | "balanced_l1")
             default = "mean"
     """
+
+    KWARGS = ("method", "l1_alpha", "l1_gamma", "reduction")
+    METHODS = ("smooth_l1", "balanced_l1", "mse",
+               "iou", "log_iou", "giou", "log_giou")
+
     def __init__(self,
                  method: str = "log_iou",
                  l1_alpha: float = 0.5,
                  l1_gamma: float = 1.5,
-                 reduction: str = "mean"):
+                 reduction: str = "mean",
+                 **kwargs):
 
         super(BoxesLoss, self).__init__()
-        METHODS = ("smooth_l1", "balanced_l1",
-                   "iou", "log_iou", "giou", "log_giou")
 
         # checks
         if not isinstance(method, str):
             raise TypeError("BoxesLoss: method must be str: "
                             "{}".format(type(method).__name__))
         self._method = method.lower()
-        if self._method not in METHODS:
+        if self._method not in BoxesLoss.METHODS:
             raise ValueError("BoxesLoss :: method != " +
-                             "/".join(METHODS) +
+                             "/".join(BoxesLoss.METHODS) +
                              " : {}".format(self._method))
 
         if not isinstance(l1_alpha, float):
@@ -64,7 +70,7 @@ class BoxesLoss(torch.nn.Module):
                                  "sum/mean/mean_of_sum/None: "
                                  "{}".format(reduction))
             if reduction == "mean_of_sum" and \
-               self._method not in ("smooth_l1", "balanced_l1"):
+               self._method not in ("smooth_l1", "balanced_l1", "mse"):
                 import warnings
                 reduction = "mean"
                 warnings.warn(
@@ -80,9 +86,11 @@ class BoxesLoss(torch.nn.Module):
             self.function = BalancedL1Loss(alpha=l1_alpha,
                                            gamma=l1_gamma,
                                            reduction=self._reduction)
-        else:
+        elif self._method == "smooth_l1":
             self.function = self._smooth_l1
             self._l1_alpha, self._l1_gamma = l1_alpha, l1_gamma
+        else:
+            self.function = self._mse
 
         self.tensor_size = 1,
 
@@ -99,13 +107,14 @@ class BoxesLoss(torch.nn.Module):
         assert p_boxes.shape[:-1] == t_label.shape, \
             "BoxesLoss: p_boxes.shape[:-1] != t_label.shape"
 
+        # filter p_boxes, t_boxes and weights given t_label
         p_boxes, t_boxes = p_boxes.view(-1, 4), t_boxes.view(-1, 4)
-        t_label = t_label.view(-1)
-        p_boxes, t_boxes = p_boxes[t_label.gt(0)], t_boxes[t_label.gt(0)]
+        valid = t_label.view(-1).gt(0)
+        p_boxes, t_boxes = p_boxes[valid], t_boxes[valid]
         if weights is not None:
             assert weights.shape == t_label.shape, \
                 "BoxesLoss: weights.shape != t_label.shape"
-            weights = weights.view(-1)[t_label.gt(0)]
+            weights = weights.view(-1)[valid]
 
         if "iou" in self._method:
             loss = self.function(p_boxes, t_boxes, weights)
@@ -117,6 +126,18 @@ class BoxesLoss(torch.nn.Module):
     def _smooth_l1(self, p_boxes: Tensor, t_boxes: Tensor):
         loss = F.smooth_l1_loss(p_boxes, t_boxes, reduction='none')
 
+        # reduction
+        if self._reduction is None:
+            return loss
+        elif self._reduction == "sum":
+            return loss.sum()
+        else:
+            if self._reduction == "mean_of_sum" and loss.ndim > 1:
+                loss = loss.sum(-1)
+            return loss.mean()
+
+    def _mse(self, p_boxes: Tensor, t_boxes: Tensor):
+        loss = F.mse_loss(p_boxes, t_boxes, reduction='none')
         # reduction
         if self._reduction is None:
             return loss

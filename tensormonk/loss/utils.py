@@ -78,10 +78,10 @@ def hard_negative_mask(prediction: torch.Tensor,
         # Mark the background_mask with hard negatives
         background_mask = torch.zeros_like(targets).bool()
         for i in range(ns):
+            retain = max(1, int(foreground_mask[i].sum() / pos_to_neg_ratio))
             probs = prediction[i]
             # foreground prob to minimum
-            probs[foreground_mask[i]] = False
-            retain = max(1, int(foreground_mask[i].sum() / pos_to_neg_ratio))
+            probs[foreground_mask[i]] = 0.
             background_mask[i, torch.argsort(probs)[-retain:]] = True
     else:
         # assumes, N-class problem and softmax is not applied to output
@@ -91,10 +91,10 @@ def hard_negative_mask(prediction: torch.Tensor,
         # Mark the background_mask with hard negatives
         background_mask = torch.zeros_like(targets).bool()
         for i in range(ns):
-            probs = background_probs[i]
-            # foreground prob to minimum
-            probs[foreground_mask[i]] = False
             retain = max(1, int(foreground_mask[i].sum() / pos_to_neg_ratio))
-            background_mask[i, torch.argsort(probs)[-retain:]] = True
+            probs = background_probs[i]
+            # foreground prob to maximum
+            probs[foreground_mask[i]] = 1.
+            background_mask[i, torch.argsort(probs)[:retain]] = True
     mask = foreground_mask.bool() | background_mask.bool()
     return mask
