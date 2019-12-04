@@ -1,11 +1,26 @@
 """ TensorMONK :: layers :: Normalizations """
 
-__all__ = ["Normalizations", ]
+__all__ = ["Normalizations", "FrozenBNorm2d"]
 
 import torch
 import numpy as np
 from .pixelwise import PixelWise
 from .categoricalbatch import CategoricalBNorm
+
+
+class FrozenBNorm2d(torch.nn.Module):
+    def __init__(self, num_features: int, **kwargs):
+        super(FrozenBNorm2d, self).__init__()
+        self.register_buffer("weight", torch.zeros(num_features))
+        self.register_buffer("bias", torch.ones(num_features))
+        self.register_buffer("running_mean", torch.zeros(num_features))
+        self.register_buffer("running_var", torch.ones(num_features))
+        self.register_buffer("num_batches_tracked", torch.tensor(0))
+
+    def forward(self, tensor: torch.Tensor):
+        return torch.nn.functional.batch_norm(
+            tensor, self.running_mean, self.running_var,
+            self.weight, self.bias, False)
 
 
 def Normalizations(tensor_size=None, normalization=None, available=False,
@@ -15,7 +30,8 @@ def Normalizations(tensor_size=None, normalization=None, available=False,
     Args:
         tensor_size: shape of tensor in BCHW
             (None/any integer >0, channels, height, width)
-        normalization: None/batch/group/instance/layer/pixelwise/cbatch
+        normalization: None/batch/group/instance/layer/pixelwise/cbatch/
+            frozenbnorm
         available: if True, returns all available normalization methods
         groups: for group (GroupNorm), when not provided groups is the center
             value of all possible - ex: for a tensor_size[1] = 128, groups is
@@ -24,7 +40,7 @@ def Normalizations(tensor_size=None, normalization=None, available=False,
         elementwise_affine: for layer normalization. default True
     """
     list_available = ["batch", "group", "instance", "layer", "pixelwise",
-                      "cbatch"]
+                      "cbatch", "frozenbnorm"]
     if available:
         return list_available
 
@@ -32,7 +48,14 @@ def Normalizations(tensor_size=None, normalization=None, available=False,
     assert normalization in list_available, \
         "Normalization must be None/" + "/".join(list_available)
 
-    if normalization == "batch":
+    if normalization == "frozenbnorm":
+        if just_flops:
+            # inference -> (x - mean) / (std + eps) * gamma + beta
+            _eps_adds = tensor_size[1]
+            _element_muls_adds = 4
+            return _element_muls_adds * np.prod(tensor_size[1:]) + _eps_adds
+        return FrozenBNorm2d(tensor_size[1])
+    elif normalization == "batch":
         if just_flops:
             # inference -> (x - mean) / (std + eps) * gamma + beta
             _eps_adds = tensor_size[1]
