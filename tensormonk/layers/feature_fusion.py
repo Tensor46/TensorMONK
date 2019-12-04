@@ -52,7 +52,7 @@ class FeatureFusion(nn.Module):
         if self.method == "sum":
             return sum([self._resize(x, osz) for x in args])
         if self.method == "maxout-cat":
-            return sum([maxout(self._resize(x, osz)) for x in args])
+            return torch.cat([maxout(self._resize(x, osz)) for x in args], 1)
 
         if self.method == "softmax":
             ws = F.softmax(self.weight, 0)
