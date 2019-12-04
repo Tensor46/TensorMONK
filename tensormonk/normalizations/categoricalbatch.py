@@ -1,4 +1,4 @@
-""" TensorMONK :: layers :: CategoricalBNorm """
+""" TensorMONK :: normalizations :: CategoricalBNorm """
 
 __all__ = ["CategoricalBNorm", ]
 
