@@ -8,6 +8,7 @@ from torch import Tensor
 from .center_function import CenterFunction
 from .utils import compute_n_embedding, compute_top15, one_hot_idx
 from ..utils import Measures
+from typing import Type, Union
 import warnings
 
 
@@ -18,8 +19,10 @@ class Categorical(nn.Module):
         tensor_size (int/list/tuple, required)
             Shape of tensor in (None/any integer >0, channels, height, width)
             or (None/any integer >0, in_features) or in_features
+
         n_labels (int, required)
             Number of labels
+
         loss_type (str, default="entr")
             "entr" / "smax"
                 log_softmax + negative log likelihood
@@ -34,47 +37,63 @@ class Categorical(nn.Module):
                 (https://arxiv.org/pdf/1801.09414.pdf  eq-4)
             "lmgm" / "gaussian_mixture"
                 large margin gaussian mixture loss
-                https://arxiv.org/pdf/1803.02988.pdf  eq-17
+                (https://arxiv.org/pdf/1803.02988.pdf  eq-17)
             "snnl"
                 soft nearest neighbor loss
-                https://arxiv.org/pdf/1902.01889.pdf  eq-1
+                (https://arxiv.org/pdf/1902.01889.pdf  eq-1)
+
         measure (str, default="dot")
-            Options = "cosine" / "dot" / "euclidean". Large angular margin/
-            large margin cosine loss only use cosine. Gaussian mixture loss
-            only use "cosine" / "euclidean".
+            Options = "cosine" / "dot" / "euclidean".
+            Large angular margin/large margin cosine loss only use "cosine".
+            Gaussian mixture lossonly use "cosine" / "euclidean".
+
         add_center (bool, default=False)
             Adds center loss to final loss -
             https://ydwen.github.io/papers/WenECCV16.pdf
+
         center_alpha (float, default = 0.01)
             Alpha for center loss.
+
         center_scale (float, default=0.5)
             Scale for center loss.
+
         add_focal (bool, default=False)
             Enables focal loss - https://arxiv.org/pdf/1708.02002.pdf
+
         focal_alpha (float/Tensor, default=0.5)
             Alpha for focal loss. Actual focal loss implementation requires
             alpha as a tensor of length n_labels that contains class imbalance.
+
         focal_gamma (float, default=2)
             Gamma for focal loss, default = 2.
+
         add_hard_negative (bool, default=False)
             Enables hard negative mining
+
         hard_negative_p (float, default=0.2)
             Probability of hard negatives retained.
+
         lmgm_alpha (float, default=0.01)
             Alpha in eq-17.
+
         lmgm_coefficient (float, default=0.1)
             lambda in eq-17
+
         snnl_measure (str, default="euclidean")
             Squared euclidean or cosine, when cosine the score are subtracted
             by 1
+
         snnl_alpha (float, default=0.01)
             Alpha in eq-2, hyper-parameter multiplied to soft nearest nieghbor
             loss before adding to cross entropy
+
         snnl_temperature (float, default=100)
             Temperature in eq-1. When None, it is a trainable parameter with a
             deafult temperature of 10.
+
         scale (float, default=10)
             scale, s, for large angular margin/large margin cosine loss
+
         margin (float, default=0.3)
             margin, m, for large angular margin/large margin cosine loss
 
@@ -91,7 +110,7 @@ class Categorical(nn.Module):
                  center_alpha: float = 0.01,
                  center_scale: float = 0.5,
                  add_focal: bool = False,
-                 focal_alpha: (float, Tensor) = 0.5,
+                 focal_alpha: Type[Union[float, Tensor]] = 0.5,
                  focal_gamma: float = 2.,
                  add_hard_negative: bool = False,
                  hard_negative_p: float = 0.2,
@@ -232,10 +251,8 @@ class Categorical(nn.Module):
                     if focal_alpha.numel() != n_labels:
                         raise ValueError("Categorical: focal_alpha.numel() "
                                          "!= n_labels")
-            if not (isinstance(focal_alpha, (float, Tensor)) and
-                    isinstance(focal_gamma, float)):
-                raise TypeError("Categorical: focal_alpha/focal_gamma/both "
-                                "is not float")
+            if not isinstance(focal_gamma, float):
+                raise TypeError("Categorical: focal_gamma must be float")
             if isinstance(focal_alpha, Tensor):
                 self.register_buffer("focal_alpha", focal_alpha)
             else:
@@ -435,6 +452,10 @@ class Categorical(nn.Module):
                     (1-pt).pow(self.focal_gamma) * pt.log()).sum(1).mean()
         return (- self.focal_alpha * (1-pt).pow(self.focal_gamma) *
                 pt.log()).sum(1).mean()
+
+    def __repr__(self):
+        return "Categorical ({}): alpha={}, gamma={}, reduction = {}".format(
+            self.alpha, self.gamma, self.reduction)
 
 
 # from tensormonk.loss.utils import (compute_n_embedding, compute_top15,
