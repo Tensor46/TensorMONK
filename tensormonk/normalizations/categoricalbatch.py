@@ -9,6 +9,9 @@ import torch.nn as nn
 class CategoricalBNorm(nn.Module):
     r""" Categorical BatchNorm2d (done using targets or latents)
 
+    Paper: Learning Visual Reasoning Without Strong Priors
+    URL:   https://arxiv.org/pdf/1707.03017.pdf
+
     Args:
         tensor_size: shape of tensor in BCHW
             (None/any integer >0, channels, height, width)

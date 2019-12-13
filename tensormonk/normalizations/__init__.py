@@ -1,7 +1,5 @@
 """ TensorMONK :: Normalizations """
 
-__all__ = ["Normalizations", "FrozenBNorm2d"]
+__all__ = ["Normalizations", "FrozenBatch2D"]
 
-from .normalizations import Normalizations, FrozenBNorm2d
-
-del normalizations
+from .normalizations import Normalizations, FrozenBatch2D

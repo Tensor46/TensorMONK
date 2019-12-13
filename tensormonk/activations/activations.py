@@ -1,6 +1,6 @@
 """ TensorMONK :: layers :: Activations """
 
-__all__ = ["Activations", "maxout", "mish", "squash", "swish"]
+__all__ = ["Activations", "maxout", "squash"]
 
 import torch
 import torch.nn as nn
@@ -15,10 +15,6 @@ def squash(tensor: torch.Tensor) -> torch.Tensor:
     return (sum_squares/(1+sum_squares)) * tensor / sum_squares.pow(0.5)
 
 
-def swish(tensor: torch.Tensor) -> torch.Tensor:
-    return tensor * torch.sigmoid(tensor)
-
-
 def maxout(tensor: torch.Tensor) -> torch.Tensor:
     if not tensor.size(1) % 2 == 0:
         raise ValueError("MaxOut: tensor.size(1) must be divisible by n_splits"
@@ -26,21 +22,24 @@ def maxout(tensor: torch.Tensor) -> torch.Tensor:
     return torch.max(*tensor.split(tensor.size(1)//2, 1))
 
 
-def mish(tensor: torch.Tensor) -> torch.Tensor:
-    return tensor * tensor.exp().add(1).log().tanh()
-
-
 class Activations(nn.Module):
     r""" All the usual activations along with maxout, relu + maxout and swish.
     MaxOut (maxo) - https://arxiv.org/pdf/1302.4389.pdf
     Swish - https://arxiv.org/pdf/1710.05941v1.pdf
     Mish - https://arxiv.org/pdf/1908.08681v1.pdf
+    Hard Sigmoid & Hard Swish - https://arxiv.org/pdf/1905.02244.pdf
 
     Args:
-        tensor_size: shape of tensor in BCHW
+        tensor_size (tuple, required): shape of tensor in BCHW
             (None/any integer >0, channels, height, width)
-        activation: relu/relu6/lklu/elu/gelu/prelu/tanh/selu/sigm/maxo/rmxo
-            /swish/mish, default=relu
+
+        activation (str, optional): activation functions
+
+            options:      "relu" | "relu6" | "lklu"   | "elu"  | "gelu" |
+                "prelu" | "tanh" | "selu"  | "sigm"   | "maxo" | "rmxo" |
+                "swish" | "mish" | "hsigm" | "hswish"
+            default: "relu"
+
     """
     def __init__(self, tensor_size: tuple, activation: str = "relu", **kwargs):
         super(Activations, self).__init__()
@@ -109,13 +108,19 @@ class Activations(nn.Module):
         return maxout(F.relu(tensor))
 
     def _swish(self, tensor):
-        return swish(tensor)
+        return tensor * torch.sigmoid(tensor)
 
     def _mish(self, tensor):
-        return mish(tensor)
+        return tensor * tensor.exp().add(1).log().tanh()
 
     def _squash(self, tensor):
         return squash(tensor)
+
+    def _hsigm(self, tensor):
+        return F.relu6(tensor + 3) / 6
+
+    def _hswish(self, tensor):
+        return self._hsigm(tensor) * tensor
 
     def __repr__(self):
         return self.activation
@@ -123,7 +128,8 @@ class Activations(nn.Module):
     @staticmethod
     def available():
         return ["elu", "gelu", "lklu", "maxo", "mish", "prelu", "relu",
-                "relu6", "rmxo", "selu", "sigm", "squash", "swish", "tanh"]
+                "relu6", "rmxo", "selu", "sigm", "squash", "swish", "tanh",
+                "hsigm", "hswish"]
 
     def flops(self):
         import numpy as np
@@ -158,7 +164,13 @@ class Activations(nn.Module):
             flops = numel * 4
         elif self.activation == "tanh":
             # (exp(x) - exp(-x)) / (exp(x) + exp(-x))
-            flops = numel * 7
+            flops = numel * 9
+        elif self.activation == "hsigm":
+            # min(6, max(0, x + 3)) / 6
+            flops = numel * 4
+        elif self.activation == "hswish":
+            # x * min(6, max(0, x + 3)) / 6
+            flops = numel * 8
         return flops
 
 

@@ -1,20 +1,22 @@
 """ TensorMONK :: architectures """
 
 __all__ = ["CapsuleNet", "SimpleNet", "ShuffleNet",
-           "MobileNetV1", "MobileNetV2", "EfficientNet",
+           "MobileNetV1", "MobileNetV2", "MobileNetV2_Old", "EfficientNet",
            "ResidualNet", "InceptionV4", "DenseNet",
            "LinearVAE", "ConvolutionalVAE", "PGGAN",
            "ContextNet", "FeatureNet", "FeatureCapNet",
            "PointNet", "UNet", "AnatomyNet",
            "NeuralDecisionForest",
            "TinySSD320", "MobileNetV2SSD320",
+           "MNAS",
            "Models"]
 
 from .capsulenet import CapsuleNet
 from .simplenet import SimpleNet
 from .shufflenet import ShuffleNet
 from .mobilenetv1 import MobileNetV1
-from .mobilenetv2 import MobileNetV2
+from .mobilenetv2 import MobileNetV2 as MobileNetV2_Old
+from .mobilenet_v2 import MobileNetV2
 from .residualnet import ResidualNet
 from .densenet import DenseNet
 from .inceptionv4 import InceptionV4
@@ -28,10 +30,11 @@ from .trees import NeuralDecisionForest
 from .tinySSD320 import TinySSD320
 from .mobilenetv2SSD320 import MobileNetV2SSD320
 from .efficientnet import EfficientNet
+from .mnas import MNAS
 
 del trees, unet, pointnet, contextnet, mobilenetv2SSD320, tinySSD320
 del capsulenet, simplenet, pggan, linearvae, convolutionalvae
-del shufflenet, mobilenetv1, mobilenetv2, densenet, residualnet, inceptionv4
+del shufflenet, mobilenetv1, mobilenet_v2, densenet, residualnet, inceptionv4
 del efficientnet
 
 
