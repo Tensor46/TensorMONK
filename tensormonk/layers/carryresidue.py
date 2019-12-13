@@ -730,24 +730,45 @@ class ContextNet_Bottleneck(nn.Module):
 
 
 class MBBlock(nn.Module):
-    r""" Support for EfficientNets - https://arxiv.org/pdf/1905.11946.pdf """
+    r""" Support for EfficientNets - https://arxiv.org/pdf/1905.11946.pdf
+
+    Args (not in Convolution):
+        expansion (int): Expansion factor of tensor_size[1] for depthwise
+            convolution. initial 1x1 convolution is ignored when 1.
+
+            default = 1
+
+        seblock (bool): Adds Squeese and Excitation block.
+
+            default = False
+
+        r (int): factor for squeeze and excitation
+
+            default = 4
+
+        ichannels (int): This overwrites expansion parameter
+
+            default = None
+    """
     def __init__(self, tensor_size, filter_size, out_channels, strides=1,
                  pad=True, activation="swish", dropout=0.,
                  normalization="batch", pre_nm=False,
-                 expansion=1, seblock=False, r=4, **kwargs):
+                 expansion=1, seblock=False, r=4, ichannels=None, **kwargs):
         super(MBBlock, self).__init__()
-        self.p = dropout
-        channels = int(tensor_size[1] * expansion)
 
-        if expansion > 1:
-            self.expand = Convolution(tensor_size, 1, channels, 1, True,
+        self.p = dropout
+        if ichannels is None:
+            ichannels = int(tensor_size[1] * expansion)
+
+        if ichannels != tensor_size[1]:
+            self.expand = Convolution(tensor_size, 1, ichannels, 1, True,
                                       activation, 0., normalization, pre_nm,
                                       **kwargs)
         t_size = self.expand.tensor_size if expansion > 1 else tensor_size
 
-        self.depthwise = Convolution(t_size, filter_size, channels, strides,
+        self.depthwise = Convolution(t_size, filter_size, ichannels, strides,
                                      True, activation, 0., normalization,
-                                     pre_nm, groups=channels, **kwargs)
+                                     pre_nm, groups=ichannels, **kwargs)
         if seblock:
             self.squeeze = Convolution(self.depthwise.tensor_size, 1,
                                        tensor_size[1]//r, 1, True, activation,
