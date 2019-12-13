@@ -24,7 +24,7 @@ class PointLoss(torch.nn.Module):
     METHODS = ("smooth_l1", "mse")
 
     def __init__(self,
-                 method: str = "log_iou",
+                 method: str = "mse",
                  reduction: str = "mean",
                  **kwargs):
 
@@ -54,7 +54,7 @@ class PointLoss(torch.nn.Module):
                 p_point: Tensor,  # predicted point from network
                 t_point: Tensor,  # target point mapped to all possible pixels
                 t_label: Tensor,  # target labels for each target box
-                ):
+                **kwargs):
         assert p_point.size(0) == t_point.size(0) == t_label.size(0), \
             "PointLoss: p_point.size(0) != t_point.size(0) != t_label.size(0)"
         t_label = t_label.view(-1)
