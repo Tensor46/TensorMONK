@@ -30,7 +30,7 @@ class CONFIG:
         # Refer tensormonk.layers.FeatureFusion.METHODS for fusion options
         self._body_fpn_fusion = "softmax"
         self._anchors_per_layer = None
-        self._body_network_responses = False
+        self._body_network_return_responses = False
 
         # ------------------------------------------------------------------- #
         # input size and feature encoding size
@@ -156,13 +156,13 @@ class CONFIG:
         self._body_fpn_fusion = value
 
     @property
-    def body_network_responses(self):
-        return self._body_network_responses
+    def body_network_return_responses(self):
+        return self._body_network_return_responses
 
-    @body_network_responses.setter
-    def body_network_responses(self, value):
-        assert isinstance(self._body_network_responses, bool)
-        self._body_network_responses = value
+    @body_network_return_responses.setter
+    def body_network_return_responses(self, value):
+        assert isinstance(self._body_network_return_responses, bool)
+        self._body_network_return_responses = value
 
     @property
     def t_size(self):
