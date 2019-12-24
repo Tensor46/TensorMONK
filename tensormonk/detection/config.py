@@ -30,6 +30,7 @@ class CONFIG:
         # Refer tensormonk.layers.FeatureFusion.METHODS for fusion options
         self._body_fpn_fusion = "softmax"
         self._anchors_per_layer = None
+        self._body_network_responses = False
 
         # ------------------------------------------------------------------- #
         # input size and feature encoding size
@@ -74,6 +75,7 @@ class CONFIG:
         self._is_centerness = False
         # YoloV3 - Intersection (of pixel and any box) over area of the pixel
         self._is_objectness = False
+        self._hard_encode = False
         self._encode_iou = 0.5
         self._detect_iou = 0.2
         self._score_threshold = 0.1
@@ -152,6 +154,15 @@ class CONFIG:
         assert isinstance(self._body_fpn_fusion, str)
         assert self._body_fpn_fusion in layers.FeatureFusion.METHODS
         self._body_fpn_fusion = value
+
+    @property
+    def body_network_responses(self):
+        return self._body_network_responses
+
+    @body_network_responses.setter
+    def body_network_responses(self, value):
+        assert isinstance(self._body_network_responses, bool)
+        self._body_network_responses = value
 
     @property
     def t_size(self):
@@ -318,6 +329,15 @@ class CONFIG:
     def is_objectness(self, value):
         assert isinstance(value, bool)
         self._is_objectness = value
+
+    @property
+    def hard_encode(self):
+        return self._hard_encode
+
+    @hard_encode.setter
+    def hard_encode(self, value):
+        assert isinstance(value, bool)
+        self._hard_encode = value
 
     @property
     def encode_iou(self):
