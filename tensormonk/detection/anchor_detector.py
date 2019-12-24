@@ -228,12 +228,11 @@ class AnchorDetector(nn.Module):
         responses = [cnn(o) for cnn, o in zip(self.base_2_body, responses)]
         for cnn in self.body:
             responses = cnn(*responses)
-        responses = self.classifier(*responses)
-        return responses
+        return self.classifier(*responses), responses
 
     def predict(self, tensor: Tensor):
         with torch.no_grad():
-            responses = self(tensor)
+            responses, _ = self(tensor)
             responses = self.batch_detect(responses.label, responses.boxes,
                                           responses.point)
         return responses
@@ -249,7 +248,7 @@ class AnchorDetector(nn.Module):
             targets = self.batch_encode(r_label, r_boxes, r_point)
             valid = targets.label.view(-1).gt(0)
 
-        responses = self(tensor)
+        responses, body_network_responses = self(tensor)
         losses = {"label": None, "boxes": None, "point": None,
                   "objectness": None, "centerness": None}
         losses["label"] = self.label_loss(predictions=responses.label,
@@ -271,7 +270,8 @@ class AnchorDetector(nn.Module):
             losses["centerness"] = F.binary_cross_entropy(
                 responses.centerness.view(-1)[valid],
                 targets.centerness.view(-1)[valid])
-
+        if self.config.body_network_return_responses:
+            losses["body_network_responses"] = body_network_responses
         return losses
 
     def batch_encode(self,
@@ -378,9 +378,14 @@ class AnchorDetector(nn.Module):
             idx = ious[valid].max(1)[1].view(-1)
             x_delta = self.centers[valid, 0] - r_boxes[idx, 0::2].mean(1)
             y_delta = self.centers[valid, 1] - r_boxes[idx, 1::2].mean(1)
-            valid_centers = (
-                (x_delta.abs() < self.pix2pix_delta[valid, 0]) *
-                (y_delta.abs() < self.pix2pix_delta[valid, 1]))
+            if self.config.hard_encode:
+                valid_centers = (
+                    (x_delta.abs() < self.pix2pix_delta[valid, 0]) *
+                    (y_delta.abs() < self.pix2pix_delta[valid, 1]))
+            else:
+                valid_centers = (
+                    (x_delta.abs() < self.anchor_wh[valid, 0]) *
+                    (y_delta.abs() < self.anchor_wh[valid, 1]))
             if (~ valid_centers).all():
                 t_label[idx[~ valid_centers]] = 0
 

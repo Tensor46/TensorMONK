@@ -212,19 +212,19 @@ class Sample(object):
         self.points = points
 
     def data(self):
-        r""" Provides a copy of original data """
+        r"""Provides a copy of original data."""
         return self.image, self.labels, self.boxes, self.points
 
     def augmented(self):
-        r""" Provides a augmented data """
+        r"""Provides augmented data."""
         image, labels, boxes, points = self.data()
-        if Sample.ROTATE_90:
+        if self.ROTATE_90:
             image, boxes, points = self._rotate_90(image, boxes, points)
-        if Sample.PAD:
+        if self.PAD:
             image, boxes, points = self._pad(image, boxes, points)
-        if Sample.CROP and Sample.OSIZE is not None:
+        if self.CROP and self.OSIZE is not None:
             image, boxes, points = self._crop(image, boxes, points)
-        if Sample.RESIZE and Sample.OSIZE is not None:
+        if self.RESIZE and self.OSIZE is not None:
             image, boxes, points = self._resize(image, boxes, points)
 
         image, labels, boxes, points = self._validate_augmented(
@@ -232,23 +232,25 @@ class Sample(object):
         return image, labels, boxes, points
 
     def annotate_augmented(self):
-        r""" To visualize augmented data """
+        r"""To visualize augmented data."""
         image, labels, boxes, points = self.augmented()
-        return self._annotate_extra(image, boxes, points)
+        return self.annotate([], image, boxes, points)
 
     def _validate_boxes(self, boxes: np.ndarray, w: int, h: int):
+        r"""Return valid boxes."""
         area = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
         visible_boxes = boxes.copy()
         visible_boxes[:, 0::2] = visible_boxes[:, 0::2].clip(0, w)
         visible_boxes[:, 1::2] = visible_boxes[:, 1::2].clip(0, h)
         visible_area = ((visible_boxes[:, 2] - visible_boxes[:, 0]) *
                         (visible_boxes[:, 3] - visible_boxes[:, 1]))
-        valid = (visible_area / (area + 1e-6)) > Sample.RETAIN_AREA
+        valid = (visible_area / (area + 1e-6)) > self.RETAIN_AREA
         return valid
 
     def _validate_augmented(self, image: ImPIL.Image, labels: np.ndarray,
                             boxes: np.ndarray, points: np.ndarray):
-        if 0.9 >= Sample.RETAIN_AREA >= 0.1:
+        r"""Return valid boxes, points, labels using boxes."""
+        if 0.9 >= self.RETAIN_AREA >= 0.1:
             valid = self._validate_boxes(boxes, *image.size)
             labels = labels[valid]
             boxes = boxes[valid]
@@ -257,11 +259,11 @@ class Sample(object):
 
     def _rotate_90(self, image: ImPIL.Image, boxes: np.ndarray,
                    points: np.ndarray):
-        r""" 0/90/180/270 rotation """
+        r"""Does 0/90/180/270 rotation."""
         p = random.random()
         w, h = image.size
 
-        if Sample.ROTATE_90_PROBS[1] >= p > Sample.ROTATE_90_PROBS[0]:
+        if self.ROTATE_90_PROBS[1] >= p > self.ROTATE_90_PROBS[0]:
             image = image.transpose(ImPIL.ROTATE_90)
             if self.is_boxes:
                 l, t, r, b = np.split(boxes, 4, 1)
@@ -269,7 +271,7 @@ class Sample(object):
             if self.is_points:
                 x, y = np.split(points, 2, 2)
                 points = np.concatenate((y, w - x), -1)
-        elif Sample.ROTATE_90_PROBS[2] >= p > Sample.ROTATE_90_PROBS[1]:
+        elif self.ROTATE_90_PROBS[2] >= p > self.ROTATE_90_PROBS[1]:
             image = image.transpose(ImPIL.ROTATE_270)
             if self.is_boxes:
                 l, t, r, b = np.split(boxes, 4, 1)
@@ -277,7 +279,7 @@ class Sample(object):
             if self.is_points:
                 x, y = np.split(points, 2, 2)
                 points = np.concatenate((h - y, x), -1)
-        elif p > Sample.ROTATE_90_PROBS[2]:
+        elif p > self.ROTATE_90_PROBS[2]:
             image = image.transpose(ImPIL.ROTATE_180)
             if self.is_boxes:
                 l, t, r, b = np.split(boxes, 4, 1)
@@ -288,9 +290,9 @@ class Sample(object):
         return image, boxes, points
 
     def _pad(self, image: ImPIL.Image, boxes: np.ndarray, points: np.ndarray):
-        r""" Pads a maximum of Sample.PAD_PERCENTAGE * (w + h)/2 pixels """
+        r"""Pads a maximum of Sample.PAD_PERCENTAGE * (w + h)/2 pixels."""
         w, h = image.size
-        pad = min(1, int(Sample.PAD_PERCENTAGE * (w + h) / 2.))
+        pad = min(1, int(self.PAD_PERCENTAGE * (w + h) / 2.))
         ox, oy = random.randint(0, pad), random.randint(0, pad)
         image = image.crop((-ox, -oy, w + ox, h + oy))
         if boxes is not None:
@@ -302,14 +304,13 @@ class Sample(object):
         return image, boxes, points
 
     def _crop(self, image: ImPIL.Image, boxes: np.ndarray, points: np.ndarray):
-        r"""Does random image crop, and adjusts boxes and points """
-
-        (w, h), (ow, oh) = image.size, Sample.OSIZE
+        r"""Does random image crop, and adjusts boxes and points."""
+        (w, h), (ow, oh) = image.size, self.OSIZE
         new_points = None
-        for _ in range(Sample.CROP_N_ATTEMPTS):
+        for _ in range(self.CROP_N_ATTEMPTS):
             # random side of square crop
             nw = (min(w, h) * (1 if random.random() <= 0.2 else
-                               random.uniform(Sample.CROP_MIN_SIDE_PERCENTAGE,
+                               random.uniform(self.CROP_MIN_SIDE_PERCENTAGE,
                                               1.)))
             if (ow / oh) >= 1.:
                 nh = nw * oh / ow
@@ -334,7 +335,7 @@ class Sample(object):
             # check if at least one box has minimum required size after resize
             rw = (boxes[:, 2] - boxes[:, 0]) / nw * ow
             rh = (boxes[:, 3] - boxes[:, 1]) / nh * oh
-            valid_boxes = np.minimum(rw, rh) > Sample.CROP_MIN_OBJECT_SIDE
+            valid_boxes = np.minimum(rw, rh) > self.CROP_MIN_OBJECT_SIDE
             if ~ (within_the_crop * valid_boxes).any():
                 continue
 
@@ -354,7 +355,7 @@ class Sample(object):
         # adjust crop - change w & h till the resized width makes sense
         nw = sum(anchor[2:] - anchor[:2]) / 2.
         nw = random.uniform(nw * ow / (ow * 0.8),
-                            nw * ow / (Sample.CROP_MIN_OBJECT_SIDE * 1.25))
+                            nw * ow / (self.CROP_MIN_OBJECT_SIDE * 1.25))
         nh = nw * oh / ow
         left = random.randint(max(0, int(anchor[2] - nw)), int(anchor[0]))
         top = random.randint(max(0, int(anchor[3] - nw)), int(anchor[1]))
@@ -371,9 +372,9 @@ class Sample(object):
 
     def _resize(self, image: ImPIL.Image, boxes: np.ndarray,
                 points: np.ndarray):
-        r"""Resize image to Sample.OSIZE, and adjusts boxes and points """
-        (w, h), (ow, oh) = image.size, Sample.OSIZE
-        image = image.resize(Sample.OSIZE, ImPIL.BILINEAR)
+        r"""Resize image to Sample.OSIZE, and adjusts boxes and points."""
+        (w, h), (ow, oh) = image.size, self.OSIZE
+        image = image.resize(self.OSIZE, ImPIL.BILINEAR)
         if boxes is not None:
             boxes[:, 0::2] = boxes[:, 0::2] / w * ow
             boxes[:, 1::2] = boxes[:, 1::2] / h * oh
@@ -488,25 +489,24 @@ class Sample(object):
             return points
         return None
 
-    def annotate(self, ids: list = []):
-        image = self.image
-        if self.labels is None:
-            return image
-        boxes, points = self.boxes, self.points
-
-        if len(ids) > 0 and isinstance(ids, (list, tuple)):
-            if self.is_boxes:
-                boxes = boxes[ids]
-            if self.is_points:
-                points = points[ids]
-        return PillowUtils.annotate_boxes(
-            image, boxes, self.avoid_nans_to_visualize(points))
-
-    def _annotate_extra(self, image, boxes, points):
+    def annotate(self, ids: list = [], image: ImPIL.Image = None,
+                 boxes: np.ndarray = None, points: np.ndarray = None):
+        r"""Annotates boxes and points on the image."""
+        if image is None and boxes is None:
+            image = self.image
+            if self.labels is None:
+                return image
+            boxes, points = self.boxes, self.points
+            if len(ids) > 0 and isinstance(ids, (list, tuple)):
+                if self.is_boxes:
+                    boxes = boxes[ids]
+                if self.is_points:
+                    points = points[ids]
         return PillowUtils.annotate_boxes(
             image, boxes, self.avoid_nans_to_visualize(points))
 
     def avoid_nans_to_visualize(self, points: np.ndarray):
+        r"""Removes nan's in the points."""
         if points is None:
             return None
         if np.isnan(points).any():
