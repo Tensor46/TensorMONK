@@ -436,6 +436,15 @@ class EasyTrainer(object):
                     ignore_trained = networks[n].ignore_trained
                 if not ignore_trained and n in content.keys():
                     if content[n] is not None:
+                        is_detector = ("centers" in content[n].keys() and
+                                       "pix2pix_delta" in content[n].keys() and
+                                       "anchor_wh" in content[n].keys())
+                        if is_detector:
+                            state_dict = self.model_container[n].state_dict()
+                            content[n]["centers"] = state_dict["centers"]
+                            content[n]["pix2pix_delta"] = \
+                                state_dict["pix2pix_delta"]
+                            content[n]["anchor_wh"] = state_dict["anchor_wh"]
                         self.model_container[n].load_state_dict(content[n])
                         _pretrained = True
 
