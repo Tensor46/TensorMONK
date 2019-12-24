@@ -212,7 +212,7 @@ class Sample(object):
         self.points = points
 
     def data(self):
-        r""" Provides a copy of original data """
+        r"""Provides a copy of original data."""
         return self.image, self.labels, self.boxes, self.points
 
     def augmented(self):
@@ -237,6 +237,7 @@ class Sample(object):
         return self.annotate([], image, boxes, points)
 
     def _validate_boxes(self, boxes: np.ndarray, w: int, h: int):
+        r"""Return valid boxes."""
         area = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
         visible_boxes = boxes.copy()
         visible_boxes[:, 0::2] = visible_boxes[:, 0::2].clip(0, w)
@@ -248,6 +249,7 @@ class Sample(object):
 
     def _validate_augmented(self, image: ImPIL.Image, labels: np.ndarray,
                             boxes: np.ndarray, points: np.ndarray):
+        r"""Return valid boxes, points, labels using boxes."""
         if 0.9 >= self.RETAIN_AREA >= 0.1:
             valid = self._validate_boxes(boxes, *image.size)
             labels = labels[valid]
@@ -489,6 +491,7 @@ class Sample(object):
 
     def annotate(self, ids: list = [], image: ImPIL.Image = None,
                  boxes: np.ndarray = None, points: np.ndarray = None):
+        r"""Annotates boxes and points on the image."""
         if image is None and boxes is None:
             image = self.image
             if self.labels is None:
@@ -503,6 +506,7 @@ class Sample(object):
             image, boxes, self.avoid_nans_to_visualize(points))
 
     def avoid_nans_to_visualize(self, points: np.ndarray):
+        r"""Removes nan's in the points."""
         if points is None:
             return None
         if np.isnan(points).any():
