@@ -5,11 +5,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import warnings
-from .utils import Meter
+from .utils import Meter, ProgressBar
 from ..plots import VisPlots
 from ..optimizers import LookAhead, RAdam
 from collections import OrderedDict
 from collections.abc import Iterable
+from typing import Type, Union
 
 
 class BaseOptimizer:
@@ -288,35 +289,46 @@ class EasyTrainer(object):
         self._build_transformations(transformations)
         if visplots:
             self.visplots = VisPlots(self.name)
+        self.tr_bar = None
+        self.te_bar = None
 
-    def train(self, train_data, test_data=None, epochs=1, **kwargs):
+    def train(self, train_data, test_data=None, epochs: int = 1, **kwargs):
+        self.tr_bar = ProgressBar(len(train_data) if self.n_checkpoint == -1
+                                  else self.n_checkpoint)
+
         for epoch in range(epochs):
             for i, inputs in enumerate(train_data):
                 output = self.step(inputs, training=True)
-                if "monitor" in output.keys():
-                    print(" ... " +
-                          self._monitor(output["monitor"]), end="\r")
+                self.tr_bar(self._monitor(output["monitor"]) if
+                            "monitor" in output.keys() else "")
                 self.iteration += 1
 
                 # save the model is n_checkpoint > 0
                 if self.n_checkpoint > 0 and \
                    not (self.iteration % self.n_checkpoint):
-                    if "monitor" in output.keys():
-                        print(" ... " + self._monitor(output["monitor"],
-                                                      self.n_checkpoint))
+                    self.tr_bar(self._monitor(output["monitor"],
+                                              self.n_checkpoint)
+                                if "monitor" in output.keys() else "")
+                    self.tr_bar.reset
                     if test_data is not None:
                         self.test(test_data)
                     if self.save_criteria():
                         self._save()
+                    # to update timer
+                    self.tr_bar.soft_reset
 
             # save the model every epoch (n_checkpoint = -1)
             if self.n_checkpoint == -1:
-                if "monitor" in output.keys():
-                    print(" ... " + self._monitor(output["monitor"], i))
+                self.tr_bar(self._monitor(output["monitor"], i) if
+                            "monitor" in output.keys() else "")
+                self.tr_bar.reset
                 if test_data is not None:
                     self.test(test_data)
                 if self.save_criteria():
                     self._save()
+                # to update timer
+                self.tr_bar.soft_reset
+        print("\n")
 
     def test(self, test_data):
         current_states = []
@@ -327,13 +339,17 @@ class EasyTrainer(object):
         # testing using step
         if isinstance(test_data, Iterable):
             # pytorch or other iterable objects compatible with step
+            if self.te_bar is None:
+                self.te_bar = ProgressBar(len(test_data))
+            # to update timer
+            self.te_bar.soft_reset
             for i, inputs in enumerate(test_data):
                 output = self.step(inputs, training=False)
-                if "monitor" in output.keys():
-                    print(" ... test "+self._monitor(output["monitor"]),
-                          end="\r")
-            if "monitor" in output.keys():
-                print(" ... test " + self._monitor(output["monitor"], i))
+                self.te_bar(self._monitor(output["monitor"], 1, True) if
+                            "monitor" in output.keys() else "")
+            self.te_bar(self._monitor(output["monitor"], i, True) if
+                        "monitor" in output.keys() else "")
+            self.te_bar.reset
         else:
             # a function that can handle model_container
             output = test_data(self.model_container)
@@ -342,7 +358,7 @@ class EasyTrainer(object):
             if value:
                 self.model_container[n].train()
 
-    def step(self, inputs, training):
+    def step(self, inputs: Type[Union[list, tuple]], training: bool):
         r"""Define what needs to be done. "training" is True when called from
         train, and False when called from test """
         pass
@@ -352,13 +368,15 @@ class EasyTrainer(object):
         By default, saves the latest set of weights every n_checkpoint."""
         return True
 
-    def _monitor(self, tags, n=1):
-        r"""Convert a list of tags in meter_container to string"""
+    def _monitor(self, tags: list, n: int = 1, test: bool = False):
+        r"""Convert a list of tags in meter_container to string."""
         msg = ["{} {:3.2f}".format(x, self.meter_container[x].average(n))
                for x in tags if x in self.meter_container.keys()]
-        return " :: ".join(["{:6d}".format(self.iteration)] + msg) + (" "*6)
+        if test:
+            return " :: ".join(msg)
+        return " :: ".join(["{:6d}".format(self.iteration)] + msg)
 
-    def _check_path(self, name, path):
+    def _check_path(self, name: str, path: str):
         r"""Check the path & name, and create a folder to save the model &
         related files. Checks if there is a pretrained model and sets the
         is_pretrained variable.
@@ -383,9 +401,8 @@ class EasyTrainer(object):
             self.is_pretrained = True
         return None
 
-    def _check_networks(self, networks):
-        r"""Check if the "networks" is a dictonary, and all the values are
-        BaseNetwork.
+    def _check_networks(self, networks: dict):
+        r"""Check if networks is a dictonary, and all values are BaseNetwork.
         """
         if not isinstance(networks, dict):
             raise TypeError("EasyTrainer: networks must be dict: "
@@ -399,8 +416,8 @@ class EasyTrainer(object):
                             "BaseNetwork")
         return None
 
-    def _check_optimizer(self, optimizer, networks):
-        r"""Check if the "optimizer" and all networks[x].optimizer (when not
+    def _check_optimizer(self, optimizer: BaseOptimizer, networks: dict):
+        r"""Check if the optimizer and all networks[x].optimizer (when not
         None) are BaseOptimizer.
         """
         if optimizer is not None:
@@ -413,7 +430,7 @@ class EasyTrainer(object):
                     raise TypeError("EasyTrainer: {}'s optimizer ".format(n) +
                                     "is not BaseOptimizer")
 
-    def _build_networks(self, networks):
+    def _build_networks(self, networks: dict):
         r"""Builds all networks and load pretrained weights if exists. The
         EasyTrainer params are overwritten by networks[network] parameters.
         """
@@ -459,9 +476,9 @@ class EasyTrainer(object):
                 default_gpu = self.default_gpu
             if self.is_cuda and gpus == 1:
                 if self.distributed:
-                    from torch.nn import parallel
+                    DDP = nn.parallel.DistributedDataParallel
                     device = torch.device("cuda", default_gpu)
-                    self.model_container[n] = parallel.DistributedDataParallel(
+                    self.model_container[n] = DDP(
                         self.model_container[n].to(device),
                         device_ids=[default_gpu],
                         output_device=default_gpu)
@@ -481,8 +498,8 @@ class EasyTrainer(object):
             print("... Network {} has {} parameters".format(n, n_params) +
                   (" :: loaded pretrained weights" if _pretrained else ""))
 
-    def _build_optimizers(self, optimizer, networks):
-        r"""Builds all optimizer and networks.optimizer (if any) """
+    def _build_optimizers(self, optimizer: BaseOptimizer, networks: dict):
+        r"""Builds all optimizer and networks.optimizer (if any)."""
         def ex_param_groups_fn(named_params, lr):
             return [{"params": p, "lr": lr} for n, p in named_params]
 
@@ -516,7 +533,7 @@ class EasyTrainer(object):
             self.optimizer = optimizer.algorithm(all_params,
                                                  **optimizer.arguments)
 
-    def _build_meters(self, meters):
+    def _build_meters(self, meters: Type[Union[list, tuple]]):
         r"""Initilizes Meter object for all the meters and loads pretained!"""
         if len(meters) == 0:
             return
@@ -530,9 +547,9 @@ class EasyTrainer(object):
                m in content["meter_container"].keys():
                 self.meter_container[m].values = content["meter_container"][m]
 
-    def _build_transformations(self, transformations):
-        r""" Builds CPU/GPU pytorch based transformations (compatible module is
-        tensormonk.data.RandomTransforms) """
+    def _build_transformations(self, transformations: torch.nn.Module):
+        r"""Builds CPU/GPU pytorch based transformations (compatible module is
+        tensormonk.data.RandomTransforms)."""
         if isinstance(transformations, BaseNetwork):
             print("... building transformations", end="\r")
             if isinstance(transformations.network, torch.nn.Module):
@@ -615,8 +632,7 @@ class EasyTrainer(object):
         return None
 
     def _save(self):
-        r""" Saves the model_container and meter_container as dict given the
-        file_name """
+        r"""Saves the model_container and meter_container as a dictionary."""
         content = {"model_container": {}, "meter_container": {},
                    "iteration": self.iteration}
         for key in self.model_container.keys():
@@ -629,8 +645,8 @@ class EasyTrainer(object):
         torch.save(content, self.file_name)
 
     @staticmethod
-    def _convert_state_dict(state_dict):
-        r""" Converts nn.DataParallel state_dict to nn.Module state_dict """
+    def _convert_state_dict(state_dict: OrderedDict):
+        r"""Converts nn.DataParallel state_dict to nn.Module state_dict."""
         new_state_dict = OrderedDict()
         for x in state_dict.keys():
             new_state_dict[x[7:] if x.startswith("module.") else x] = \
@@ -638,8 +654,8 @@ class EasyTrainer(object):
         return new_state_dict
 
     @staticmethod
-    def _cpu_state_dict(state_dict):
-        r""" Converts all state_dict to cpu state_dict """
+    def _cpu_state_dict(state_dict: OrderedDict):
+        r"""Converts all state_dict to cpu state_dict."""
         new_state_dict = OrderedDict()
         for x in state_dict.keys():
             new_state_dict[x] = state_dict[x].data.detach().cpu()
