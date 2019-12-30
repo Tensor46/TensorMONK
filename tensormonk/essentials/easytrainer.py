@@ -11,6 +11,11 @@ from ..optimizers import LookAhead, RAdam
 from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Type, Union
+try:
+    from apex import amp
+    APEX_AVAILABLE = True
+except ModuleNotFoundError:
+    APEX_AVAILABLE = False
 
 
 class BaseOptimizer:
@@ -198,6 +203,11 @@ class EasyTrainer(object):
         n_visplots (optional, int): Frequency of plots
         distributed (optional, bool): Enables distributed training,
             default = False
+        precision (optional, str): Enables mixed precision training (NVIDIA's
+            amp). The settings for mixed precision are opt_level = "O2",
+            keep_batchnorm_fp32 = True, loss_scale = "dynamic".
+            default = "fp32"
+            options = "fp32" | "mixed"
 
     Ex:
         import tensormonk
@@ -234,6 +244,7 @@ class EasyTrainer(object):
                  visplots: bool = False,
                  n_visplots: int = 100,
                  distributed: bool = False,
+                 precision: str = "fp32",
                  **kwargs):
 
         # checks
@@ -266,6 +277,16 @@ class EasyTrainer(object):
         if not isinstance(distributed, bool):
             raise TypeError("EasyTrainer: distributed must be bool: "
                             "{}".format(type(distributed).__name__))
+        if not isinstance(precision, str):
+            raise TypeError("EasyTrainer: precision must be str/None: "
+                            "{}".format(type(precision).__name__))
+        precision = precision.lower()
+        if precision not in ("fp32", "mixed"):
+            raise ValueError("EasyTrainer: precision must be 'fp32'/'mixed': "
+                             "{}".format(precision))
+        if precision == "mixed" and not APEX_AVAILABLE:
+            precision = "fp32"
+            print("EasyTrainer: mixed precision is disabled - amp not found")
 
         self.is_cuda = torch.cuda.is_available()
         self.default_gpu = default_gpu
@@ -273,9 +294,11 @@ class EasyTrainer(object):
         self.n_checkpoint = n_checkpoint
         self.ignore_trained = ignore_trained
         self.iteration = 0
+        self.epoch = 0
         self.n_visplots = n_visplots
         self.distributed = distributed
         self.kwargs = kwargs
+        self.precision = precision
 
         self._check_path(name, path)
         self._check_networks(networks)
@@ -285,6 +308,8 @@ class EasyTrainer(object):
         self.optim_container = OrderedDict()
         self._build_networks(networks)
         self._build_optimizers(optimizer, networks)
+        self._set_precision()
+        self._set_parallel(networks)
         self._build_meters(meters)
         self._build_transformations(transformations)
         if visplots:
@@ -292,11 +317,23 @@ class EasyTrainer(object):
         self.tr_bar = None
         self.te_bar = None
 
+    def backward(self, loss: torch.Tensor,  optimizer: nn.Module,
+                 retain_graph: bool = False):
+        r"""Use backward to scale the loss for mixed precision."""
+        if self.precision == "mixed":
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward(retain_graph=retain_graph)
+        else:
+            loss.backward(retain_graph=retain_graph)
+        if not retain_graph:
+            optimizer.step()
+
     def train(self, train_data, test_data=None, epochs: int = 1, **kwargs):
         self.tr_bar = ProgressBar(len(train_data) if self.n_checkpoint == -1
                                   else self.n_checkpoint)
 
         for epoch in range(epochs):
+            self.epoch += 1
             for i, inputs in enumerate(train_data):
                 output = self.step(inputs, training=True)
                 self.tr_bar(self._monitor(output["monitor"]) if
@@ -374,7 +411,11 @@ class EasyTrainer(object):
                for x in tags if x in self.meter_container.keys()]
         if test:
             return " :: ".join(msg)
-        return " :: ".join(["{:6d}".format(self.iteration)] + msg)
+        if self.n_checkpoint == -1:
+            msg = " :: ".join(["{:4d}".format(self.epoch)] + msg)
+        else:
+            msg = " :: ".join(["{:6d}".format(self.iteration)] + msg)
+        return msg
 
     def _check_path(self, name: str, path: str):
         r"""Check the path & name, and create a folder to save the model &
@@ -465,31 +506,12 @@ class EasyTrainer(object):
                         self.model_container[n].load_state_dict(content[n])
                         _pretrained = True
 
-            # cuda and DataParallel
-            if networks[n].gpus is not None:
-                gpus = networks[n].gpus
-            else:
-                gpus = self.gpus
-            if networks[n].default_gpu is not None:
-                default_gpu = networks[n].default_gpu
-            else:
-                default_gpu = self.default_gpu
-            if self.is_cuda and gpus == 1:
-                if self.distributed:
-                    DDP = nn.parallel.DistributedDataParallel
-                    device = torch.device("cuda", default_gpu)
-                    self.model_container[n] = DDP(
-                        self.model_container[n].to(device),
-                        device_ids=[default_gpu],
-                        output_device=default_gpu)
-                else:
-                    torch.cuda.set_device(default_gpu)
-                    self.model_container[n].cuda()
-            if self.is_cuda and gpus > 1:
-                _gpus = list(range(gpus))
-                self.model_container[n] = \
-                    nn.DataParallel(self.model_container[n],
-                                    device_ids=_gpus).cuda()
+            # cuda
+            default_gpu = self.default_gpu if networks[n].default_gpu is None \
+                else networks[n].default_gpu
+            if self.is_cuda:
+                torch.cuda.set_device(default_gpu)
+                self.model_container[n].cuda()
             if networks[n].only_eval is not None:
                 if networks[n].only_eval:
                     self.model_container[n].eval()
@@ -497,6 +519,57 @@ class EasyTrainer(object):
                                self.model_container[n].parameters()])
             print("... Network {} has {} parameters".format(n, n_params) +
                   (" :: loaded pretrained weights" if _pretrained else ""))
+
+    def _set_precision(self):
+        r"""Initialize models & optimizers for mixed precision training."""
+        if not (self.is_cuda and self.precision == "mixed"):
+            return
+        all_net, all_opt, all_ns, all_os = [], [], [], []
+        for n in self.model_container.keys():
+            all_ns.append(n)
+            all_net.append(self.model_container[n])
+
+        if self.optimizer is not None:
+            all_os.append("master")
+            all_opt.append(self.optimizer)
+        for n in self.optim_container.keys():
+            all_os.append(n)
+            all_opt.append(self.optim_container[n])
+
+        all_net, all_opt = amp.initialize(
+            all_net, all_opt, keep_batchnorm_fp32=True, opt_level="O2",
+            loss_scale="dynamic")
+        for n, net in zip(all_ns, all_net):
+            self.model_container[n] = net
+        for i, (n, opt) in enumerate(zip(all_os, all_opt)):
+            if i == 0 and n == "master":
+                self.optimizer = opt
+            else:
+                self.optim_container[n] = opt
+
+    def _set_parallel(self, networks: dict):
+        r"""DistributedDataParallel and DataParallel."""
+        if not self.is_cuda:
+            return
+        for n in list(networks.keys()):
+            # DistributedDataParallel and DataParallel
+            gpus = self.gpus if networks[n].gpus is None else networks[n].gpus
+            default_gpu = self.default_gpu if networks[n].default_gpu is None \
+                else networks[n].default_gpu
+            if gpus == 1 and self.distributed:
+                DDP = nn.parallel.DistributedDataParallel
+                device = torch.device("cuda", default_gpu)
+                self.model_container[n] = DDP(
+                    self.model_container[n].to(device),
+                    device_ids=[default_gpu],
+                    output_device=default_gpu)
+            else:
+                self.model_container[n] = \
+                    nn.DataParallel(self.model_container[n],
+                                    device_ids=list(range(gpus))).cuda()
+            if networks[n].only_eval is not None:
+                if networks[n].only_eval:
+                    self.model_container[n].eval()
 
     def _build_optimizers(self, optimizer: BaseOptimizer, networks: dict):
         r"""Builds all optimizer and networks.optimizer (if any)."""
@@ -540,6 +613,8 @@ class EasyTrainer(object):
         if self.is_pretrained and not self.ignore_trained:
             content = torch.load(self.file_name)
             self.iteration = content["iteration"]
+            if "epoch" in content:
+                self.epoch = content["epoch"]
 
         for m in meters:
             self.meter_container[m] = Meter()
@@ -634,7 +709,7 @@ class EasyTrainer(object):
     def _save(self):
         r"""Saves the model_container and meter_container as a dictionary."""
         content = {"model_container": {}, "meter_container": {},
-                   "iteration": self.iteration}
+                   "iteration": self.iteration, "epoch": self.epoch}
         for key in self.model_container.keys():
             tmp = self.model_container[key].state_dict()
             content["model_container"][key] = self._cpu_state_dict(
