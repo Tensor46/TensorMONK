@@ -2,7 +2,6 @@
 
 __all__ = ["Meter", "AverageMeter", "AccuracyMeter", "ProgressBar"]
 
-import os
 import sys
 import time
 import datetime
@@ -114,11 +113,6 @@ class ProgressBar(object):
 
     def __init__(self, n_iterations: int):
         r"""Initialize progress bar."""
-        try:
-            _, cols = os.popen('stty size', 'r').read().split()
-        except ValueError:
-            cols = 60
-        self.cols = cols
         self.n_iterations = n_iterations
         self.reset
 
@@ -155,7 +149,7 @@ class ProgressBar(object):
         percent = "100.0%" if percent == 100 else "{:3.2f}%".format(percent)
         if len(percent) == 5:
             percent = "0" + percent
-        return "{" + percent + "}"
+        return " {" + percent + "}"
 
     def eta(self) -> str:
         r"""Compute ETA."""
