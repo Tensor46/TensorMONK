@@ -1,6 +1,6 @@
 """ TensorMONK :: loss :: AdversarialLoss """
 
-__all__ = ["AdversarialLosses"]
+__all__ = ["AdversarialLoss"]
 
 import torch
 
@@ -55,7 +55,7 @@ def d_relativistic(d_of_real: torch.Tensor, d_of_fake: torch.Tensor):
     return (- dra_rf.clamp(1e-8).log() - (1 - dra_fr).clamp(1e-8).log()).mean()
 
 
-class AdversarialLosses:
+class AdversarialLoss:
     r"""Adversarial losses.
 
     Assumes 1 is real and 0 is fake.
