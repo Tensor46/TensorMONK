@@ -9,6 +9,7 @@ __all__ = ["CapsuleNet", "SimpleNet", "ShuffleNet",
            "NeuralDecisionForest",
            "TinySSD320", "MobileNetV2SSD320",
            "MNAS",
+           "ESRGAN",
            "Models"]
 
 from .capsulenet import CapsuleNet
@@ -31,6 +32,7 @@ from .tinySSD320 import TinySSD320
 from .mobilenetv2SSD320 import MobileNetV2SSD320
 from .efficientnet import EfficientNet
 from .mnas import MNAS
+from .gans_esrgan import ESRGAN
 
 del trees, unet, pointnet, contextnet, mobilenetv2SSD320, tinySSD320
 del capsulenet, simplenet, pggan, linearvae, convolutionalvae
