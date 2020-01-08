@@ -83,6 +83,7 @@ class CONFIG:
         # ------------------------------------------------------------------- #
         self._boxes_encode_var1 = 0.1
         self._boxes_encode_var2 = 0.2
+        self._is_pad = True
 
         self._anchors_per_layer = None
         self._an_anchor = namedtuple("anchor", ("w", "h"))
@@ -383,6 +384,15 @@ class CONFIG:
     def boxes_encode_var2(self, value):
         assert isinstance(value, float)
         self._boxes_encode_var2 = value
+
+    @property
+    def is_pad(self):
+        return self._is_pad
+
+    @is_pad.setter
+    def is_pad(self, value):
+        assert isinstance(value, bool)
+        self._is_pad = value
 
     @property
     def ignore_base(self):
