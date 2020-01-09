@@ -83,6 +83,7 @@ class CONFIG:
         # ------------------------------------------------------------------- #
         self._boxes_encode_var1 = 0.1
         self._boxes_encode_var2 = 0.2
+        self._point_encode_var = 0.5
         self._is_pad = True
 
         self._anchors_per_layer = None
@@ -384,6 +385,15 @@ class CONFIG:
     def boxes_encode_var2(self, value):
         assert isinstance(value, float)
         self._boxes_encode_var2 = value
+
+    @property
+    def point_encode_var(self):
+        return self._point_encode_var
+
+    @point_encode_var.setter
+    def point_encode_var(self, value):
+        assert isinstance(value, float)
+        self._point_encode_var = value
 
     @property
     def is_pad(self):
