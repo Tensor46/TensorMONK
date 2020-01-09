@@ -41,7 +41,7 @@ def pixel_to_norm01(boxes: Type[Union[Tensor, np.ndarray]], w: int, h: int):
 
 
 def norm01_to_pixel(boxes: Type[Union[Tensor, np.ndarray]], w: int, h: int):
-    r""" Normalizes bounding boxes (ltrb/cxcywh) from normalized 0-1 form to
+    r"""Normalizes bounding boxes (ltrb/cxcywh) from normalized 0-1 form to
     pixel coordinates given width (w) and height (h) of an image.
     *Makes a copy of boxes.
 
@@ -138,7 +138,7 @@ def intersection_np(boxes1: np.ndarray, boxes2: np.ndarray):
 
 def compute_intersection(boxes1: Type[Union[Tensor, np.ndarray]],
                          boxes2: Type[Union[Tensor, np.ndarray]]):
-    r""" Computes intersection for ltrb boxes.
+    r"""Computes intersection for ltrb boxes.
 
     Args:
         boxes1 (torch.Tensor / np.ndarray): Nx4 array/Tensor of boxes
@@ -158,7 +158,7 @@ def compute_area_pt(boxes: Tensor):
 
 
 def compute_area(boxes: Type[Union[Tensor, np.ndarray]]):
-    r""" Computes area for ltrb boxes.
+    r"""Computes area for ltrb boxes.
 
     Args:
         boxes (torch.Tensor / np.ndarray): Nx4 array/Tensor of boxes
@@ -174,7 +174,7 @@ def compute_area(boxes: Type[Union[Tensor, np.ndarray]]):
 def compute_iou(ltrb_boxes1: Type[Union[Tensor, np.ndarray]],
                 ltrb_boxes2: Type[Union[Tensor, np.ndarray]],
                 return_iof: bool = False):
-    r""" Computes all combinations of intersection over union for two sets of
+    r"""Computes all combinations of intersection over union for two sets of
     boxes. Accepts np.ndarray or torch.Tensor.
 
     Args:
@@ -203,7 +203,7 @@ def compute_iou(ltrb_boxes1: Type[Union[Tensor, np.ndarray]],
 
 def compute_iof(ltrb_boxes1: Type[Union[Tensor, np.ndarray]],
                 ltrb_boxes2: Type[Union[Tensor, np.ndarray]]):
-    r""" Computes intersection over foreground - ltrb_boxes1 is foreground.
+    r"""Computes intersection over foreground - ltrb_boxes1 is foreground.
 
     Args:
         ltrb_boxes1 (torch.Tensor / np.ndarray): Nx4 array of boxes
@@ -267,7 +267,7 @@ def nms_np(boxes: np.ndarray, scores: np.ndarray,
 def nms(boxes: Type[Union[Tensor, np.ndarray]],
         scores: Type[Union[Tensor, np.ndarray]],
         iou_threshold: float = 0.5, n_objects: int = -1):
-    r""" Non-maximal suppression.
+    r"""Non-maximal suppression.
 
     Args:
         boxes (np.ndarray/torch.Tensor): Nx4 ltrb boxes (left, top, right,
@@ -290,24 +290,28 @@ def nms(boxes: Type[Union[Tensor, np.ndarray]],
     return nms_pt(boxes, scores, iou_threshold, n_objects)
 
 
-def centers_per_layer_np(t_size: tuple, c_size: tuple):
+def centers_per_layer_np(t_size: tuple, c_size: tuple, is_pad: bool):
     (h, w), (ch, cw) = t_size[2:], c_size[2:]
-    if cw == 1:
-        xs = np.array([w / 2.], dtype=np.float32)
+    if is_pad and h / (2 ** np.floor(np.log2(h / ch))) == ch:
+        # a corner stretches to a corner if
+        #      padding is applied to all convolutions with kernel size > 1
+        #      padding is applied to all pooling layers with kernel size > 1
+        #      all the kernel sizes are odd (convolution & pooling)
+        #      cw * 2^n == w (where n is an integer)
+        xs = np.array([w / 2.], dtype=np.float32) if cw == 1 else \
+            np.linspace(0, w - 1, num=cw)
+        ys = np.array([h / 2.], dtype=np.float32) if ch == 1 else \
+            np.linspace(0, h - 1, num=ch)
     else:
-        xs = np.arange(0, cw, dtype=np.float32) / cw * w
-    if ch == 1:
-        ys = np.array([h / 2.], dtype=np.float32)
-    else:
-        ys = np.arange(0, ch, dtype=np.float32) / ch * h
-    # meshgrid
+        xs = np.arange(0, cw, dtype=np.float32) / cw * w + (w / cw * 0.5) - 0.5
+        ys = np.arange(0, ch, dtype=np.float32) / ch * h + (h / ch * 0.5) - 0.5
     xs, ys = np.meshgrid(xs, ys)
     centers_per_layer = np.stack((xs.reshape(-1), ys.reshape(-1)), axis=1)
     return centers_per_layer.astype(np.float32)
 
 
-def centers_per_layer(t_size: tuple, c_size: tuple):
-    r""" Centers of each location per layer. Since padding is common in most
+def centers_per_layer(t_size: tuple, c_size: tuple, is_pad: bool = True):
+    r"""Centers of each location per layer. Since padding is common in most
     networks the centers are stretched.
 
     Args:
@@ -317,23 +321,30 @@ def centers_per_layer(t_size: tuple, c_size: tuple):
         c_size (tuple): shape of the tensor at prediction layer in BCHW
             (None/any integer >0, channels, height, width)
 
+        is_pad (bool): when True, assumes all the convolutions with filter size
+            > 1 are odd and use padding. In such a case, a corner at (0, 39) in
+             a 40x40 image is mapped to a corner at (0, 319) in 320x320 image.
+            default = True
+
     Return:
         torch.Tensor of shape (c_size[2]*c_size[3])x2
     """
-    centers_per_layer = centers_per_layer_np(t_size, c_size)
+    centers_per_layer = centers_per_layer_np(t_size, c_size, is_pad)
     return torch.from_numpy(centers_per_layer).float()
 
 
-def encode_boxes(method: str,
+def encode_boxes(format: str,
                  centers: Tensor,
                  pix2pix_delta: Tensor,
                  anchor_wh: Tensor,
                  r_boxes: Tensor,
-                 boxes2centers_mapping: Tensor = None):
-    r""" Encodes raw boxes given centers, pix2pix_delta and anchor_wh.
+                 boxes2centers_mapping: Tensor,
+                 var1: float,
+                 var2: float):
+    r"""Encodes raw boxes given centers, pix2pix_delta and anchor_wh.
 
     Args:
-        method (str): Encoding method
+        format (str): Encoding format
             options = "normalized_offset" | "normalized_gcxcywh"
 
         centers (Tensor): Centers of all prediction locations
@@ -346,38 +357,51 @@ def encode_boxes(method: str,
 
         boxes2centers_mapping (Tensor): r_boxes to centers mapping based on max
             iou. When None, computes ious and boxes2centers_mapping.
+
+        var1 (float): var1 from SSD/YOLO/R-CNN to derive gcxcywh.
+
+        var2 (float): var1 from SSD/YOLO/R-CNN to derive gcxcywh.
     """
     if boxes2centers_mapping is None:
         # compute ious
         ious = compute_iou(torch.cat(
             (centers - anchor_wh / 2, centers + anchor_wh / 2), 1), r_boxes)
         boxes2centers_mapping = ious.max(1)[1].view(-1)
-    if method == "normalized_offset":
+    if format == "normalized_offset":
         # Similar to FCOS / any IOU based loss functions
         t_boxes = torch.cat((
             (centers - r_boxes[boxes2centers_mapping, :2]) / anchor_wh,
             (r_boxes[boxes2centers_mapping, 2:] - centers) / anchor_wh), 1)
-    elif method == "normalized_gcxcywh":
-        # Similar to SSD/YoloV3
+    elif format == "normalized_gcxcywh":
         r_boxes = ObjectUtils.ltrb_to_cxcywh(r_boxes)
-        t_boxes = torch.cat((
-            (r_boxes[boxes2centers_mapping, :2] - centers) / pix2pix_delta,
-            (r_boxes[boxes2centers_mapping, 2:] / anchor_wh + 1e-15).log()), 1)
+        e = 1e-15
+        if var1 is not None and var2 is not None:
+            # Similar to SSD/YoloV3
+            t_boxes = torch.cat((
+                (r_boxes[boxes2centers_mapping, :2] - centers) /
+                (var1 * anchor_wh),
+                (r_boxes[boxes2centers_mapping, 2:] / anchor_wh + e).log()
+                / var2), 1)
+        else:
+            t_boxes = torch.cat((
+                (r_boxes[boxes2centers_mapping, :2] - centers) / pix2pix_delta,
+                (r_boxes[boxes2centers_mapping, 2:] / anchor_wh + e).log()), 1)
     else:
-        print(method)
-        raise NotImplementedError
+        raise NotImplementedError("format = {}?".format(format))
     return t_boxes
 
 
-def decode_boxes(method: str,
+def decode_boxes(format: str,
                  centers: Tensor,
                  pix2pix_delta: Tensor,
                  anchor_wh: Tensor,
-                 p_boxes: Tensor):
-    r""" Decodes predicted boxes given centers, pix2pix_delta and anchor_wh.
+                 p_boxes: Tensor,
+                 var1: float,
+                 var2: float):
+    r"""Decodes predicted boxes given centers, pix2pix_delta and anchor_wh.
 
     Args:
-        method (str): Encoding method
+        format (str): Encoding format
             options = "normalized_offset" | "normalized_gcxcywh"
 
         centers (Tensor): Centers of all prediction locations
@@ -387,35 +411,44 @@ def decode_boxes(method: str,
         anchor_wh (Tensor): width and height of the anchor
 
         p_boxes (Tensor): predicted bounding boxes from network
+
+        var1 (float): var1 from SSD/YOLO/R-CNN to derive gcxcywh.
+
+        var2 (float): var1 from SSD/YOLO/R-CNN to derive gcxcywh.
     """
-    if method == "normalized_offset":
+    if format == "normalized_offset":
         p_boxes = torch.cat((centers - p_boxes[:, :2] * anchor_wh,
                              centers + p_boxes[:, 2:] * anchor_wh), 1)
-    elif method == "normalized_gcxcywh":
-        p_boxes = torch.cat((p_boxes[:, :2] * pix2pix_delta + centers,
-                             p_boxes[:, 2:].exp() * anchor_wh), 1)
-        p_boxes = ObjectUtils.cxcywh_to_ltrb(p_boxes)
+    elif format == "normalized_gcxcywh":
+        if var1 is not None and var2 is not None:
+            p_boxes = torch.cat((
+                centers + p_boxes[:, :2] * var1 * anchor_wh,
+                anchor_wh * torch.exp(p_boxes[:, 2:] * var2)), 1)
+        else:
+            p_boxes = torch.cat((p_boxes[:, :2] * pix2pix_delta + centers,
+                                 p_boxes[:, 2:].exp() * anchor_wh), 1)
     else:
-        print(method)
-        raise NotImplementedError
+        raise NotImplementedError("format = {}?".format(format))
     return p_boxes
 
 
-def encode_point(method: str,
+def encode_point(format: str,
                  centers: Tensor,
                  pix2pix_delta: Tensor,
                  anchor_wh: Tensor,
                  r_point: Tensor,
-                 boxes2centers_mapping: Tensor):
-    r""" Encodes raw point given centers, pix2pix_delta and anchor_wh.
+                 boxes2centers_mapping: Tensor,
+                 var: float = 0.5):
+    r"""Encodes raw point given centers, pix2pix_delta and anchor_wh.
 
     Args:
-        method (str): Encoding method
-            options = "normalized_offset" | "normalized_gcxcywh"
+        format (str): Encoding format
+            options = "normalized_xy_offsets"
 
         centers (Tensor): Centers of all prediction locations
 
         pix2pix_delta (Tensor): pixel to pixel delta at the prediction layer
+            Not used currently, may be, in future!
 
         anchor_wh (Tensor): width and height of the anchor
 
@@ -424,54 +457,58 @@ def encode_point(method: str,
 
         boxes2centers_mapping (Tensor): r_boxes to centers mapping based on max
             iou.
+
+        var (float): var from SSD/YOLO/R-CNN to derive gcxcy.
     """
 
-    if method == "normalized_xy_offsets":
+    if format == "normalized_xy_offsets":
         r_point = r_point.to(centers.device).view(r_point.size(0), -1)
         t_point = r_point[boxes2centers_mapping]
         t_point = t_point.view(centers.size(0), -1, 2)
         t_point -= centers[:, None]
-        t_point /= anchor_wh[:, None] / 2
+        t_point /= anchor_wh[:, None] * var
         t_point = t_point.view(centers.size(0), -1, 2)
     else:
-        print(method)
-        raise NotImplementedError
+        raise NotImplementedError("format = {}?".format(format))
     return t_point
 
 
-def decode_point(method: str,
+def decode_point(format: str,
                  centers: Tensor,
                  pix2pix_delta: Tensor,
                  anchor_wh: Tensor,
-                 p_point: Tensor):
-    r""" Decodes predicted point given centers, pix2pix_delta and anchor_wh.
+                 p_point: Tensor,
+                 var: float = 0.5):
+    r"""Decodes predicted point given centers, pix2pix_delta and anchor_wh.
 
     Args:
-        method (str): Encoding method
-            options = "normalized_offset" | "normalized_gcxcywh"
+        format (str): Encoding format
+            options = "normalized_xy_offsets"
 
         centers (Tensor): Centers of all prediction locations
 
         pix2pix_delta (Tensor): pixel to pixel delta at the prediction layer
+            Not used currently, may be, in future!
 
         anchor_wh (Tensor): width and height of the anchor
 
         p_point (Tensor): predicted points from network
+
+        var (float): var from SSD/YOLO/R-CNN to derive gcxcy.
     """
 
     p_point = p_point.view(centers.size(0), -1, 2)
-    if method == "normalized_xy_offsets":
-        p_point = p_point * (anchor_wh[:, None] / 2) + centers[:, None]
+    if format == "normalized_xy_offsets":
+        p_point = p_point * (anchor_wh[:, None] * var) + centers[:, None]
     else:
-        print(method)
-        raise NotImplementedError
+        raise NotImplementedError("format = {}?".format(format))
     return p_point
 
 
 def compute_centerness(centers: Tensor,
                        r_boxes: Tensor,
                        boxes2centers_mapping: Tensor):
-    r""" Computes centerness.
+    r"""Computes centerness.
     Paper: FCOS: Fully Convolutional One-Stage Object Detection
     URL:   https://arxiv.org/pdf/1904.01355.pdf
 
@@ -496,7 +533,7 @@ def compute_centerness(centers: Tensor,
 def compute_objectness(centers: Tensor,
                        pix2pix_delta: Tensor,
                        r_boxes: Tensor):
-    r""" Computes objectness -- in the lines of YoloV3 but can also be used
+    r"""Computes objectness -- in the lines of YoloV3 but can also be used
     like a mask.
 
     Args:
