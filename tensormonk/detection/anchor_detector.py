@@ -278,7 +278,7 @@ class AnchorDetector(nn.Module):
                      r_label: Union[list, tuple],
                      r_boxes: Union[list, tuple],
                      r_point: Union[list, tuple]):
-        r""" Encode's raw labels, boxes and points of a batch of images.
+        r"""Encode's raw labels, boxes and points of a batch of images.
 
         Args:
             r_label (list/tuple): list/tuple of tensor's to encode.
@@ -321,7 +321,7 @@ class AnchorDetector(nn.Module):
                r_label: Tensor,
                r_boxes: Tensor,
                r_point: Tensor):
-        r""" Encode's raw labels, boxes and points of a single image.
+        r"""Encode's raw labels, boxes and points of a single image.
 
         Args:
             r_label (Tensor): label for each object (0 is background)
@@ -396,7 +396,9 @@ class AnchorDetector(nn.Module):
             t_boxes[valid] = ObjectUtils.encode_boxes(
                 self.config.boxes_encode_format,
                 self.centers, self.pix2pix_delta, self.anchor_wh,
-                r_boxes, boxes2centers_mapping)[valid]
+                r_boxes, boxes2centers_mapping,
+                self.config.boxes_encode_var1,
+                self.config.boxes_encode_var2)[valid]
 
         # encode points
         t_point = None
@@ -404,7 +406,8 @@ class AnchorDetector(nn.Module):
             t_point = ObjectUtils.encode_point(
                 self.config.point_encode_format, self.centers,
                 self.pix2pix_delta, self.anchor_wh,
-                r_point, boxes2centers_mapping)
+                r_point, boxes2centers_mapping,
+                self.config.point_encode_var)
             t_point[t_label.eq(0)] = 0.
 
         return Responses(label=t_label,
@@ -415,6 +418,7 @@ class AnchorDetector(nn.Module):
                          centerness=centerness)
 
     def batch_detect(self, p_label: Tensor, p_boxes: Tensor, p_point: Tensor):
+        r"""A list of Responses from detect."""
         # batch detect
         assert isinstance(p_label, Tensor) and isinstance(p_boxes, Tensor)
         assert isinstance(p_point, Tensor) or p_point is None
@@ -428,7 +432,7 @@ class AnchorDetector(nn.Module):
         return detections
 
     def detect(self, p_label: Tensor, p_boxes: Tensor, p_point: Tensor):
-        r""" Detects labels, boxes and points of a single image.
+        r"""Detects labels, boxes and points of a single image.
 
         Args:
             p_label (Tensor): label predictions at each pixel for all levels
@@ -480,7 +484,9 @@ class AnchorDetector(nn.Module):
         # decode boxes
         boxes = ObjectUtils.decode_boxes(
             self.config.boxes_encode_format,
-            centers, pix2pix_delta, anchor_wh, p_boxes)
+            centers, pix2pix_delta, anchor_wh, p_boxes,
+            self.config.boxes_encode_var1,
+            self.config.boxes_encode_var2)
         # nms
         retain = torchvision.ops.nms(boxes, score, self.config.detect_iou)
 
@@ -496,7 +502,8 @@ class AnchorDetector(nn.Module):
         if p_point is not None:
             point = ObjectUtils.decode_point(
                 self.config.point_encode_format,
-                centers, pix2pix_delta, anchor_wh, p_point)
+                centers, pix2pix_delta, anchor_wh, p_point,
+                self.config.point_encode_var)
 
         if retain.numel() == 0:
             return Responses(label=None, score=None, boxes=None, point=None,
@@ -515,7 +522,8 @@ class AnchorDetector(nn.Module):
 
         for c_size, anchors in zip(self.c_sizes,
                                    self.config.anchors_per_layer):
-            cs = ObjectUtils.centers_per_layer(self.t_size, c_size)
+            cs = ObjectUtils.centers_per_layer(self.t_size, c_size,
+                                               self.config.is_pad)
             for an_anchor in anchors:
                 zeros = torch.zeros(cs.size(0))
                 centers.append(cs)

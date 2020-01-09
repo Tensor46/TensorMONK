@@ -81,8 +81,10 @@ class CONFIG:
         self._score_threshold = 0.1
 
         # ------------------------------------------------------------------- #
-        self._var1 = 0.1
-        self._var2 = 0.2
+        self._boxes_encode_var1 = 0.1
+        self._boxes_encode_var2 = 0.2
+        self._point_encode_var = 0.5
+        self._is_pad = True
 
         self._anchors_per_layer = None
         self._an_anchor = namedtuple("anchor", ("w", "h"))
@@ -367,22 +369,40 @@ class CONFIG:
         self._score_threshold = value
 
     @property
-    def var1(self):
-        return self._var1
+    def boxes_encode_var1(self):
+        return self._boxes_encode_var1
 
-    @var1.setter
-    def var1(self, value):
+    @boxes_encode_var1.setter
+    def boxes_encode_var1(self, value):
         assert isinstance(value, float)
-        self._var1 = value
+        self._boxes_encode_var1 = value
 
     @property
-    def var2(self):
-        return self._var2
+    def boxes_encode_var2(self):
+        return self._boxes_encode_var2
 
-    @var2.setter
-    def var2(self, value):
+    @boxes_encode_var2.setter
+    def boxes_encode_var2(self, value):
         assert isinstance(value, float)
-        self._var2 = value
+        self._boxes_encode_var2 = value
+
+    @property
+    def point_encode_var(self):
+        return self._point_encode_var
+
+    @point_encode_var.setter
+    def point_encode_var(self, value):
+        assert isinstance(value, float)
+        self._point_encode_var = value
+
+    @property
+    def is_pad(self):
+        return self._is_pad
+
+    @is_pad.setter
+    def is_pad(self, value):
+        assert isinstance(value, bool)
+        self._is_pad = value
 
     @property
     def ignore_base(self):
