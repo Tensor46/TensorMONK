@@ -111,7 +111,7 @@ class Activations(nn.Module):
         return tensor * torch.sigmoid(tensor)
 
     def _mish(self, tensor):
-        return tensor * tensor.exp().add(1).log().tanh()
+        return tensor * F.softplus(tensor).tanh()
 
     def _squash(self, tensor):
         return squash(tensor)
