@@ -439,7 +439,7 @@ class CONFIG:
         if self.is_boxes:
             msg += ["BoxesLoss = {}".format(self.boxes_loss_kwargs["method"])]
         if self.is_point:
-            msg += ["PointLoss = {}".format(self.boxes_loss_kwargs["method"])]
+            msg += ["PointLoss = {}".format(self.point_loss_kwargs["method"])]
         msg += ["Objectness is " + (" ON" if self.is_objectness else "OFF") +
                 " & Centerness is " + (" ON" if self.is_centerness else "OFF")]
         return "\n\t".join(msg)

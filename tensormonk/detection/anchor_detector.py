@@ -91,10 +91,11 @@ class Classifier(nn.Module):
                     centerness.append(x[:, i, :, -1])
 
         label, boxes = torch.cat(label, 1), torch.cat(boxes, 1)
-        label = label.sigmoid()
+        label = label.sigmoid() if label.size(-1) > 1 else label
         if "iou" in self.config.boxes_loss_kwargs["method"]:
             boxes = F.relu(boxes)
-        else:
+        elif (self.config.boxes_encode_format == "normalized_gcxcywh" and
+              self.config.boxes_encode_var1 is None):
             boxes[:, :, :2] = torch.tanh(boxes[:, :, :2])
         return Responses(
             label=label,

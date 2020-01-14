@@ -509,7 +509,8 @@ class EasyTrainer(object):
             # cuda
             default_gpu = self.default_gpu if networks[n].default_gpu is None \
                 else networks[n].default_gpu
-            if self.is_cuda:
+            gpus = self.gpus if networks[n].gpus is None else networks[n].gpus
+            if self.is_cuda and gpus > 0:
                 torch.cuda.set_device(default_gpu)
                 self.model_container[n].cuda()
             if networks[n].only_eval is not None:
@@ -563,7 +564,7 @@ class EasyTrainer(object):
                     self.model_container[n].to(device),
                     device_ids=[default_gpu],
                     output_device=default_gpu)
-            else:
+            elif gpus > 1:
                 self.model_container[n] = \
                     nn.DataParallel(self.model_container[n],
                                     device_ids=list(range(gpus))).cuda()
