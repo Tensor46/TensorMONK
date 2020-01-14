@@ -374,18 +374,18 @@ def encode_boxes(format: str,
             (r_boxes[boxes2centers_mapping, 2:] - centers) / anchor_wh), 1)
     elif format == "normalized_gcxcywh":
         r_boxes = ObjectUtils.ltrb_to_cxcywh(r_boxes)
-        e = 1e-15
         if var1 is not None and var2 is not None:
             # Similar to SSD/YoloV3
             t_boxes = torch.cat((
                 (r_boxes[boxes2centers_mapping, :2] - centers) /
                 (var1 * anchor_wh),
-                (r_boxes[boxes2centers_mapping, 2:] / anchor_wh + e).log()
+                ((r_boxes[boxes2centers_mapping, 2:] + 1) / anchor_wh).log()
                 / var2), 1)
         else:
             t_boxes = torch.cat((
                 (r_boxes[boxes2centers_mapping, :2] - centers) / pix2pix_delta,
-                (r_boxes[boxes2centers_mapping, 2:] / anchor_wh + e).log()), 1)
+                ((r_boxes[boxes2centers_mapping, 2:] + 1) / anchor_wh).log()),
+                1)
     else:
         raise NotImplementedError("format = {}?".format(format))
     return t_boxes
