@@ -223,7 +223,10 @@ class Sample(object):
         if self.PAD:
             image, boxes, points = self._pad(image, boxes, points)
         if self.CROP and self.OSIZE is not None:
-            image, boxes, points = self._crop(image, boxes, points)
+            try:
+                image, boxes, points = self._crop(image, boxes, points)
+            except ValueError:
+                pass
         if self.RESIZE and self.OSIZE is not None:
             image, boxes, points = self._resize(image, boxes, points)
 
