@@ -10,4 +10,4 @@ from . import activations, architectures, layers,  loss
 from . import normalizations, regularizations, essentials
 from . import data, plots, utils, thirdparty
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"

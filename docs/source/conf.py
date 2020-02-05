@@ -18,12 +18,12 @@ extensions = [
 source_suffix = '.rst'
 master_doc = 'index'
 
-author = 'Vikas Gottemukkula'
+author = 'Vikas Gottemukkula, Sashi Saripalle'
 project = 'TensorMONK'
 copyright = '{}, {}'.format(datetime.datetime.now().year, author)
 
-version = '0.4'
-release = '0.4'
+version = '0.5.0'
+release = '0.5.0'
 
 html_theme = 'sphinx_rtd_theme'
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
