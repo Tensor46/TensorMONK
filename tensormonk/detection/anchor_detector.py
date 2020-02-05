@@ -8,30 +8,23 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 import torchvision
-from collections import namedtuple
 from typing import Union
 from .config import CONFIG
 from .nofpn_fpn import BiFPNLayer, FPNLayer, PAFPNLayer, NoFPNLayer
 from .utils import ObjectUtils
 from ..layers import MBBlock
-
-
-Responses = namedtuple("responses", ("label", "score", "boxes", "point",
-                       "objectness", "centerness"))
+from .responses import Responses
 
 
 class Classifier(nn.Module):
-    r""" Classifier layer to predict labels, boxes, points, objectness and
+    r"""Classifier layer to predict labels, boxes, points, objectness and
     centerness.
 
     Args:
-        config (CONFIG): This is a detection config. When config is not None,
-            all the above arguments are overwritten by config parameters.
+        config (:class:`~tensormonk.detection.CONFIG`): See
+            :class:`tensormonk.detection.CONFIG` for more details.
 
-            default: None
-
-    Return:
-        Responses
+    :rtype: :class:`tensormonk.detection.Responses`
     """
     def __init__(self, config: CONFIG):
         super(Classifier, self).__init__()
@@ -112,16 +105,18 @@ class AnchorDetector(nn.Module):
     r""" A common detection module on top of base network with NoFPN,
     BiFPN, FPN, and PAFPN.
 
-    Base is the backbone network (a pretrained or a custom one)
+    .. code-block:: none
 
-        Ex: ResNet-18
-        1x3x224x224     1x64x56x56   1x128x28x28   1x256x14x14   1x512x7x7
-           input    ->      o     ->      o     ->      o     ->      o
-                            x1            x2            x3            x4
-        Lets call x1, x2, x3, x4 as levels.
+        Base is the backbone network (a pretrained or a custom one)
 
-    Base2Body has one 1x1 convolutional layer per level to convert the depth of
-        (x1, x2, x3, x4) to a constant depth (config.encoding_depth)
+            Ex: ResNet-18
+            1x3x224x224     1x64x56x56   1x128x28x28   1x256x14x14   1x512x7x7
+               input    ->      o     ->      o     ->      o     ->      o
+                                x1            x2            x3            x4
+            Lets call x1, x2, x3, x4 as levels.
+
+        Base2Body has one 1x1 convolutional layer per level to convert the
+        depth of (x1, x2, x3, x4) to a constant depth (config.encoding_depth)
 
         Ex: config.encoding_depth = 60
         Base2Body((x1, x2, x3, x4))[0].shape == [1, 60, 56, 56]
@@ -129,10 +124,9 @@ class AnchorDetector(nn.Module):
         Base2Body((x1, x2, x3, x4))[2].shape == [1, 60, 14, 14]
         Base2Body((x1, x2, x3, x4))[3].shape == [1, 60,  7,  7]
 
-    Body can have stacks of NoFPN/FPN/BiFPN/PAFPN layers. Essentially, these
-        act as context layers that are interconnected across levels (exception
-        is NoFPN layer).
-
+        Body can have stacks of NoFPN/FPN/BiFPN/PAFPN layers. Essentially,
+        these act as context layers that are interconnected across levels
+        (exception is NoFPN layer).
     """
     def __init__(self, config: CONFIG):
         super(AnchorDetector, self).__init__()
@@ -232,6 +226,13 @@ class AnchorDetector(nn.Module):
         return self.classifier(*responses), responses
 
     def predict(self, tensor: Tensor):
+        r"""Calls AnchorDetector.batch_detect with no grads.
+
+        Args:
+            tensor (torch.Tensor): input tensor in BCHW
+
+        :rtype: :class:`tensormonk.detection.Responses`
+        """
         with torch.no_grad():
             responses, _ = self(tensor)
             responses = self.batch_detect(responses.label, responses.boxes,
@@ -289,9 +290,7 @@ class AnchorDetector(nn.Module):
             r_point (list/tuple): list/tuple of tensor's to encode.
                 See encode for more information
 
-        Return:
-            Responses of type namedtuple (see encode - same format with
-            additional dimension to each tensor)
+        :rtype: :class:`tensormonk.detection.Responses`
         """
 
         # batch encode
@@ -332,20 +331,7 @@ class AnchorDetector(nn.Module):
                 coordinates without any normalization), nan's are avoided in
                 loss computation.
 
-        Return:
-            Responses of type namedtuple
-                responses.label = labels at each pixel for all levels
-                responses.score = None
-                responses.boxes = ltrb delta or normalized cxcywh (based on
-                                  loss function) at each pixel for all levels
-                responses.point = normalized delta (xy - box cxcy) at each
-                                  pixel for all levels
-                responses.objectness = intersection over foreground with
-                                       centers whose w and h are equal to
-                                       strides.
-                responses.centerness = centerness of a location
-                    FCOS: Fully Convolutional One-Stage Object Detection
-                    https://arxiv.org/pdf/1904.01355.pdf
+        :rtype: :class:`tensormonk.detection.Responses`
         """
 
         assert isinstance(r_label, Tensor) and isinstance(r_boxes, Tensor)
@@ -419,7 +405,19 @@ class AnchorDetector(nn.Module):
                          centerness=centerness)
 
     def batch_detect(self, p_label: Tensor, p_boxes: Tensor, p_point: Tensor):
-        r"""A list of Responses from detect."""
+        r"""A list of Responses from detect.
+
+        Args:
+            p_label (Tensor): label predictions at each pixel for all levels
+            p_boxes (Tensor): boxes predictions at each pixel for all levels
+            p_point (Tensor): boxes predictions at each pixel for all levels
+
+            p_label.size(0) == p_boxes.size(0) == p_point.size(0) ==
+                self.centers.size(0)
+
+        :rtype: [:class:`tensormonk.detection.Responses`,
+            :class:`tensormonk.detection.Responses`, ...]
+        """
         # batch detect
         assert isinstance(p_label, Tensor) and isinstance(p_boxes, Tensor)
         assert isinstance(p_point, Tensor) or p_point is None
@@ -443,14 +441,7 @@ class AnchorDetector(nn.Module):
             p_label.size(0) == p_boxes.size(0) == p_point.size(0) ==
                 self.centers.size(0)
 
-        Return:
-            Responses of type namedtuple
-                responses.label = label of the detected boxes
-                responses.score = score of the detected boxes
-                responses.boxes = ltrb (in pixel) of the detected boxes
-                responses.point = x, y, x, y, ... of the detected boxes
-                responses.objectness = None
-                responses.centerness = None
+        :rtype: :class:`tensormonk.detection.Responses`
         """
         if self.t_size[1:] != self.config.t_size[1:]:
             centers, pix2pix_delta, anchor_wh = self.compute_anchors()

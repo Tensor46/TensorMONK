@@ -139,6 +139,7 @@ class MNAS(torch.nn.Module):
             self.architecture = config.base_network.lower()
             additional_stride = 2 if max(self.t_size[2:]) > 320 or \
                 config.base_network_forced_stride else 1
+            pretrained = config.base_network_pretrained
 
         if pretrained:
             # overwritten to defaults
