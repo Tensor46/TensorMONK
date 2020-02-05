@@ -10,7 +10,8 @@ __all__ = ["Convolution", "ConvolutionalSAE", "Linear",
            "PrimaryCapsule", "RoutingCapsule", "DetailPooling",
            "DoG", "DoGBlob", "GaussianBlur", "DoH", "HessianBlob", "SSIM",
            "SelfAttention",
-           "FeatureFusion"]
+           "FeatureFusion",
+           "LucasKanade"]
 
 
 from .linear import Linear
@@ -31,6 +32,7 @@ from .dog import DoG, DoGBlob, GaussianBlur
 from .ssim import SSIM
 from .attention import SelfAttention
 from .feature_fusion import FeatureFusion
+from .lucas_kanade import LucasKanade
 
 del linear, convolution, carryresidue, inception, attention
 del primarycapsule, routingcapsule

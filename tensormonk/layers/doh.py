@@ -43,7 +43,7 @@ class HessianBlob(nn.Module):
             blur_w > 3
 
     Return:
-        Blurred 4D BCHW torch.Tensor with size same as input tensor
+        4D BCHW torch.Tensor with size same as input tensor
     """
     def __init__(self,
                  min_width: int = 3,

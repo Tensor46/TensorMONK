@@ -9,177 +9,120 @@ from ..utils import PillowUtils, ObjectUtils
 
 
 class Sample(object):
-    r"""Sample is an object that contains image path, bounding boxes and points
-    for object detection tasks that can localize landmark. It can augment data
-    (random 90/180/270 rotates, random pad and random cropping) during training
-    -- boxes and points are adjusted accordingly. The image can be resized if
-    Sample.OSIZE is initialized.
+    r"""Sample is an object that contains image path, labels, bounding boxes
+    and points for object detection tasks that can localize landmark. It can
+    augment data (random 90/180/270 rotates, random pad and random cropping)
+    during training -- boxes and points are adjusted accordingly. The image can
+    be resized along with boxes and points if Sample.OSIZE is initialized.
 
-
-    Sample Options (are set once):
-    -----------------------------
+    Attributes (are set once):
         INVALID (float): In cases where some points are not available set the
             value to float("nan"). This allows to track those points after
             augmentation (must be filtered during loss computation --
-            tensormonk.loss.PointLoss automatically handles it)
-
-            default = float("nan")
-
+            tensormonk.loss.PointLoss automatically handles it).
+            default = :obj:`float("nan")`
         OSIZE (tuple): (width, height) of output image, when not set returns
             image without resize along with its attributes (boxes and
             points) after augmentation.
-
-            default = None
-
+            default = :obj:`None`
         RESIZE (bool): When True along with OSIZE != None will resize the image
             during augmentation and adjust the boxes and points to new image
             size.
-
-        ROTATE_90 (bool): Enables random rotation (90/180/270)
-
-            options = True | False
-            default = True
-
-        ROTATE_90_PROBS (tuple): Probability of ROTATE_90
-
-            default = (0.4, 0.6, 0.8)
-                40%, 20%, 20% and 20% probable to rotate 0, 90, 180, and 270
-                degrees respectively
-
-        PAD (bool): Does random padding
-
-            options = True | False
-            default = True
-
+        ROTATE_90 (bool): Enables random rotation (90/180/270).
+            default = :obj:`True`
+        ROTATE_90_PROBS (tuple): Probability of ROTATE_90.
+            default = :obj:`(0.4, 0.6, 0.8)`. 40%, 20%, 20% and 20% probable to
+            rotate 0, 90, 180, and 270 degrees respectively
+        PAD (bool): Does random padding.
+            default = :obj:`True`
         PAD_PERCENTAGE (float): Maximum percentage of height and width that
-            is padded.
-
-            options = 0 < PAD_PERCENTAGE < 1
-            default = 0.1
-
-        CROP (bool): Does random cropping
-
-            options = True | False
-            default = True
-
+            is padded. Must be 0 < PAD_PERCENTAGE < 1.
+            default = :obj:`0.1`
+        CROP (bool): Does random cropping.
+            default = :obj:`True`
         CROP_MIN_SIDE_PERCENTAGE (float): Minimum percentage of the size that
-            must be retained
-
-            options = 0 < CROP_MIN_SIDE_PERCENTAGE < 1
-            default = 0.3
-
+            must be retained. Must be 0 < CROP_MIN_SIDE_PERCENTAGE < 1.
+            default = :obj:`0.3`
         CROP_MIN_OBJECT_SIDE (int): Minimum side of the object that has to be
             maintained after crop and resize. In case of multiple objects, at
-            least one object will have min(w, h) >= CROP_MIN_OBJECT_SIDE
-
-            options = 0 < CROP_MIN_OBJECT_SIDE < min(Sample.OSIZE)
-            default = 16
-
+            least one object will have min(w, h) >= CROP_MIN_OBJECT_SIDE.
+            Must be 0 < CROP_MIN_OBJECT_SIDE < min(Sample.OSIZE).
+            default = :obj:`16`
         CROP_N_ATTEMPTS (int): Number of attempts to find random crop, when
             failed randomly selects one object and extracts a crop around it.
-
-            options = depends on cpu (a larger number can slow down dataloader)
-            default = 16
-
+            Depends on cpu (a larger number can slow down dataloader).
+            default = :obj:`16`
         RETAIN_AREA (float): An object is retained only if
-            original area * RETAIN_AREA >= visible area after a crop
+            original area * RETAIN_AREA >= visible area after a crop.
+            default = :obj:`0.5`
 
-            default = 0.5
-
-
-
-    Sample Args:
-    -----------
+    Args:
         image (str, required): Full path to image (does not accept ndarray or
-            pillow image -- larger dataset can run out of memory)
-
+            pillow image since large dataset can not fit in memory)
         labels (list/tuple/np.ndarray, required): labels of all the objects in
-            the image. In order to use tensormonk.loss.LabelLoss use 0 for
-            background.
-
-        boxes (list/tuple/np.ndarray, required): bounding boxes of all the
-            labels. Must be in pixel coordinates and ltrb form (left, top,
-            right, bottom)
-
+            the image. In order to use :class:`~tensormonk.loss.LabelLoss`
+            use 0 for background.
+        boxes (list/tuple/np.ndarray, required): bounding boxes for all the
+            labels. Must be in pixel coordinates and ltrb form (:obj:`left`,
+            :obj:`top`, :obj:`right`, :obj:`bottom`)
         points (list/tuple/np.ndarray, optional): [x, y, x, y, ...] points of
             all the bounding boxes. If points for some objects are missing use
             float("nan") and maintain all the labels to have same number of
             points. When not required use None.
 
+    .. code-block:: python
+
+        import torch
+        from tensormonk.detection import Sample
+        from torchvision import transforms
+
+        Sample.OSIZE = 320, 320
+        Sample.RESIZE = True
+        Sample.ROTATE_90 = False
+        Sample.PAD = False
+        Sample.CROP = True
+        Sample.CROP_MIN_SIDE_PERCENTAGE = 0.3
+        Sample.CROP_MIN_OBJECT_SIDE = 16
+        Sample.CROP_N_ATTEMPTS = 8
+
+        data = [["./image1.jpg", [1], [[4, 6, 4, 6]]],
+                ["./image2.jpg", [4, 6], [[4, 6, 4, 6], [2, 6, 3, 6]]]]
 
 
-    Sample Properties:
-    -----------------
-        image         = returns pil image (reads every time)
-        image_name    = returns full image path
-        labels        = returns labels (np ndarray) -- copy
-        is_boxes      = returns True/False (True indicates presence of boxes)
-        boxes         = returns boxes in ltrb format (np ndarray) -- copy
-        boxes_ltrb    = returns boxes in ltrb format (np ndarray) -- copy
-        boxes_cxcywh  = returns boxes in cxcywh format (np ndarray) -- copy
-        is_points     = returns True/False (True indicates presence of points)
-        points        = returns points in xy format (np ndarray) -- copy
-        points_cxcy   = returns points in cxcy format (np ndarray) -- copy
+        class SomeDB(object):
+            def __init__(self, data, osize: tuple):
 
-    *copy -- provides a copy of np array (maintains original in case of inplace
-    operations).
+                self.samples = []
+                for x in data:
+                    self.samples.append(
+                        Sample(image=x[0], labels=x[1], boxes=x[2],
+                               points=None))
 
+                self.transforms = transforms.RandomApply(
+                    [transforms.ColorJitter(0.1, 0.1, 0.1, 0.1),
+                     transforms.RandomGrayscale(p=0.25),
+                     transforms.ToTensor()])
 
+            def __len__(self):
+                return len(self.samples)
 
-    Example:
-    -------
-    import torch
-    from tensormonk.detection import Sample
-    from torchvision import transforms
+            def __getitem__(self, idx):
+                image, labels, boxes, points = self.samples[idx].augmented()
+                tensor = self.transforms(image)
+                labels = torch.from_numpy(labels).long()
+                boxes = torch.from_numpy(boxes).float()
+                if points is None:
+                    return image, labels, boxes
 
-    Sample.OSIZE = 320, 320
-    Sample.RESIZE = True
-    Sample.ROTATE_90 = False
-    Sample.PAD = False
-    Sample.CROP = True
-    Sample.CROP_MIN_SIDE_PERCENTAGE = 0.3
-    Sample.CROP_MIN_OBJECT_SIDE = 16
-    Sample.CROP_N_ATTEMPTS = 8
-
-    data = [["./image1.jpg", [1], [[4, 6, 4, 6]]],
-            ["./image2.jpg", [4, 6], [[4, 6, 4, 6], [2, 6, 3, 6]]]]
+                points = torch.from_numpy(points).float()
+                return image, labels, boxes, points
 
 
-    class SomeDB(object):
-        def __init__(self, data, osize: tuple):
-
-            self.samples = []
-            for x in data:
-                self.samples.append(
-                    Sample(image=x[0], labels=x[1], boxes=x[2], points=None))
-
-            self.transforms = transforms.RandomApply(
-                [transforms.ColorJitter(0.1, 0.1, 0.1, 0.1),
-                 transforms.RandomGrayscale(p=0.25),
-                 transforms.ToTensor()])
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        image, labels, boxes, points = self.samples[idx].augmented()
-        tensor = self.transforms(image)
-        labels = torch.from_numpy(labels).long()
-        boxes = torch.from_numpy(boxes).float()
-        if points is None:
-            return image, labels, boxes
-
-        points = torch.from_numpy(points).float()
-        return image, labels, boxes, points
-
-
-    dataset = SomeDB(data, (320, 320))
-
-    # To check how augmentation is working use the following to visualize
-    dataset.samples[0].annotate_augmented()
-    # To visualize original data
-    dataset.samples[0].annotate()
-
+        dataset = SomeDB(data, (320, 320))
+        # To check how augmentation is working use the following to visualize
+        dataset.samples[0].annotate_augmented()
+        # To visualize original data
+        dataset.samples[0].annotate()
     """
     INVALID: float = float("nan")  # no change required
     # to resize
@@ -388,6 +331,7 @@ class Sample(object):
 
     @property
     def image(self):
+        r"""A property that returns pil image (reads every time)."""
         return ImPIL.open(self._image).convert("RGB")
 
     @image.setter
@@ -400,10 +344,13 @@ class Sample(object):
 
     @property
     def image_name(self):
+        r"""A property that returns image full path."""
         return self._image
 
     @property
     def labels(self):
+        r"""A property that returns a copy all of labels (np.ndarray) on the
+        image."""
         return self._labels.copy()
 
     @labels.setter
@@ -415,10 +362,13 @@ class Sample(object):
 
     @property
     def is_boxes(self):
+        r"""A property that returns :obj:`True` when boxes are available."""
         return self._is_boxes
 
     @property
     def boxes(self):
+        r"""A property that returns a copy all of boxes (np.ndarray) on the
+        image in ltrb format."""
         return self._boxes.copy() if ~ self.is_boxes else None
 
     @boxes.setter
@@ -442,6 +392,8 @@ class Sample(object):
 
     @property
     def boxes_cxcywh(self):
+        r"""A property that returns a copy all of boxes (np.ndarray) on the
+        image in cxcywh format."""
         boxes = self.boxes
         if self.is_boxes:
             boxes = (boxes[:, 0::2].mean(1), boxes[:, 1::2].mean(1),
@@ -451,10 +403,13 @@ class Sample(object):
 
     @property
     def is_points(self):
+        r"""A property that returns :obj:`True` when points are available."""
         return self._is_points
 
     @property
     def points(self):
+        r"""A property that returns a copy all of points (np.ndarray) on the
+        image in pixel coordinates."""
         return self._points.copy() if ~ self.is_points else None
 
     @points.setter

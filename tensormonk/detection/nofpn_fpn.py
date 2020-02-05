@@ -16,26 +16,24 @@ from .config import CONFIG
 
 
 class Block(nn.Module):
-    r"""DepthWiseSeparable+FeatureFusion or FeatureFusion+DepthWiseSeparable.
-
-    Paper: EfficientDet: Scalable and Efficient Object Detection
-    URL:   https://arxiv.org/pdf/1911.09070.pdf
+    r"""DepthWiseSeparable + FeatureFusion or FeatureFusion +
+    DepthWiseSeparable.
+    (`EfficientDet: Scalable and Efficient Object Detection
+    <https://arxiv.org/pdf/1911.09070.pdf>`_)
 
     Args:
         encoding_depth (int, required): depth of all the input tensor's
-
-        n_features (int, required): #Features to be fused
-            if n_features = 1  ->  DepthWiseSeparable + FeatureFusion
-            else               ->  FeatureFusion + DepthWiseSeparable
-
+        n_features (int, required): #Features to fuse. When n_features = 1,
+            FeatureFusion is performed with input and the ouput of
+            DepthWiseSeparable layer. Otherwise, FeatureFusion is performed on
+            all the inputs, followed by DepthWiseSeparable layers.
         fusion (str, optional): fusion logic after resizing all the tensor's
             to match the first tensor in the list/tuple/args using bilinear
-            interpolation.
+            interpolation. Options - :obj:`"sum"`,
+            :obj:`"fast-normalize"`, :obj:`"softmax"`.
+            (default = :obj:`"softmax"`)
 
-            "sum"            : usual sum
-            "fast-normalize" : https://arxiv.org/pdf/1911.09070.pdf
-            "softmax"        : https://arxiv.org/pdf/1911.09070.pdf
-            default = "softmax"
+    # TODO: More options for Block
     """
 
     def __init__(self,
@@ -72,28 +70,33 @@ class Block(nn.Module):
 class NoFPNLayer(nn.Module):
     r"""Residual DepthWiseSeparable is used as base block.
 
-    n_scales = 3
-    ------------
-    Ex: Base with single FPN layer
+    Args:
+        config (:class:`~tensormonk.detection.CONFIG`, required): See
+            :class:`~tensormonk.detection.CONFIG` for more details.
 
-    Pretrained | Detection Layers
-    Ex: ResNet | with anchors
-    -----------|-----------------
-        o      |   -> o
-        ^      |
-        |      |
-        o      |   -> o
-        ^      |
-        |      |
-        o      |   -> o
-        ^      |
-        |      |
-        o      |
-        ^      |
-        |      |
-               |
-      input    |
+    .. code-block:: none
 
+        n_scales = 3
+        ------------
+        Ex: Base with single FPN layer
+
+        Pretrained | Detection Layers
+        Ex: ResNet | with anchors
+        -----------|-----------------
+            o      |   -> o
+            ^      |
+            |      |
+            o      |   -> o
+            ^      |
+            |      |
+            o      |   -> o
+            ^      |
+            |      |
+            o      |
+            ^      |
+            |      |
+                   |
+          input    |
     """
 
     def __init__(self, config: CONFIG):
@@ -112,27 +115,33 @@ class NoFPNLayer(nn.Module):
 
 
 class FPNLayer(nn.Module):
-    r"""A modified version of FPN compatible with tensormonk.detection.config
+    r"""A modified version of FPN compatible with
+    :class:`~tensormonk.detection.CONFIG`.
     Upscale/downscale is done with bilinear interpolation.
+    (`Feature Pyramid Networks for Object Detection
+    <https://arxiv.org/pdf/1612.03144.pdf>`_).
 
-    Paper: Feature Pyramid Networks for Object Detection
-    URL:   https://arxiv.org/pdf/1612.03144.pdf
+    Args:
+        config (:class:`~tensormonk.detection.CONFIG`, required): See
+            :class:`~tensormonk.detection.CONFIG` for more details.
 
-    n_scales = 3           Ex: Base with single FPN layer
-    ------------           ------------------------------
-        -> o ->            o -> o ->
-           |               ^    |
-           v               |    v
-        -> o ->            o -> o ->
-           |               ^    |
-           v               |    v
-        -> o ->            o -> o ->
-                           ^
-                           |
-                           o
-                           ^
-                           |
-                         input
+    .. code-block:: none
+
+        n_scales = 3           Ex: Base with single FPN layer
+        ------------           ------------------------------
+            -> o ->            o -> o -> low-resolution
+               |               ^    |
+               v               |    v
+            -> o ->            o -> o ->
+               |               ^    |
+               v               |    v
+            -> o ->            o -> o -> high-resolution
+                               ^
+                               |
+                               o
+                               ^
+                               |
+                             input
     """
 
     def __init__(self, config: CONFIG):
@@ -169,21 +178,27 @@ class FPNLayer(nn.Module):
 
 
 class PAFPNLayer(nn.Module):
-    r"""A modified version of PAFPN compatible with tensormonk.detection.config
-    Upscale/downscale is done with bilinear interpolation.
+    r"""A modified version of PAFPN compatible with
+    :class:`~tensormonk.detection.CONFIG`. Upscale/downscale is done with
+    bilinear interpolation.
+    (`Path aggregation network for instance segmentation
+    <https://arxiv.org/pdf/1803.01534.pdf>`_).
 
-    Paper: Path aggregation network for instance segmentation
-    URL:   https://arxiv.org/pdf/1803.01534.pdf
+    Args:
+        config (:class:`~tensormonk.detection.CONFIG`, required): See
+            :class:`~tensormonk.detection.CONFIG` for more details.
 
-    Logic:  n_scales = 3
-    --------------------
-        -> o -> o ->
-           |    ^
-           v    |
-        -> o -> o ->
-           |    ^
-           v    |
-        -> o -> o ->
+    .. code-block:: none
+
+        Logic:  n_scales = 3
+        --------------------
+        low-resolution    -> o -> o ->
+                             |    ^
+                             v    |
+                          -> o -> o ->
+                             |    ^
+                             v    |
+        high-resolution   -> o -> o ->
     """
 
     def __init__(self, config: CONFIG):
@@ -238,25 +253,29 @@ class PAFPNLayer(nn.Module):
 
 
 class BiFPNLayer(nn.Module):
-    r"""A modified version from BiFPNLayer compatible with
-    tensormonk.detection.config
-    Upscale/downscale is done with bilinear interpolation.
+    r"""A modified version of BiFPNLayer compatible with
+    :class:`~tensormonk.detection.CONFIG`. Upscale/downscale is done with
+    bilinear interpolation. (`EfficientDet: Scalable and Efficient Object
+    Detection <https://arxiv.org/pdf/1911.09070.pdf>`_).
 
-    Paper: EfficientDet: Scalable and Efficient Object Detection
-    URL:   https://arxiv.org/pdf/1911.09070.pdf
+    Args:
+        config (:class:`~tensormonk.detection.CONFIG`, required): See
+            :class:`~tensormonk.detection.CONFIG` for more details.
 
-    Logic: n_scales = 4
-    -------------------
-        o ------> o ->
-         _\_____  ^
-        |  \    \ |
-        o -> o -> o ->
-         ___ | _  ^
-        |    v  \ |
-        o -> o -> o ->
-               \  ^
-                \ |
-        o ------> o ->
+    .. code-block:: none
+
+        Logic: n_scales = 4
+        -------------------
+        low-resolution    o ------> o ->
+                           _\_____  ^
+                          |  \    \ |
+                          o -> o -> o ->
+                           ___ | _  ^
+                          |    v  \ |
+                          o -> o -> o ->
+                                 \  ^
+                                  \ |
+        high-resolution   o ------> o ->
     """
 
     def __init__(self, config: CONFIG):
