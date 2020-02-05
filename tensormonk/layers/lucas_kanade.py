@@ -64,7 +64,7 @@ class LucasKanade(nn.Module):
         assert frame_t0.ndim == 4 and frame_t1.ndim == 4
         assert frame_t0.shape == frame_t1.shape
         assert points_xy.ndim == 3
-        assert frame_t0.size(0) == frame_t1.size(0) == points_xy.size(0) == 1
+        assert frame_t0.size(0) == frame_t1.size(0) == points_xy.size(0)
         n, c, h, w = frame_t0.shape
         n_pts = points_xy.shape[1]
         # extract patches
@@ -75,24 +75,22 @@ class LucasKanade(nn.Module):
         gy = F.conv2d(patches_t0, self.sobel_y.expand(c, 1, 3, 3), None,
                       padding=1, groups=c)
         J = torch.stack((gx, gy), 1)
-        weightedJ = J * self.gkernel.unsqueeze(0)
+        wJ = J * self.gkernel.unsqueeze(0)
         # Hessian matrix
-        H = torch.bmm(weightedJ.view(n_pts, 2, -1),
-                      J.view(n_pts, 2, -1).transpose(2, 1))
+        H = wJ.view(n, n_pts, 2, -1) @ J.view(n, n_pts, 2, -1).transpose(3, 2)
         a, b, c, d = H[..., 0, 0], H[..., 0, 1], H[..., 1, 0], H[..., 1, 1]
         eps = np.finfo(float).eps
         a = a + eps
         d = d + eps
-        inverseH = (torch.stack((d, -b, -c, a), 1) /
-                    (a * d - b * c + eps).unsqueeze(1)).view(-1, 2, 2)
+        inverseH = (torch.stack((d, -b, -c, a), 2) /
+                    (a * d - b * c + eps).unsqueeze(-1)).view(n, -1, 2, 2)
         # recurssive correction
         for _ in range(self.n_steps):
             # extract patches
             patches_t1 = self.extract_patches(frame_t1, points_xy)
             r = patches_t1 - patches_t0
-            sigma = torch.bmm(weightedJ.view(n_pts, 2, -1),
-                              r.view(n_pts, -1, 1))
-            deltap = torch.bmm(inverseH, sigma).squeeze(-1)
+            sigma = wJ.view(n, n_pts, 2, -1) @ r.view(n, n_pts, -1, 1)
+            deltap = (inverseH @ sigma).squeeze(-1)
             points_xy = points_xy - deltap
             if deltap.data.abs().lt(1e-4).all():
                 # early stopping when delta's are minimal
@@ -115,9 +113,8 @@ class LucasKanade(nn.Module):
                              (bbox[..., 3] - bbox[..., 1]) / 2,
                              (bbox[..., 3] + bbox[..., 1]) / 2], -1)
         theta = theta.view(-1, 2, 3)
-
-        grid = F.affine_grid(theta, torch.Size((n_pts, 1, self.w, self.w)),
+        grid = F.affine_grid(theta, torch.Size((n_pts*n, 1, self.w, self.w)),
                              align_corners=True)
-        patches = F.grid_sample(tensor.expand(n_pts, c, h, w), grid,
+        patches = F.grid_sample(tensor.repeat_interleave(n_pts, 0), grid,
                                 align_corners=True)
         return patches
