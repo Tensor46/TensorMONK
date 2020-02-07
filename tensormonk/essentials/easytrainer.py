@@ -208,6 +208,9 @@ class EasyTrainer(object):
             keep_batchnorm_fp32 = True, loss_scale = "dynamic".
             default = "fp32"
             options = "fp32" | "mixed"
+        monitor_ndigits (optional, int): n decimal points to print for all the
+            meters.
+            default = 2
 
     Ex:
         import tensormonk
@@ -245,6 +248,7 @@ class EasyTrainer(object):
                  n_visplots: int = 100,
                  distributed: bool = False,
                  precision: str = "fp32",
+                 monitor_ndigits: int = 2,
                  **kwargs):
 
         # checks
@@ -287,6 +291,10 @@ class EasyTrainer(object):
         if precision == "mixed" and not APEX_AVAILABLE:
             precision = "fp32"
             print("EasyTrainer: mixed precision is disabled - amp not found")
+        if not isinstance(monitor_ndigits, int):
+            raise TypeError("EasyTrainer: monitor_ndigits must be int: "
+                            "{}".format(type(monitor_ndigits).__name__))
+        self.monitor_ndigits = max(2, monitor_ndigits)
 
         self.is_cuda = torch.cuda.is_available()
         self.default_gpu = default_gpu
@@ -407,7 +415,8 @@ class EasyTrainer(object):
 
     def _monitor(self, tags: list, n: int = 1, test: bool = False):
         r"""Convert a list of tags in meter_container to string."""
-        msg = ["{} {:3.2f}".format(x, self.meter_container[x].average(n))
+        msg = "{} {:3." + str(self.monitor_ndigits) + "f}"
+        msg = [msg.format(x, self.meter_container[x].average(n))
                for x in tags if x in self.meter_container.keys()]
         if test:
             return " :: ".join(msg)
@@ -618,7 +627,7 @@ class EasyTrainer(object):
                 self.epoch = content["epoch"]
 
         for m in meters:
-            self.meter_container[m] = Meter()
+            self.meter_container[m] = Meter(ndigits=self.monitor_ndigits)
             if "content" in locals() and \
                m in content["meter_container"].keys():
                 self.meter_container[m].values = content["meter_container"][m]
