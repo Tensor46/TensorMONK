@@ -1,6 +1,6 @@
 """ TensorMONK :: layers """
 
-__all__ = ["Convolution", "ConvolutionalSAE", "Linear",
+__all__ = ["Convolution", "ConvolutionalSAE", "Linear", "CondConv2d",
            "ResidualOriginal", "ResidualComplex", "ResidualInverted",
            "ResidualShuffle", "ResidualNeXt", "SEResidualComplex",
            "SEResidualNeXt", "SimpleFire", "CarryModular", "DenseBlock",
@@ -33,6 +33,7 @@ from .ssim import SSIM
 from .attention import SelfAttention
 from .feature_fusion import FeatureFusion
 from .lucas_kanade import LucasKanade
+from .condconv2d import CondConv2d
 
 del linear, convolution, carryresidue, inception, attention
 del primarycapsule, routingcapsule
