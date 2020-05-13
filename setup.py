@@ -11,7 +11,7 @@ with open("README.md", "r") as txt:
 
 # requirements
 requirements = [
-    "pytorch>=1.2",
+    "torch",
     "torchvision",
     "visdom",
     "numpy",
