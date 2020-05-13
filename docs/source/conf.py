@@ -5,6 +5,7 @@ import doctest
 import sys
 sys.path.append('..')
 sys.path.append('../..')
+sys.path.append('../../..')
 
 extensions = [
     'sphinx.ext.autodoc',
