@@ -17,3 +17,4 @@ wget
 scikit-image
 tqdm
 lmdb
+msgpack
