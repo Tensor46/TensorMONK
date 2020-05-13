@@ -22,7 +22,7 @@ requirements = [
     "opencv-python",
     "imageio",
     "wget",
-    "skimage"]
+    "scikit-image"]
 
 
 setup(name="tensormonk",
