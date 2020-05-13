@@ -1,17 +1,17 @@
-#version: 2
+version: 2
 
-
-#formats: all
-
-#sphinx:
-#  configuration: docs/source/conf.py
+sphinx:
+  configuration: docs/source/conf.py
 
 build:
     image: latest
 
 python:
-    version: 3.6
-#    install:
-#        - requirements: docs/requirements.txt
-        #- method: pip
-        #  path: .
+   version: 3.6
+   system_packages: true
+   install:
+      - requirements: docs/requirements.txt
+      - method: setuptools
+        path: .
+
+formats: []
