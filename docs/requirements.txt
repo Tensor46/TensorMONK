@@ -14,4 +14,4 @@ matplotlib
 pillow
 imageio
 wget
-skimage
+scikit-image
