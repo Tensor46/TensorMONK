@@ -1,9 +1,9 @@
 -i https://pypi.python.org/simple
 -f https://download.pytorch.org/whl/torch_stable.html
-sphinx==2.1.2
-sphinx-gallery==0.4.0
-sphinx_rtd_theme==0.4.3
-sphinxcontrib-bibtex==0.4.2
+sphinx
+sphinx-gallery
+sphinx_rtd_theme
+sphinxcontrib-bibtex
 torch==1.5.0+cpu
 torchvision==0.6.0+cpu
 opencv-python==4.2.0.34
