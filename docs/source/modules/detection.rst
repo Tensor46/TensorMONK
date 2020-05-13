@@ -41,25 +41,25 @@ FPN Layers
 All FPN layers use DepthWiseSeparable convolution (with BatchNorm2d and Swish) and FeatureFusion layer.
 
 BiFPNLayer
-^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 .. autoclass:: tensormonk.detection.BiFPNLayer
     :members:
     :exclude-members: forward
 
 FPNLayer
-^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 .. autoclass:: tensormonk.detection.FPNLayer
     :members:
     :exclude-members: forward
 
 NoFPNLayer
-^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 .. autoclass:: tensormonk.detection.NoFPNLayer
     :members:
     :exclude-members: forward
 
 PAFPNLayer
-^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 .. autoclass:: tensormonk.detection.PAFPNLayer
     :members:
     :exclude-members: forward
