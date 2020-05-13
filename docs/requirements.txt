@@ -16,3 +16,4 @@ imageio
 wget
 scikit-image
 tqdm
+lmdb
