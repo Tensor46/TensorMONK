@@ -1,5 +1,16 @@
+version: 2
+
+formats: all
+
+sphinx:
+  configuration: docs/source/conf.py
+
 build:
     image: latest
 
 python:
     version: 3.6
+    install:
+        - requirements: docs/requirements.txt
+        - method: pip
+          path: .
