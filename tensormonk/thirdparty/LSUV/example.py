@@ -10,7 +10,7 @@ from torch.autograd import Variable
 images_to_process = []
 for img_fname in os.listdir('imgs'):
     img = cv2.imread('imgs/' + img_fname)
-    print img.shape
+    print(img.shape)
     if img is not None:
         images_to_process.append(np.transpose(cv2.resize(img, (224,224)), (2,0,1) ))
         
