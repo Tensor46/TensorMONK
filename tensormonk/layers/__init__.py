@@ -9,7 +9,7 @@ __all__ = ["Convolution", "ConvolutionalSAE", "Linear", "CondConv2d",
            "MBBlock",
            "PrimaryCapsule", "RoutingCapsule", "DetailPooling",
            "DoG", "DoGBlob", "GaussianBlur", "DoH", "HessianBlob", "SSIM",
-           "SelfAttention",
+           "SelfAttention", "LocalAttention",
            "FeatureFusion",
            "LucasKanade"]
 
@@ -30,7 +30,7 @@ from .detailpooling import DetailPooling
 from .doh import DoH, HessianBlob
 from .dog import DoG, DoGBlob, GaussianBlur
 from .ssim import SSIM
-from .attention import SelfAttention
+from .attention import SelfAttention, LocalAttention
 from .feature_fusion import FeatureFusion
 from .lucas_kanade import LucasKanade
 from .condconv2d import CondConv2d
