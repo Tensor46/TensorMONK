@@ -1,6 +1,7 @@
 """ TensorMONK :: layers :: attention's """
 
-__all__ = ["SelfAttention", "LocalAttention"]
+__all__ = ["SelfAttention", "LocalAttention",
+           "Attention", "ResidualAttention"]
 
 import torch
 import torch.nn as nn
@@ -276,6 +277,102 @@ class LocalAttention(nn.Module):
         # attention
         flops += (c * h * w * self.fs[0] * self.fs[1]) * 6
         return int(flops)
+
+
+class Attention(nn.Module):
+    r"""Attention (`"Attention is all you need."
+    <https://arxiv.org/pdf/1706.03762.pdf>`_).
+
+    Args:
+        features (int, required): Number of input features.
+        heads (int, required): Number of heads.
+        bias (bool, optional): When True, key, query & value 1x1 convolutions
+            have bias (default = :obj:`False`).
+        p (float, optional): Dropout layer probability (default = :obj:`0.1`).
+        size_hw (tuple, optional): Enables positional encoding when a tuple
+            of (height, width) is provided (default = :obj:`None`).
+
+    :rtype: :class:`torch.Tensor`
+    """
+    def __init__(self,
+                 features: int,
+                 heads: int,
+                 bias: bool = False,
+                 p: float = 0.1,
+                 size_hw: tuple = None):
+        super(Attention, self).__init__()
+
+        # params
+        self.features: int = features
+        self.heads: int = heads
+        self.p: float = p
+        self.scale: float = (features // heads) ** 0.5
+        self.size_hw: tuple = size_hw
+
+        # positional information
+        if size_hw is not None:
+            h, w = size_hw
+            h_grid, w_grid = torch.meshgrid(torch.linspace(-1, 1, h),
+                                            torch.linspace(-1, 1, w))
+            h_grid, w_grid = h_grid.reshape(-1), w_grid.reshape(-1)
+            self.register_buffer(
+                "positions", torch.stack((h_grid, w_grid), -1)[None])
+
+        # attention layer
+        self.kqv = nn.Linear(features + (0 if size_hw is None else 2),
+                             features * 3, bias=bias)
+
+    def forward(self, tensor: torch.Tensor):
+        (b, t, nf), heads = tensor.shape, self.heads
+        if hasattr(self, "positions"):
+            tensor = torch.cat((tensor, self.positions), -1)
+
+        # key, query and value
+        k, q, v = map(lambda x: x.reshape(b, t, heads, -1).transpose(1, 2),
+                      self.kqv(tensor).split(nf, dim=2))
+        attn = (q @ k.transpose(-2, -1)) / self.scale
+        # dropout
+        if self.training and self.p > 0:
+            attn = F.dropout(attn, p=self.p)
+        attn_probs = attn.softmax(-1)
+        # context
+        context = (attn_probs @ v).transpose(1, 2).reshape(b, t, nf)
+        return context
+
+    def __repr__(self):
+        msg = f"Attention: features={self.features} and "
+        msg += f"heads={self.heads}"
+        if hasattr(self, "positions"):
+            msg += f" (positional={self.size_hw[0]}x{self.size_hw[1]})"
+        return msg
+
+
+class ResidualAttention(nn.Module):
+    r"""Residual Attention.
+
+    Args: Refer :obj:`Attention`.
+
+    :rtype: :class:`torch.Tensor`
+    """
+
+    def __init__(self,
+                 features: int,
+                 heads: int,
+                 bias: bool = False,
+                 p: float = 0.1,
+                 size_hw: tuple = None):
+        super(ResidualAttention, self).__init__()
+        self.p: float = p
+        self.attention = Attention(features, heads, bias, p, size_hw)
+        self.projection = nn.Linear(features, features, bias=bias)
+        self.normalize = nn.LayerNorm(features)
+
+    def forward(self, tensor: torch.Tensor):
+        context = self.attention(tensor)
+        projected = self.projection(context)
+        if self.training and self.p > 0:
+            projected = F.dropout(projected, p=self.p)
+        return self.normalize(tensor + projected)
 
 
 # from tensormonk.layers import Convolution
