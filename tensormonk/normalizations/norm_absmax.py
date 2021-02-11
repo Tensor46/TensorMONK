@@ -64,16 +64,16 @@ class NormAbsMax2d(nn.Module):
                  momentum: float = 0.01):
         super(NormAbsMax2d, self).__init__()
         if not isinstance(features, int):
-            raise TypeError(f"NormAbsMax: features must be int: "
+            raise TypeError(f"NormAbsMax2d: features must be int: "
                             f"{type(features).__name__}")
         if not isinstance(value, (int, float)):
             raise TypeError(
-                f"NormAbsMax: value must be float: {type(value).__name__}")
+                f"NormAbsMax2d: value must be float: {type(value).__name__}")
         if not isinstance(eps, float):
-            raise TypeError(f"NormAbsMax: eps must be float: "
+            raise TypeError(f"NormAbsMax2d: eps must be float: "
                             f"{type(eps).__name__}")
         if not isinstance(momentum, float):
-            raise TypeError(f"NormAbsMax: momentum must be float: "
+            raise TypeError(f"NormAbsMax2d: momentum must be float: "
                             f"{type(momentum).__name__}")
         self.value = value
         self.eps = eps
