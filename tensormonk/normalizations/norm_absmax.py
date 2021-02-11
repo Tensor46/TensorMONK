@@ -1,6 +1,6 @@
 """TensorMONK :: NormAbsMax."""
 
-__all__ = ["NormAbsMax", ]
+__all__ = ["NormAbsMax", "NormAbsMax2d"]
 
 import torch
 import torch.nn as nn
@@ -44,3 +44,55 @@ class NormAbsMax(nn.Module):
     def __repr__(self):
         value, dim, eps = self.value, self.dim, self.eps
         return f"NormAbsMax: value={value}, dim={dim}, eps={eps}"
+
+
+class NormAbsMax2d(nn.Module):
+    """Normalize the tensor such that output.abs().amax(dim) == value.
+
+    Args:
+        features (int, required): C from an expected input of size NCHW.
+        value (float, required): absolute max value of the tensor across dim.
+        eps (float, optional): the minimum value of denominator for numerical
+            stability (default = :obj:`1e-2`).
+        momentum (float, optional): the value used for the running_max
+            computation (default = :obj:`1e-2`).
+
+    :rtype: :class:`torch.Tensor`
+    """
+
+    def __init__(self, features: int, value: float, eps: float = 1e-2,
+                 momentum: float = 0.01):
+        super(NormAbsMax2d, self).__init__()
+        if not isinstance(features, int):
+            raise TypeError(f"NormAbsMax: features must be int: "
+                            f"{type(features).__name__}")
+        if not isinstance(value, (int, float)):
+            raise TypeError(
+                f"NormAbsMax: value must be float: {type(value).__name__}")
+        if not isinstance(eps, float):
+            raise TypeError(f"NormAbsMax: eps must be float: "
+                            f"{type(eps).__name__}")
+        if not isinstance(momentum, float):
+            raise TypeError(f"NormAbsMax: momentum must be float: "
+                            f"{type(momentum).__name__}")
+        self.value = value
+        self.eps = eps
+        self.momentum = momentum
+        self.register_buffer("running_max", torch.ones(features))
+
+    def forward(self, tensor: torch.Tensor) -> torch.Tensor:
+        if self.training:
+            self.update(tensor)
+        return (tensor / self.running_max[None, :, None, None])
+
+    @torch.no_grad()
+    def update(self, tensor: torch.Tensor):
+        tensor_max = tensor.abs().amax((0, 2, 3))
+        tensor_max.div_(self.value).clamp_(self.eps)
+        tensor_max.mul_(self.momentum)
+        self.running_max.mul_(1 - self.momentum)
+        self.running_max.add_(tensor_max)
+
+    def __repr__(self):
+        value, momentum, eps = self.value, self.momentum, self.eps
+        return f"NormAbsMax2d: value={value}, eps={eps}, momentum={momentum}"
