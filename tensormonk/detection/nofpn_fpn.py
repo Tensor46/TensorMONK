@@ -45,7 +45,6 @@ class Block(nn.Module):
         assert n_features >= 1 and isinstance(n_features, int)
 
         self.n_features = n_features
-        self._scale_weights = nn.Parameter(torch.rand(n_features))
         self.depthwise = nn.Sequential(
             nn.Conv2d(encoding_depth, encoding_depth, 3, 1, 1, bias=False,
                       groups=encoding_depth),
@@ -62,7 +61,7 @@ class Block(nn.Module):
 
         o = self.depthwise(tensor)
         o = o * o.sigmoid()
-        o = self.pointwise(tensor)
+        o = self.pointwise(o)
         o = o * o.sigmoid()
         return self.fusion(tensor, o) if len(args) == 1 else o
 
