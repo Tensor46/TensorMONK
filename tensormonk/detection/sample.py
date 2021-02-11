@@ -162,7 +162,7 @@ class Sample(object):
         r"""Provides augmented data."""
         image, labels, boxes, points = self.data()
         if self.ROTATE_90:
-            image, boxes, points = self._rotate_90(image, boxes, points)
+            image, boxes, points = self._rotate_90s(image, boxes, points)
         if self.PAD:
             image, boxes, points = self._pad(image, boxes, points)
         if self.CROP and self.OSIZE is not None:
@@ -203,8 +203,8 @@ class Sample(object):
             points = points[valid]
         return image, labels, boxes, points
 
-    def _rotate_90(self, image: ImPIL.Image, boxes: np.ndarray,
-                   points: np.ndarray):
+    def _rotate_90s(self, image: ImPIL.Image, boxes: np.ndarray,
+                    points: np.ndarray):
         r"""Does 0/90/180/270 rotation."""
         p = random.random()
         w, h = image.size
