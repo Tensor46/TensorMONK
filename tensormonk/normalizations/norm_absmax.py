@@ -1,13 +1,13 @@
 """TensorMONK :: NormAbsMax."""
 
-__all__ = ["NormAbsMax", "NormAbsMax2d"]
+__all__ = ["NormAbsMaxDynamic", "NormAbsMax2d"]
 
 import torch
 import torch.nn as nn
 from typing import Union
 
 
-class NormAbsMax(nn.Module):
+class NormAbsMaxDynamic(nn.Module):
     """Normalize the tensor such that output.abs().amax(dim) == value.
 
     Args:
@@ -22,7 +22,7 @@ class NormAbsMax(nn.Module):
 
     def __init__(self, value: float, dim: Union[int, tuple] = -1,
                  eps: float = 1e-2):
-        super(NormAbsMax, self).__init__()
+        super(NormAbsMaxDynamic, self).__init__()
         if not isinstance(value, (int, float)):
             raise TypeError(
                 f"NormAbsMax: value must be float: {type(value).__name__}")
