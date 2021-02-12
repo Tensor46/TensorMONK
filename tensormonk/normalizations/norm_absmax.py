@@ -1,7 +1,8 @@
-"""TensorMONK :: NormAbsMax."""
+"""TensorMONK :: Normalize."""
 
 __all__ = ["NormAbsMaxDynamic", "NormAbsMax2d"]
 
+import math
 import torch
 import torch.nn as nn
 from typing import Union
@@ -13,7 +14,8 @@ class NormAbsMaxDynamic(nn.Module):
     Args:
         value (float, required): absolute max value of the tensor across dim.
         dim (int/tuple, optional): the dimension or dimensions to normalize
-            (default = :obj:`-1`).
+            (default = :obj:`-1`). When value is None, dim must be -1 and the
+            dynamic value is computed per sample.
         eps (float, optional): a value added to the denominator for numerical
             stability (default = :obj:`1e-2`).
 
@@ -23,27 +25,46 @@ class NormAbsMaxDynamic(nn.Module):
     def __init__(self, value: float, dim: Union[int, tuple] = -1,
                  eps: float = 1e-2):
         super(NormAbsMaxDynamic, self).__init__()
-        if not isinstance(value, (int, float)):
-            raise TypeError(
-                f"NormAbsMax: value must be float: {type(value).__name__}")
+        if not (isinstance(value, (int, float)) or value is None):
+            raise TypeError(f"NormAbsMaxDynamic: value must be float: "
+                            f"{type(value).__name__}")
+        if value is None or value == -1:
+            if dim != -1:
+                raise ValueError(f"NormAbsMaxDynamic: dim must be -1 when "
+                                 f"value is None: {dim}")
+        if isinstance(value, int) and not value == -1:
+            raise ValueError(f"NormAbsMaxDynamic: value must be > 0: {value}")
         if not isinstance(dim, (int, list, tuple)):
-            raise TypeError(f"NormAbsMax: dim must be int/list/tuple: "
+            raise TypeError(f"NormAbsMaxDynamic: dim must be int/list/tuple: "
                             f"{type(dim).__name__}")
         if not isinstance(eps, float):
             raise TypeError(
-                f"NormAbsMax: eps must be float: {type(eps).__name__}")
-        self.value = value
+                f"NormAbsMaxDynamic: eps must be float: {type(eps).__name__}")
+        if value is None:  # computes the value based on incoming tensor
+            value = -1
+        self.register_buffer("value", torch.tensor(float(value)))
         self.dim = dim
         self.eps = eps
 
     def forward(self, tensor: torch.Tensor) -> torch.Tensor:
+        if self.value == -1:
+            if tensor.ndim == 2 or tensor.ndim == 3:
+                nf = tensor.shape[-1]
+                dim, value = 1, max(2, 8 / math.log10(nf ** 0.5))
+            elif tensor.ndim == 4:
+                h, w = tensor.shape[2:]
+                dim, value = (1, 2, 3), max(2, 8 / math.log10((h * w) ** 0.5))
+            else:
+                raise NotImplementedError
+            value = torch.tensor(value)
+            self.dim, self.value.data = dim, value.to(self.value.device)
         tensor_max = tensor.abs().amax(self.dim, keepdim=True)
         tensor_max = tensor_max.div(self.value).clamp(self.eps)
         return (tensor / tensor_max)
 
     def __repr__(self):
         value, dim, eps = self.value, self.dim, self.eps
-        return f"NormAbsMax: value={value}, dim={dim}, eps={eps}"
+        return f"NormAbsMaxDynamic: value={value}, dim={dim}, eps={eps}"
 
 
 class NormAbsMax2d(nn.Module):
