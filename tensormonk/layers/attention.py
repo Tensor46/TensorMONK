@@ -291,6 +291,8 @@ class Attention(nn.Module):
         p (float, optional): Dropout layer probability (default = :obj:`0.1`).
         size_hw (tuple, optional): Enables positional encoding when a tuple
             of (height, width) is provided (default = :obj:`None`).
+        pre_embedding (int, optional): Adds zeros for additional embeddings
+            (default = :obj:`0`).
 
     :rtype: :class:`torch.Tensor`
     """
@@ -299,7 +301,8 @@ class Attention(nn.Module):
                  heads: int,
                  bias: bool = False,
                  p: float = 0.1,
-                 size_hw: tuple = None):
+                 size_hw: tuple = None,
+                 pre_embedding: int = 0):
         super(Attention, self).__init__()
 
         # params
@@ -315,6 +318,9 @@ class Attention(nn.Module):
             h_grid, w_grid = torch.meshgrid(torch.linspace(-1, 1, h),
                                             torch.linspace(-1, 1, w))
             h_grid, w_grid = h_grid.reshape(-1), w_grid.reshape(-1)
+            if pre_embedding > 0:
+                h_grid = torch.cat((torch.zeros(pre_embedding), h_grid))
+                w_grid = torch.cat((torch.zeros(pre_embedding), w_grid))
             self.register_buffer(
                 "positions", torch.stack((h_grid, w_grid), -1)[None])
 
@@ -325,7 +331,8 @@ class Attention(nn.Module):
     def forward(self, tensor: torch.Tensor):
         (b, t, nf), heads = tensor.shape, self.heads
         if hasattr(self, "positions"):
-            tensor = torch.cat((tensor, self.positions), -1)
+            tensor = torch.cat(
+                (tensor, self.positions.expand(b, -1, -1)), -1)
 
         # key, query and value
         k, q, v = map(lambda x: x.reshape(b, t, heads, -1).transpose(1, 2),
@@ -360,10 +367,12 @@ class ResidualAttention(nn.Module):
                  heads: int,
                  bias: bool = False,
                  p: float = 0.1,
-                 size_hw: tuple = None):
+                 size_hw: tuple = None,
+                 pre_embedding: int = 0):
         super(ResidualAttention, self).__init__()
         self.p: float = p
-        self.attention = Attention(features, heads, bias, p, size_hw)
+        self.attention = Attention(
+            features, heads, bias, p, size_hw, pre_embedding)
         self.projection = nn.Linear(features, features, bias=bias)
         self.normalize = nn.LayerNorm(features)
 
