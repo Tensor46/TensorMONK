@@ -47,11 +47,13 @@ class NormAbsMaxDynamic(nn.Module):
         self.eps = eps
 
     def forward(self, tensor: torch.Tensor) -> torch.Tensor:
-        if self.value == -1:
+        if self.value.eq(-1):  # computes the value & dim using tensor
             if tensor.ndim == 2 or tensor.ndim == 3:
-                nf = tensor.shape[-1]
-                dim, value = 1, max(2, 8 / math.log10(nf ** 0.5))
+                # value increases with decrease number of features.
+                dim = 1 if tensor.ndim == 2 else (1, 2)
+                value = max(2, 8 / math.log10(tensor.shape[-1] ** 0.5))
             elif tensor.ndim == 4:
+                # value increases with decrease in height and width.
                 h, w = tensor.shape[2:]
                 dim, value = (1, 2, 3), max(2, 8 / math.log10((h * w) ** 0.5))
             else:
