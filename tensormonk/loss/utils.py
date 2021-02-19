@@ -21,8 +21,8 @@ def compute_top15(responses: torch.Tensor, targets: torch.Tensor):
     predicted = responses.topk(5, 1, True, True)[1]
     predicted = predicted.t()
     correct = predicted.eq(targets.view(1, -1).expand_as(predicted))
-    top1 = correct[:1].view(-1).float().sum().mul_(100.0 / responses.size(0))
-    top5 = correct[:5].view(-1).float().sum().mul_(100.0 / responses.size(0))
+    top1 = correct[:1].reshape(-1).float().sum().mul(100.0 / responses.size(0))
+    top5 = correct[:5].reshape(-1).float().sum().mul(100.0 / responses.size(0))
     return top1, top5
 
 
@@ -70,6 +70,7 @@ def hard_negative_mask(prediction: torch.Tensor,
     prediction = prediction.clone()
     ns = prediction.size(0)
     foreground_mask = targets > 0
+    ignore_mask = targets < 0
 
     if prediction.shape == foreground_mask.shape:
         # assumes, two class problem and sigmoid is applied to output
@@ -82,6 +83,8 @@ def hard_negative_mask(prediction: torch.Tensor,
             probs = prediction[i]
             # foreground prob to minimum
             probs[foreground_mask[i]] = 0.
+            # remove invalid targets
+            probs[ignore_mask[i]] = 0.
             background_mask[i, torch.argsort(probs)[-retain:]] = True
     else:
         # assumes, N-class problem and softmax is not applied to output
@@ -95,6 +98,8 @@ def hard_negative_mask(prediction: torch.Tensor,
             probs = background_probs[i]
             # foreground prob to maximum
             probs[foreground_mask[i]] = 1.
+            # remove invalid targets
+            probs[ignore_mask[i]] = 1.
             background_mask[i, torch.argsort(probs)[:retain]] = True
     mask = foreground_mask.bool() | background_mask.bool()
     return mask
