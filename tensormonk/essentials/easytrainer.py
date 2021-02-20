@@ -7,7 +7,7 @@ import torch.nn as nn
 import warnings
 from .utils import Meter, ProgressBar
 from ..plots import VisPlots
-from ..optimizers import LookAhead, RAdam
+from ..optimizers import LookAhead, RAdam, AdaBelief
 from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Type, Union
@@ -76,6 +76,11 @@ class BaseOptimizer:
 
         elif optimizer == "radam":
             self.algorithm = RAdam
+            if "lr" not in arguments.keys():
+                arguments["lr"] = 0.001
+
+        elif optimizer == "adabelief":
+            self.algorithm = AdaBelief
             if "lr" not in arguments.keys():
                 arguments["lr"] = 0.001
 
@@ -412,6 +417,43 @@ class EasyTrainer(object):
         r"""Define a criteria based on meter_container or a validation data.
         By default, saves the latest set of weights every n_checkpoint."""
         return True
+
+    def adaptive_grad_clipping(self, clip: float = 1e-2, eps: float = 1e-3):
+        r"""AGC - as defined in https://arxiv.org/pdf/2102.06171.pdf.
+
+        Args
+            clip (float, optional): Maximum allowed ratio of update norm to
+                parameter norm (default = :obj:`0.01`).
+            eps (float, optional): epsilon term to prevent clipping of
+                zero-initialized params (default = :obj:`0.001`).
+        """
+        for model in self.model_container:
+            if not self.model_container[model].training:
+                continue
+
+            for name, p in self.model_container[model].named_parameters():
+                if p.grad is None:
+                    continue
+
+                if p.ndim == 4:
+                    # weight must be -- out_channels x in_channels x h x w
+                    pnorm = p.detach().pow(2).sum((1, 2, 3), True).pow(.5)
+                    gnorm = p.grad.detach().pow(2).sum((1, 2, 3), True).pow(.5)
+                elif p.ndim in (2, 3):
+                    # weight must be -- out_features x in_features (or)
+                    # _ x out_features x in_features
+                    pnorm = p.detach().pow(2).sum(-1, True).pow(.5)
+                    gnorm = p.grad.detach().pow(2).sum(-1, True).pow(.5)
+                elif p.ndim < 2:
+                    pnorm = p.detach().pow(2).sum().pow(.5)
+                    gnorm = p.grad.detach().pow(2).sum().pow(.5)
+                else:
+                    continue
+
+                max_pnorm = pnorm.clamp(eps).mul(clip)
+                trigger = gnorm < max_pnorm
+                clipped_grad = p.grad * max_pnorm / gnorm.clamp(1e-6)
+                p.grad.data.copy_(torch.where(trigger, clipped_grad, p.grad))
 
     def _monitor(self, tags: list, n: int = 1, test: bool = False):
         r"""Convert a list of tags in meter_container to string."""
