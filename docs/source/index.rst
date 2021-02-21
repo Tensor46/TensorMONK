@@ -20,6 +20,7 @@ TensorMONK is a computer vision library for `PyTorch <https://pytorch.org/>`_.
 
    modules/activations
    modules/detection
+   modules/layers
 
 
 Indices and Tables

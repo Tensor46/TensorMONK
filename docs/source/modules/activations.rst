@@ -1,8 +1,8 @@
 tensormonk.activations
-==================
+=======================
 
 Activations
---------------------
+------------
 
 .. automodule:: tensormonk.activations
     :members:
