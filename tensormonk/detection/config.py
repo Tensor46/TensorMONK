@@ -57,7 +57,7 @@ class CONFIG:
         config.is_boxes = True
         config.boxes_loss_fn = tensormonk.loss.BoxesLoss
         config.boxes_loss_kwargs = {
-            "method": "smooth_l1_loss", "reduction": "mean"}
+            "method": "smooth_l1", "reduction": "mean"}
         config.boxes_encode_format = "normalized_offset"
 
         # Enable objectness and disable centerness
@@ -157,6 +157,7 @@ class CONFIG:
         self._is_objectness = False
         self._hard_encode = False
         self._encode_iou = 0.5
+        self._encode_iou_max_background = self.encode_iou - 0.1
         self._detect_iou = 0.2
         self._score_threshold = 0.1
 
@@ -167,7 +168,7 @@ class CONFIG:
         self._is_pad = True
 
         self._anchors_per_layer = None
-        self._an_anchor = namedtuple("anchor", ("w", "h"))
+        self._an_anchor = namedtuple("anchor", ("w", "h", "offset"))
         self._ignore_base = 0
 
     @property
@@ -678,6 +679,20 @@ class CONFIG:
         self._encode_iou = value
 
     @property
+    def encode_iou_max_background(self):
+        r"""IOU below which is considered as background.
+
+        Args:
+            value (float, optional): default = :obj:`0.5`.
+        """
+        return self._encode_iou_max_background
+
+    @encode_iou_max_background.setter
+    def encode_iou_max_background(self, value):
+        assert isinstance(value, float)
+        self._encode_iou_max_background = value
+
+    @property
     def detect_iou(self):
         r"""IOU used to filter boxes during detection.
 
@@ -797,13 +812,15 @@ class CONFIG:
                 assert isinstance(y, self._an_anchor)
         self._anchors_per_layer = value
 
-    def an_anchor(self, w: int, h: int):
+    def an_anchor(self, w: int, h: int, offset: int = 0):
         r"""A namedtuple with w and h of anchor."""
-        return self._an_anchor(w, h)
+        return self._an_anchor(w, h, offset)
 
     def __repr__(self):
         msg = ["CONFIG :: {}".format(self.name)]
-        msg += ["Base = {}".format(self.base_network)]
+        msg += ["Base = {}".format(
+            self.base_network if isinstance(self.base_network, str) else
+            self.base_network.__name__)]
         msg += ["Body = {}".format(self.body_network)]
         msg += ["t_size = {}".format("x".join(map(str, self.t_size)))]
         msg += ["n_label = {}".format(self.n_label)]

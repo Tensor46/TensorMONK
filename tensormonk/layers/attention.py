@@ -1,6 +1,7 @@
 """ TensorMONK :: layers :: attention's """
 
-__all__ = ["SelfAttention", "LocalAttention"]
+__all__ = ["SelfAttention", "LocalAttention",
+           "Attention", "ResidualAttention"]
 
 import torch
 import torch.nn as nn
@@ -11,35 +12,67 @@ from .utils import compute_flops
 
 
 class SelfAttention(nn.Module):
-    r""" Self-Attention from Self-Attention Generative Adversarial Networks
+    r"""Self-Attention (`"Self-Attention Generative Adversarial Networks"
+    <https://arxiv.org/pdf/1805.08318.pdf>`_).
 
     Args:
-        tensor_size: shape of tensor in BCHW
-            (None/any integer >0, channels, height, width)
-        shrink (int, optional): used to compute output channels of key and
-            query, i.e, tensor_size[1] / shrink, default = 8
-        scale_factor (float, optional): Used to speedup the module by
-            computing the attention at a lower scale (after interpolation).
+        tensor_size (tuple, required): Input tensor shape in BCHW
+            (None/any integer >0, channels, height, width).
+        shrink (int, optional): Used to compute output channels of key and
+            query, i.e, int(tensor_size[1] / shrink), (default = :obj:`8`).
+        scale_factor (float, optional): Scale at which attention is computed.
+            (use scale_factor <1 for speed). When scale_factor != 1, input is
+            scaled using nearest neighbor interpolation (default = :obj:`1`).
+        return_attention (bool, optional): When True, returns a tuple
+            (output, attention) (default = :obj:`False`).
+
+    :rtype: :class:`torch.Tensor`
     """
 
-    def __init__(self, tensor_size, shrink=8, scale_factor=1.,
-                 return_attention=False, **kwargs):
+    def __init__(self,
+                 tensor_size: tuple,
+                 shrink: int = 8,
+                 scale_factor: float = 1.,
+                 return_attention: bool = False,
+                 **kwargs):
         super(SelfAttention, self).__init__()
 
+        if not isinstance(tensor_size, (list, tuple)):
+            raise TypeError("SelfAttention: tensor_size must be tuple/list: "
+                            "{}".format(type(tensor_size).__name__))
+        tensor_size = tuple(tensor_size)
+        if not len(tensor_size) == 4:
+            raise ValueError("SelfAttention: tensor_size must be of length 4"
+                             ": {}".format(len(tensor_size)))
+
+        if not isinstance(shrink, int):
+            raise TypeError("SelfAttention: shrink must be int: "
+                            "{}".format(type(shrink).__name__))
+        if not (tensor_size[1] >= shrink >= 1):
+            raise TypeError("SelfAttention: shrink must be tensor_size[1] >= "
+                            "shrink > 0: {}".format(shrink))
         self.shrink = shrink
+
+        if not isinstance(scale_factor, float):
+            raise TypeError("SelfAttention: scale_factor must be float: "
+                            "{}".format(type(scale_factor).__name__))
         self.scale_factor = scale_factor
-        self.oc = int(tensor_size[1] / shrink)
+
+        if not isinstance(return_attention, bool):
+            raise TypeError("SelfAttention: return_attention must be bool: "
+                            "{}".format(type(return_attention).__name__))
         self.return_attention = return_attention
 
+        self.oc = int(tensor_size[1] / shrink)
         self.key = Convolution(tensor_size, 1, self.oc, 1, True, None)
         self.query = Convolution(tensor_size, 1, self.oc, 1, True, None)
         self.value = Convolution(tensor_size, 1, tensor_size[1], 1, True, None)
         self.gamma = nn.Parameter(torch.zeros(1))
-
         self.tensor_size = tensor_size
 
-    def forward(self, tensor):
+    def forward(self, tensor: torch.Tensor):
         if self.scale_factor != 1:
+            o = F.interpolate(tensor, scale_factor=self.scale_factor)
             _tensor = tensor.clone()
             tensor = F.interpolate(tensor, scale_factor=self.scale_factor)
         n, c, h, w = tensor.shape
@@ -77,36 +110,27 @@ class SelfAttention(nn.Module):
 
 
 class LocalAttention(nn.Module):
-    r"""LocalAttention - Stand-Alone Self-Attention in Vision Models.
-
-    Paper: Stand-Alone Self-Attention in Vision Models
-    URL:   https://arxiv.org/pdf/1906.05909.pdf
+    r"""LocalAttention (`"Stand-Alone Self-Attention in Vision Models"
+    <https://arxiv.org/pdf/1906.05909.pdf>`_).
 
     Args:
-        tensor_size (tuple): shape of tensor in BCHW
-            (None/any integer >0, channels, height, width)
+        tensor_size (tuple, required): Input tensor shape in BCHW
+            (None/any integer >0, channels, height, width).
+        filter_size (int/tuple, required): size of kernel, integer or
+            list/tuple of length 2.
+        out_channels (int, required): output tensor.size(1)
+        strides (int/tuple, optional): convolution stride (default = :obj:`1`).
+        groups (int, optional): enables grouped convolution
+            (default = :obj:`4`).
+        bias (bool): When True, key, query & value 1x1 convolutions have bias
+            (default = :obj:`False`).
+        replicate_paper (bool, optional): When False, relative attention logic
+            is different from that of paper (default = :obj:`True`).
+        normalize_offset (bool, optional): When True (and replicate_paper =
+            :obj:`False`), normalizes the row and column offsets
+            (default = :obj:`False`).
 
-        filter_size (int/tuple): size of kernel, integer or list/tuple of
-            length 2.
-
-        out_channels (int): output tensor.size(1)
-
-        strides (int/tuple): Strides of convolution.
-            default = 1
-
-        groups (int): enables grouped convolution.
-            default = 4
-
-        bias (bool): When True, key, query & value 1x1 convolutions have bias.
-            default =  False
-
-        replicate_paper (bool): When False, relative attention logic is
-            different from that of paper.
-            default = True
-
-        normalize_offset (bool): When True (and replicate_paper=False),
-            normalizes the row and column offsets.
-            default = False
+    :rtype: :class:`torch.Tensor`
     """
     def __init__(self,
                  tensor_size: tuple,
@@ -121,50 +145,50 @@ class LocalAttention(nn.Module):
         super(LocalAttention, self).__init__()
 
         if not isinstance(tensor_size, (list, tuple)):
-            raise TypeError("AttnConvolution: tensor_size must be tuple/list: "
+            raise TypeError("LocalAttention: tensor_size must be tuple/list: "
                             "{}".format(type(tensor_size).__name__))
         tensor_size = tuple(tensor_size)
         if not len(tensor_size) == 4:
-            raise ValueError("AttnConvolution: tensor_size must be of length 4"
+            raise ValueError("LocalAttention: tensor_size must be of length 4"
                              ": {}".format(len(tensor_size)))
         if not isinstance(filter_size, (int, list, tuple)):
-            raise TypeError("AttnConvolution: filter_size must be int/tuple/"
+            raise TypeError("LocalAttention: filter_size must be int/tuple/"
                             "list: {}".format(type(filter_size).__name__))
         if isinstance(filter_size, int):
             filter_size = (filter_size, filter_size)
         filter_size = tuple(filter_size)
         if not len(filter_size) == 2:
-            raise ValueError("AttnConvolution: filter_size must be of length 2"
+            raise ValueError("LocalAttention: filter_size must be of length 2"
                              ": {}".format(len(filter_size)))
         if not isinstance(out_channels, int):
-            raise TypeError("AttnConvolution: out_channels must be int: "
+            raise TypeError("LocalAttention: out_channels must be int: "
                             "{}".format(type(out_channels).__name__))
         if not out_channels >= 1:
-            raise ValueError("AttnConvolution: out_channels must be >= 1: "
+            raise ValueError("LocalAttention: out_channels must be >= 1: "
                              "{}".format(len(out_channels)))
         if not isinstance(strides, (int, list, tuple)):
-            raise TypeError("AttnConvolution: strides must be int/tuple/list: "
+            raise TypeError("LocalAttention: strides must be int/tuple/list: "
                             "{}".format(type(strides).__name__))
         if isinstance(strides, int):
             strides = (strides, strides)
         strides = tuple(strides)
         if not len(strides) == 2:
-            raise ValueError("AttnConvolution: strides must be of length 2: "
+            raise ValueError("LocalAttention: strides must be of length 2: "
                              "{}".format(len(strides)))
         if not isinstance(groups, int):
-            raise TypeError("AttnConvolution: groups must be int: "
+            raise TypeError("LocalAttention: groups must be int: "
                             "{}".format(type(groups).__name__))
         if out_channels % groups or groups < 1:
-            raise ValueError("AttnConvolution: groups must be divisible by "
+            raise ValueError("LocalAttention: groups must be divisible by "
                              "out_channels and >=1:  {}".format(groups))
         if not isinstance(bias, bool):
-            raise TypeError("AttnConvolution: bias must be bool: "
+            raise TypeError("LocalAttention: bias must be bool: "
                             "{}".format(type(bias).__name__))
         if not isinstance(replicate_paper, bool):
-            raise TypeError("AttnConvolution: replicate_paper must be bool: "
+            raise TypeError("LocalAttention: replicate_paper must be bool: "
                             "{}".format(type(replicate_paper).__name__))
         if not isinstance(normalize_offset, bool):
-            raise TypeError("AttnConvolution: normalize_offset must be bool: "
+            raise TypeError("LocalAttention: normalize_offset must be bool: "
                             "{}".format(type(normalize_offset).__name__))
 
         self.fs = filter_size
@@ -253,6 +277,111 @@ class LocalAttention(nn.Module):
         # attention
         flops += (c * h * w * self.fs[0] * self.fs[1]) * 6
         return int(flops)
+
+
+class Attention(nn.Module):
+    r"""Attention (`"Attention is all you need."
+    <https://arxiv.org/pdf/1706.03762.pdf>`_).
+
+    Args:
+        features (int, required): Number of input features.
+        heads (int, required): Number of heads.
+        bias (bool, optional): When True, key, query & value 1x1 convolutions
+            have bias (default = :obj:`False`).
+        p (float, optional): Dropout layer probability (default = :obj:`0.1`).
+        size_hw (tuple, optional): Enables positional encoding when a tuple
+            of (height, width) is provided (default = :obj:`None`).
+        pre_embedding (int, optional): Adds zeros for additional embeddings
+            (default = :obj:`0`).
+
+    :rtype: :class:`torch.Tensor`
+    """
+    def __init__(self,
+                 features: int,
+                 heads: int,
+                 bias: bool = False,
+                 p: float = 0.1,
+                 size_hw: tuple = None,
+                 pre_embedding: int = 0):
+        super(Attention, self).__init__()
+
+        # params
+        self.features: int = features
+        self.heads: int = heads
+        self.p: float = p
+        self.scale: float = (features // heads) ** 0.5
+        self.size_hw: tuple = size_hw
+
+        # positional information
+        if size_hw is not None:
+            h, w = size_hw
+            h_grid, w_grid = torch.meshgrid(torch.linspace(-1, 1, h),
+                                            torch.linspace(-1, 1, w))
+            h_grid, w_grid = h_grid.reshape(-1), w_grid.reshape(-1)
+            if pre_embedding > 0:
+                h_grid = torch.cat((torch.zeros(pre_embedding), h_grid))
+                w_grid = torch.cat((torch.zeros(pre_embedding), w_grid))
+            self.register_buffer(
+                "positions", torch.stack((h_grid, w_grid), -1)[None])
+
+        # attention layer
+        self.kqv = nn.Linear(features + (0 if size_hw is None else 2),
+                             features * 3, bias=bias)
+
+    def forward(self, tensor: torch.Tensor):
+        (b, t, nf), heads = tensor.shape, self.heads
+        if hasattr(self, "positions"):
+            tensor = torch.cat(
+                (tensor, self.positions.expand(b, -1, -1)), -1)
+
+        # key, query and value
+        k, q, v = map(lambda x: x.reshape(b, t, heads, -1).transpose(1, 2),
+                      self.kqv(tensor).split(nf, dim=2))
+        attn = (q @ k.transpose(-2, -1)) / self.scale
+        # dropout
+        if self.training and self.p > 0:
+            attn = F.dropout(attn, p=self.p)
+        attn_probs = attn.softmax(-1)
+        # context
+        context = (attn_probs @ v).transpose(1, 2).reshape(b, t, nf)
+        return context
+
+    def __repr__(self):
+        msg = f"Attention: features={self.features} and "
+        msg += f"heads={self.heads}"
+        if hasattr(self, "positions"):
+            msg += f" (positional={self.size_hw[0]}x{self.size_hw[1]})"
+        return msg
+
+
+class ResidualAttention(nn.Module):
+    r"""Residual Attention.
+
+    Args: Refer :obj:`Attention`.
+
+    :rtype: :class:`torch.Tensor`
+    """
+
+    def __init__(self,
+                 features: int,
+                 heads: int,
+                 bias: bool = False,
+                 p: float = 0.1,
+                 size_hw: tuple = None,
+                 pre_embedding: int = 0):
+        super(ResidualAttention, self).__init__()
+        self.p: float = p
+        self.attention = Attention(
+            features, heads, bias, p, size_hw, pre_embedding)
+        self.projection = nn.Linear(features, features, bias=bias)
+        self.normalize = nn.LayerNorm(features)
+
+    def forward(self, tensor: torch.Tensor):
+        context = self.attention(tensor)
+        projected = self.projection(context)
+        if self.training and self.p > 0:
+            projected = F.dropout(projected, p=self.p)
+        return self.normalize(tensor + projected)
 
 
 # from tensormonk.layers import Convolution

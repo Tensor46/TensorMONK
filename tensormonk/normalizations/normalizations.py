@@ -11,8 +11,8 @@ from .categoricalbatch import CategoricalBNorm
 class FrozenBatch2D(torch.nn.Module):
     def __init__(self, num_features: int, **kwargs):
         super(FrozenBatch2D, self).__init__()
-        self.register_buffer("weight", torch.zeros(num_features))
-        self.register_buffer("bias", torch.ones(num_features))
+        self.register_buffer("weight", torch.ones(num_features))
+        self.register_buffer("bias", torch.zeros(num_features))
         self.register_buffer("running_mean", torch.zeros(num_features))
         self.register_buffer("running_var", torch.ones(num_features))
         self.register_buffer("num_batches_tracked", torch.tensor(0))
