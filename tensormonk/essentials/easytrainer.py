@@ -347,14 +347,16 @@ class EasyTrainer(object):
         if self.scaler is None:
             loss.backward(retain_graph=retain_graph)
             if not retain_graph:
-                self.clip_grads()
+                if self.clip is not None:
+                    self.clip_grads()
                 (self.optimizer if optimizer is None else optimizer).step()
         else:
             self.scaler.scale(loss).backward(retain_graph=retain_graph)
             if not retain_graph:
-                self.scaler.unscale_(
-                    self.optimizer if optimizer is None else optimizer)
-                self.clip_grads()
+                if self.clip is not None:
+                    self.scaler.unscale_(
+                        self.optimizer if optimizer is None else optimizer)
+                    self.clip_grads()
                 self.scaler.step(
                     self.optimizer if optimizer is None else optimizer)
                 self.scaler.update()
