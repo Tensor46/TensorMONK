@@ -10,12 +10,7 @@ from ..plots import VisPlots
 from ..optimizers import LookAhead, RAdam, AdaBelief
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Type, Union
-try:
-    from apex import amp
-    APEX_AVAILABLE = True
-except ModuleNotFoundError:
-    APEX_AVAILABLE = False
+from typing import Callable, Optional, Type, Union
 
 
 class BaseOptimizer:
@@ -49,8 +44,10 @@ class BaseOptimizer:
         optimizer = BaseOptimizer(optimizer="sgd", arguments={"lr": 0.1,
             "momentum": 0.9, "weight_decay": 0.00005})
     """
-    def __init__(self, optimizer: str = "sgd", arguments: dict = {},
-                 param_groups_fn=None, **kwargs):
+    def __init__(self,
+                 optimizer: Optional[str] = "sgd",
+                 arguments: Optional[dict] = {},
+                 param_groups_fn: Optional[Callable] = None, **kwargs):
 
         if "type" in kwargs.keys():
             optimizer = kwargs["type"]
@@ -71,6 +68,11 @@ class BaseOptimizer:
 
         elif optimizer == "adam":
             self.algorithm = torch.optim.Adam
+            if "lr" not in arguments.keys():
+                arguments["lr"] = 0.001
+
+        elif optimizer == "adamw":
+            self.algorithm = torch.optim.AdamW
             if "lr" not in arguments.keys():
                 arguments["lr"] = 0.001
 
@@ -149,12 +151,12 @@ class BaseNetwork:
     """
     def __init__(self,
                  network: torch.nn.Module,
-                 arguments: dict = {},
-                 optimizer: BaseOptimizer = None,
-                 default_gpu: int = None,
-                 gpus: int = None,
-                 ignore_trained: bool = None,
-                 only_eval: bool = False):
+                 arguments: Optional[dict] = {},
+                 optimizer: Optional[BaseOptimizer] = None,
+                 default_gpu: Optional[int] = None,
+                 gpus: Optional[int] = None,
+                 ignore_trained: Optional[bool] = None,
+                 only_eval: Optional[bool] = False):
         self.network = network
         self.arguments = arguments
         self.optimizer = optimizer
@@ -236,24 +238,24 @@ class EasyTrainer(object):
                         optimizer=BaseOptimizer(), n_checkpoint=-1,
                         ignore_trained=True)
         model.train(trData, teData, epochs=6)
-
     """
     def __init__(self,
                  name: str,
                  path: str,
                  networks: dict,
                  optimizer: BaseOptimizer,
-                 transformations: BaseNetwork = None,
-                 meters: list = ["loss"],
-                 n_checkpoint: int = 2000,
-                 default_gpu: int = 0,
-                 gpus: int = 1,
-                 ignore_trained: bool = False,
-                 visplots: bool = False,
-                 n_visplots: int = 100,
-                 distributed: bool = False,
-                 precision: str = "fp32",
-                 monitor_ndigits: int = 2,
+                 transformations: Optional[BaseNetwork] = None,
+                 meters: Optional[list] = ["loss"],
+                 n_checkpoint: Optional[int] = 2000,
+                 default_gpu: Optional[int] = 0,
+                 gpus: Optional[int] = 1,
+                 ignore_trained: Optional[bool] = False,
+                 visplots: Optional[bool] = False,
+                 n_visplots: Optional[int] = 100,
+                 distributed: Optional[bool] = False,
+                 precision: Optional[str] = "fp32",
+                 clip: Optional[float] = None,
+                 monitor_ndigits: Optional[int] = 4,
                  **kwargs):
 
         # checks
@@ -293,9 +295,9 @@ class EasyTrainer(object):
         if precision not in ("fp32", "mixed"):
             raise ValueError("EasyTrainer: precision must be 'fp32'/'mixed': "
                              "{}".format(precision))
-        if precision == "mixed" and not APEX_AVAILABLE:
-            precision = "fp32"
-            print("EasyTrainer: mixed precision is disabled - amp not found")
+        if not (isinstance(clip, float) or clip is None):
+            raise ValueError("EasyTrainer: clip must be 'float'/None: "
+                             "{}".format(clip))
         if not isinstance(monitor_ndigits, int):
             raise TypeError("EasyTrainer: monitor_ndigits must be int: "
                             "{}".format(type(monitor_ndigits).__name__))
@@ -311,7 +313,15 @@ class EasyTrainer(object):
         self.n_visplots = n_visplots
         self.distributed = distributed
         self.kwargs = kwargs
+
+        self.scaler = None
+        if precision == "mixed" and self.is_cuda and self.gpus >= 1:
+            self.scaler = torch.cuda.amp.GradScaler()
+        else:
+            precision = "fp32"
+            print("EasyTrainer: mixed precision is disabled")
         self.precision = precision
+        self.clip = clip
 
         self._check_path(name, path)
         self._check_networks(networks)
@@ -321,7 +331,6 @@ class EasyTrainer(object):
         self.optim_container = OrderedDict()
         self._build_networks(networks)
         self._build_optimizers(optimizer, networks)
-        self._set_precision()
         self._set_parallel(networks)
         self._build_meters(meters)
         self._build_transformations(transformations)
@@ -330,30 +339,42 @@ class EasyTrainer(object):
         self.tr_bar = None
         self.te_bar = None
 
-    def backward(self, loss: torch.Tensor,  optimizer: nn.Module,
-                 retain_graph: bool = False):
+    def backward(self,
+                 loss: torch.Tensor,
+                 optimizer: Optional[nn.Module] = None,
+                 retain_graph: Optional[bool] = False) -> None:
         r"""Use backward to scale the loss for mixed precision."""
-        if self.precision == "mixed":
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward(retain_graph=retain_graph)
-        else:
+        if self.scaler is None:
             loss.backward(retain_graph=retain_graph)
-        if not retain_graph:
-            optimizer.step()
+            if not retain_graph:
+                self.clip_grads()
+                (self.optimizer if optimizer is None else optimizer).step()
+        else:
+            self.scaler.scale(loss).backward(retain_graph=retain_graph)
+            if not retain_graph:
+                self.scaler.unscale_(
+                    self.optimizer if optimizer is None else optimizer)
+                self.clip_grads()
+                self.scaler.step(
+                    self.optimizer if optimizer is None else optimizer)
+                self.scaler.update()
 
-    def train(self, train_data, test_data=None, epochs: int = 1, **kwargs):
+    def train(self, train_data: Iterable, test_data: Optional[Iterable] = None,
+              epochs: Optional[int] = 1, **kwargs) -> None:
         self.tr_bar = ProgressBar(len(train_data) if self.n_checkpoint == -1
                                   else self.n_checkpoint)
 
         for epoch in range(epochs):
             self.epoch += 1
             for i, inputs in enumerate(train_data):
-                output = self.step(inputs, training=True)
+                with torch.cuda.amp.autocast(self.scaler is not None):
+                    output = self.step(inputs, training=True)
+
                 self.tr_bar(self._monitor(output["monitor"]) if
                             "monitor" in output.keys() else "")
                 self.iteration += 1
 
-                # save the model is n_checkpoint > 0
+                # save the model if n_checkpoint > 0
                 if self.n_checkpoint > 0 and \
                    not (self.iteration % self.n_checkpoint):
                     self.tr_bar(self._monitor(output["monitor"],
@@ -364,7 +385,7 @@ class EasyTrainer(object):
                         self.test(test_data)
                     if self.save_criteria():
                         self._save()
-                    # to update timer
+                    # update timer
                     self.tr_bar.soft_reset
 
             # save the model every epoch (n_checkpoint = -1)
@@ -376,11 +397,12 @@ class EasyTrainer(object):
                     self.test(test_data)
                 if self.save_criteria():
                     self._save()
-                # to update timer
+                # update timer
                 self.tr_bar.soft_reset
         print("\n")
 
-    def test(self, test_data):
+    @torch.no_grad()
+    def test(self, test_data: Iterable) -> None:
         current_states = []
         # check models in eval mode and convert everything to eval()
         for n in self.model_container.keys():
@@ -388,13 +410,14 @@ class EasyTrainer(object):
             self.model_container[n].eval()
         # testing using step
         if isinstance(test_data, Iterable):
-            # pytorch or other iterable objects compatible with step
+            # iterable objects compatible with step
             if self.te_bar is None:
                 self.te_bar = ProgressBar(len(test_data))
-            # to update timer
+            # update timer
             self.te_bar.soft_reset
             for i, inputs in enumerate(test_data):
-                output = self.step(inputs, training=False)
+                with torch.cuda.amp.autocast(self.scaler is not None):
+                    output = self.step(inputs, training=False)
                 self.te_bar(self._monitor(output["monitor"], 1, True) if
                             "monitor" in output.keys() else "")
             self.te_bar(self._monitor(output["monitor"], i, True) if
@@ -408,17 +431,19 @@ class EasyTrainer(object):
             if value:
                 self.model_container[n].train()
 
-    def step(self, inputs: Type[Union[list, tuple]], training: bool):
+    def step(self, inputs: Type[Union[list, tuple]], training: bool) -> dict:
         r"""Define what needs to be done. "training" is True when called from
         train, and False when called from test """
-        pass
+        raise NotImplementedError
 
-    def save_criteria(self):
+    def save_criteria(self) -> bool:
         r"""Define a criteria based on meter_container or a validation data.
         By default, saves the latest set of weights every n_checkpoint."""
         return True
 
-    def adaptive_grad_clipping(self, clip: float = 1e-2, eps: float = 1e-3):
+    def adaptive_grad_clipping(self,
+                               clip: Optional[float] = 1e-2,
+                               eps: Optional[float] = 1e-3) -> None:
         r"""AGC - as defined in https://arxiv.org/pdf/2102.06171.pdf.
 
         Args
@@ -455,7 +480,22 @@ class EasyTrainer(object):
                 clipped_grad = p.grad * max_pnorm / gnorm.clamp(1e-6)
                 p.grad.data.copy_(torch.where(trigger, clipped_grad, p.grad))
 
-    def _monitor(self, tags: list, n: int = 1, test: bool = False):
+    def clip_grads(self) -> None:
+        r"""Gradient clipping."""
+        if self.clip is not None:
+            for model in self.model_container:
+                for p in self.model_container[model].parameters():
+                    if p.grad is not None:
+                        norm = p.grad.data.norm(2)
+                        clip_coef = self.clip / (norm + 1e-6)
+                        if clip_coef < 1:
+                            p.grad.data.mul_(clip_coef)
+        return
+
+    def _monitor(self,
+                 tags: list,
+                 n: Optional[int] = 1,
+                 test: Optional[bool] = False) -> str:
         r"""Convert a list of tags in meter_container to string."""
         msg = "{} {:3." + str(self.monitor_ndigits) + "f}"
         msg = [msg.format(x, self.meter_container[x].average(n))
@@ -468,7 +508,7 @@ class EasyTrainer(object):
             msg = " :: ".join(["{:6d}".format(self.iteration)] + msg)
         return msg
 
-    def _check_path(self, name: str, path: str):
+    def _check_path(self, name: str, path: str) -> None:
         r"""Check the path & name, and create a folder to save the model &
         related files. Checks if there is a pretrained model and sets the
         is_pretrained variable.
@@ -493,7 +533,7 @@ class EasyTrainer(object):
             self.is_pretrained = True
         return None
 
-    def _check_networks(self, networks: dict):
+    def _check_networks(self, networks: dict) -> None:
         r"""Check if networks is a dictonary, and all values are BaseNetwork.
         """
         if not isinstance(networks, dict):
@@ -508,7 +548,8 @@ class EasyTrainer(object):
                             "BaseNetwork")
         return None
 
-    def _check_optimizer(self, optimizer: BaseOptimizer, networks: dict):
+    def _check_optimizer(self,
+                         optimizer: BaseOptimizer, networks: dict) -> None:
         r"""Check if the optimizer and all networks[x].optimizer (when not
         None) are BaseOptimizer.
         """
@@ -522,7 +563,7 @@ class EasyTrainer(object):
                     raise TypeError("EasyTrainer: {}'s optimizer ".format(n) +
                                     "is not BaseOptimizer")
 
-    def _build_networks(self, networks: dict):
+    def _build_networks(self, networks: dict) -> None:
         r"""Builds all networks and load pretrained weights if exists. The
         EasyTrainer params are overwritten by networks[network] parameters.
         """
@@ -572,37 +613,22 @@ class EasyTrainer(object):
             print("... Network {} has {} parameters".format(n, n_params) +
                   (" :: loaded pretrained weights" if _pretrained else ""))
 
-    def _set_precision(self):
-        r"""Initialize models & optimizers for mixed precision training."""
-        if not (self.is_cuda and self.precision == "mixed"):
-            return
-        all_net, all_opt, all_ns, all_os = [], [], [], []
-        for n in self.model_container.keys():
-            all_ns.append(n)
-            all_net.append(self.model_container[n])
-
-        if self.optimizer is not None:
-            all_os.append("master")
-            all_opt.append(self.optimizer)
-        for n in self.optim_container.keys():
-            all_os.append(n)
-            all_opt.append(self.optim_container[n])
-
-        all_net, all_opt = amp.initialize(
-            all_net, all_opt, keep_batchnorm_fp32=True, opt_level="O2",
-            loss_scale="dynamic")
-        for n, net in zip(all_ns, all_net):
-            self.model_container[n] = net
-        for i, (n, opt) in enumerate(zip(all_os, all_opt)):
-            if i == 0 and n == "master":
-                self.optimizer = opt
-            else:
-                self.optim_container[n] = opt
-
-    def _set_parallel(self, networks: dict):
+    def _set_parallel(self, networks: dict) -> None:
         r"""DistributedDataParallel and DataParallel."""
+        def has_batchnorms(model):
+            bn_types = (nn.BatchNorm1d, nn.BatchNorm2d,
+                        nn.BatchNorm3d, nn.SyncBatchNorm)
+            for name, module in model.named_modules():
+                if isinstance(module, bn_types):
+                    return True
+            return False
+
         if not self.is_cuda:
+            print("... training on cpu")
             return
+
+        method: str = f"gpu ({self.gpus})" + (
+            " -- using ddp." if self.distributed else "")
         for n in list(networks.keys()):
             # DistributedDataParallel and DataParallel
             gpus = self.gpus if networks[n].gpus is None else networks[n].gpus
@@ -611,6 +637,10 @@ class EasyTrainer(object):
             if gpus == 1 and self.distributed:
                 DDP = nn.parallel.DistributedDataParallel
                 device = torch.device("cuda", default_gpu)
+                if has_batchnorms(self.model_container[n]):
+                    self.model_container[n] = \
+                        nn.SyncBatchNorm.convert_sync_batchnorm(
+                            self.model_container[n])
                 self.model_container[n] = DDP(
                     self.model_container[n].to(device),
                     device_ids=[default_gpu],
@@ -622,8 +652,10 @@ class EasyTrainer(object):
             if networks[n].only_eval is not None:
                 if networks[n].only_eval:
                     self.model_container[n].eval()
+        print(f"... training on {method}")
 
-    def _build_optimizers(self, optimizer: BaseOptimizer, networks: dict):
+    def _build_optimizers(self,
+                          optimizer: BaseOptimizer, networks: dict) -> None:
         r"""Builds all optimizer and networks.optimizer (if any)."""
         def ex_param_groups_fn(named_params, lr):
             return [{"params": p, "lr": lr} for n, p in named_params]
@@ -658,7 +690,7 @@ class EasyTrainer(object):
             self.optimizer = optimizer.algorithm(all_params,
                                                  **optimizer.arguments)
 
-    def _build_meters(self, meters: Type[Union[list, tuple]]):
+    def _build_meters(self, meters: Type[Union[list, tuple]]) -> None:
         r"""Initilizes Meter object for all the meters and loads pretained!"""
         if len(meters) == 0:
             return
@@ -674,7 +706,7 @@ class EasyTrainer(object):
                m in content["meter_container"].keys():
                 self.meter_container[m].values = content["meter_container"][m]
 
-    def _build_transformations(self, transformations: torch.nn.Module):
+    def _build_transformations(self, transformations: torch.nn.Module) -> None:
         r"""Builds CPU/GPU pytorch based transformations (compatible module is
         tensormonk.data.RandomTransforms)."""
         if isinstance(transformations, BaseNetwork):
@@ -706,7 +738,9 @@ class EasyTrainer(object):
                                self.transformations.parameters()])
             print("... Transformations has {} parameters".format(n_params))
 
-    def _renormalize(self, dims: tuple = (2, 3, 4), eps: float = 1e-6):
+    def _renormalize(self,
+                     dims: Optional[tuple] = (2, 3, 4),
+                     eps: Optional[float] = 1e-6) -> None:
         r"""Renormalizes only trainable weights in the model_container.
         Exceptions - bias, gamma, beta, centers (in Categorical loss)
 
@@ -758,7 +792,7 @@ class EasyTrainer(object):
                         pass
         return None
 
-    def _save(self):
+    def _save(self) -> None:
         r"""Saves the model_container and meter_container as a dictionary."""
         content = {"model_container": {}, "meter_container": {},
                    "iteration": self.iteration, "epoch": self.epoch}
@@ -772,7 +806,7 @@ class EasyTrainer(object):
         torch.save(content, self.file_name)
 
     @staticmethod
-    def _convert_state_dict(state_dict: OrderedDict):
+    def _convert_state_dict(state_dict: OrderedDict) -> OrderedDict:
         r"""Converts nn.DataParallel state_dict to nn.Module state_dict."""
         new_state_dict = OrderedDict()
         for x in state_dict.keys():
@@ -781,7 +815,7 @@ class EasyTrainer(object):
         return new_state_dict
 
     @staticmethod
-    def _cpu_state_dict(state_dict: OrderedDict):
+    def _cpu_state_dict(state_dict: OrderedDict) -> OrderedDict:
         r"""Converts all state_dict to cpu state_dict."""
         new_state_dict = OrderedDict()
         for x in state_dict.keys():
