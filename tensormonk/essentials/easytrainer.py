@@ -656,11 +656,29 @@ class EasyTrainer(object):
                     self.model_container[n].eval()
         print(f"... training on {method}")
 
+    def _is_decayable(self, parameter: nn.Parameter) -> bool:
+        r"""Check if weight decay can be applied to a parameter."""
+        ps: list = []
+        for model in self.model_container:
+            for m in self.model_container[model].modules():
+                if isinstance(m, (torch.nn.BatchNorm1d, torch.nn.BatchNorm2d,
+                                  torch.nn.GroupNorm, torch.nn.LayerNorm)):
+                    ps.append(m.weight)
+                    ps.append(m.bias)
+
+            for n, p in self.model_container[model].named_parameters():
+                if n.endswith(".bias") and not any(parameter is p for p in ps):
+                    ps.append(p)
+
+        return any(parameter is p for p in ps)
+
     def _build_optimizers(self,
                           optimizer: BaseOptimizer, networks: dict) -> None:
         r"""Builds all optimizer and networks.optimizer (if any)."""
-        def ex_param_groups_fn(named_params, lr):
-            return [{"params": p, "lr": lr} for n, p in named_params]
+        def ex_param_groups_fn(named_params, lr, wd) -> list:
+            return [{"params": p, "lr": lr,
+                     "weight_decay": wd if self._is_decayable(p) else 0.}
+                    for n, p in named_params]
 
         all_params = []
         for n in self.model_container.keys():
@@ -668,29 +686,32 @@ class EasyTrainer(object):
                 named_params = self.model_container[n].named_parameters()
                 if isinstance(networks[n].optimizer, BaseOptimizer):
                     lr = networks[n].optimizer.arguments["lr"]
+                    wd: float = 0.
+                    if "weight_decay" in networks[n].optimizer.arguments:
+                        wd = networks[n].optimizer.arguments["weight_decay"]
+                        networks[n].optimizer.arguments.pop("weight_decay")
                     param_groups_fn = networks[n].optimizer.param_groups_fn
                     if param_groups_fn is None:
-                        self.optim_container[n] = \
-                            networks[n].optimizer.algorithm(
-                            self.model_container[n].parameters(),
-                            **networks[n].optimizer.arguments)
-                    else:
-                        self.optim_container[n] = \
-                            networks[n].optimizer.algorithm(
-                            param_groups_fn(named_params, lr),
-                            **networks[n].optimizer.arguments)
+                        param_groups_fn = ex_param_groups_fn
+                    self.optim_container[n] = \
+                        networks[n].optimizer.algorithm(
+                        param_groups_fn(named_params, lr, wd),
+                        **networks[n].optimizer.arguments)
                 elif isinstance(optimizer, BaseOptimizer):
                     lr = optimizer.arguments["lr"]
+                    wd: float = 0.
+                    if "weight_decay" in optimizer.arguments:
+                        wd = optimizer.arguments["weight_decay"]
                     param_groups_fn = optimizer.param_groups_fn
                     if param_groups_fn is None:
-                        all_params += list(
-                            self.model_container[n].parameters())
-                    else:
-                        all_params += param_groups_fn(named_params, lr)
+                        param_groups_fn = ex_param_groups_fn
+                    all_params += param_groups_fn(named_params, lr, wd)
 
         if len(all_params) > 0 and isinstance(optimizer, BaseOptimizer):
-            self.optimizer = optimizer.algorithm(all_params,
-                                                 **optimizer.arguments)
+            if "weight_decay" in optimizer.arguments:
+                optimizer.arguments.pop("weight_decay")
+            self.optimizer = optimizer.algorithm(
+                all_params, **optimizer.arguments)
 
     def _build_meters(self, meters: Type[Union[list, tuple]]) -> None:
         r"""Initilizes Meter object for all the meters and loads pretained!"""
