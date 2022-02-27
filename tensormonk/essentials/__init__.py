@@ -1,10 +1,7 @@
 """ TensorMONK :: essentials """
 
-__all__ = ["MakeModel", "SaveModel", "LoadModel",
-           "BaseNetwork", "BaseOptimizer", "Meter", "EasyTrainer"]
+__all__ = ["BaseNetwork", "BaseOptimizer", "EasyTrainer",
+           "Meter"]
 
-from .makemodel import MakeModel, SaveModel, LoadModel
 from .utils import Meter
 from .easytrainer import BaseNetwork, BaseOptimizer, EasyTrainer
-
-del makemodel, utils, easytrainer
