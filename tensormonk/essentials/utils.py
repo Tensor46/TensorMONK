@@ -139,7 +139,7 @@ class ProgressBar(object):
         msg = self.progress() + " " + self.eta()
         if isinstance(add_msg, str) and len(add_msg) > 0:
             msg = msg + " " + add_msg
-        self.msg = msg + (" " * 4)
+        self.msg = msg + (" " * 8)
         print(self.msg, end="\r")
         sys.stdout.flush()
 

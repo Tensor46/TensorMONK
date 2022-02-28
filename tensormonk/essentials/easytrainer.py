@@ -1,6 +1,7 @@
-""" TensorMONK's :: essentials """
+"""TensorMONK's :: essentials."""
 
 import os
+import time
 import numpy as np
 import torch
 import torch.nn as nn
@@ -10,7 +11,7 @@ from ..plots import VisPlots
 from ..optimizers import LookAhead, RAdam, AdaBelief
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Callable, Optional, Type, Union
+from typing import Callable, Iterator, Optional, Type, Union
 
 
 class BaseOptimizer:
@@ -45,7 +46,7 @@ class BaseOptimizer:
             "momentum": 0.9, "weight_decay": 0.00005})
     """
     def __init__(self,
-                 optimizer: Optional[str] = "sgd",
+                 optimizer: str,
                  arguments: Optional[dict] = {},
                  param_groups_fn: Optional[Callable] = None, **kwargs):
 
@@ -208,8 +209,8 @@ class EasyTrainer(object):
             default = False
         visplots (optional, bool): When True, enables tensormonk.plots.VisPlots
         n_visplots (optional, int): Frequency of plots
-        distributed (optional, bool): Enables distributed training,
-            default = False
+        ddp_handler (optional, Callable): HandleDDP object
+            default = None
         precision (optional, str): Enables mixed precision training (NVIDIA's
             amp). The settings for mixed precision are opt_level = "O2",
             keep_batchnorm_fp32 = True, loss_scale = "dynamic".
@@ -252,7 +253,7 @@ class EasyTrainer(object):
                  ignore_trained: Optional[bool] = False,
                  visplots: Optional[bool] = False,
                  n_visplots: Optional[int] = 100,
-                 distributed: Optional[bool] = False,
+                 ddp_handler: Optional[Callable] = None,
                  precision: Optional[str] = "fp32",
                  clip: Optional[float] = None,
                  monitor_ndigits: Optional[int] = 4,
@@ -285,9 +286,10 @@ class EasyTrainer(object):
         if not (n_visplots >= 1):
             raise ValueError("EasyTrainer: n_visplots must be >= 1: "
                              "{}".format(n_visplots))
-        if not isinstance(distributed, bool):
-            raise TypeError("EasyTrainer: distributed must be bool: "
-                            "{}".format(type(distributed).__name__))
+        if not (isinstance(ddp_handler, HandleDDP) or ddp_handler is None):
+            raise TypeError(
+                "EasyTrainer: ddp_handler must be None or HandleDDP object: "
+                "{}".format(ddp_handler))
         if not isinstance(precision, str):
             raise TypeError("EasyTrainer: precision must be str/None: "
                             "{}".format(type(precision).__name__))
@@ -311,7 +313,7 @@ class EasyTrainer(object):
         self.iteration = 0
         self.epoch = 0
         self.n_visplots = n_visplots
-        self.distributed = distributed
+        self.ddp_handler = ddp_handler
         self.kwargs = kwargs
 
         self.scaler = None
@@ -339,6 +341,10 @@ class EasyTrainer(object):
         self.tr_bar = None
         self.te_bar = None
 
+    @property
+    def is_ddp(self) -> bool:
+        return self.ddp_handler is not None and self.ddp_handler.is_initialized
+
     def backward(self,
                  loss: torch.Tensor,
                  optimizer: Optional[nn.Module] = None,
@@ -361,12 +367,18 @@ class EasyTrainer(object):
                     self.optimizer if optimizer is None else optimizer)
                 self.scaler.update()
 
+        if self.is_ddp:
+            torch.cuda.synchronize()
+
     def train(self, train_data: Iterable, test_data: Optional[Iterable] = None,
               epochs: Optional[int] = 1, **kwargs) -> None:
         self.tr_bar = ProgressBar(len(train_data) if self.n_checkpoint == -1
                                   else self.n_checkpoint)
 
         for epoch in range(epochs):
+            if self.is_ddp:
+                train_data.sampler.set_epoch(epoch)
+
             self.epoch += 1
             for i, inputs in enumerate(train_data):
                 with torch.cuda.amp.autocast(self.scaler is not None):
@@ -484,7 +496,7 @@ class EasyTrainer(object):
 
     def clip_grads(self) -> None:
         r"""Gradient clipping."""
-        if self.clip is not None:
+        if self.clip is not None and self.clip > 0.:
             for model in self.model_container:
                 for p in self.model_container[model].parameters():
                     if p.grad is not None:
@@ -493,6 +505,37 @@ class EasyTrainer(object):
                         if clip_coef < 1:
                             p.grad.data.mul_(clip_coef)
         return
+
+    def prepare_dataloader(self,
+                           dataset: Iterator,
+                           batch_size: int,
+                           n_workers: int,
+                           shuffle: bool,
+                           test_data: Optional[bool] = False):
+        r"""DataLoader is built with/without DDP."""
+        if n_workers is None:
+            n_workers: int = 1
+            if torch.cuda.is_available() and self.gpus > 0:
+                n_cpus = torch.multiprocessing.cpu_count()
+                if self.is_ddp:
+                    n_workers = int(n_cpus / torch.cuda.device_count())
+                else:
+                    n_workers = int(n_cpus / torch.cuda.device_count() *
+                                    self.gpus)
+                n_workers = max(1, n_workers - 1)
+
+        if self.is_ddp and not test_data:
+            sampler = torch.utils.data.DistributedSampler(
+                dataset, shuffle=shuffle)
+            dataloader = torch.utils.data.DataLoader(
+                dataset, batch_size=batch_size, sampler=sampler,
+                num_workers=n_workers, pin_memory=True, drop_last=True)
+
+        else:
+            dataloader = torch.utils.data.DataLoader(
+                dataset, batch_size=batch_size, shuffle=shuffle,
+                num_workers=n_workers, drop_last=True, pin_memory=True)
+        return dataloader
 
     def _monitor(self,
                  tags: list,
@@ -629,28 +672,33 @@ class EasyTrainer(object):
             print("... training on cpu")
             return
 
-        method: str = f"gpu ({self.gpus})" + (
-            " -- using ddp." if self.distributed else "")
+        gpus = self.ddp_handler.world_size if self.is_ddp else self.gpus
+        method: str = f"gpu ({gpus})."
         for n in list(networks.keys()):
             # DistributedDataParallel and DataParallel
             gpus = self.gpus if networks[n].gpus is None else networks[n].gpus
             default_gpu = self.default_gpu if networks[n].default_gpu is None \
                 else networks[n].default_gpu
-            if gpus == 1 and self.distributed:
-                DDP = nn.parallel.DistributedDataParallel
+
+            if gpus == 1 and self.is_ddp:
                 device = torch.device("cuda", default_gpu)
                 if has_batchnorms(self.model_container[n]):
                     self.model_container[n] = \
                         nn.SyncBatchNorm.convert_sync_batchnorm(
                             self.model_container[n])
-                self.model_container[n] = DDP(
-                    self.model_container[n].to(device),
-                    device_ids=[default_gpu],
-                    output_device=default_gpu)
+
+                if len(list(self.model_container[n].parameters())) > 0:
+                    self.model_container[n] = \
+                        nn.parallel.DistributedDataParallel(
+                            self.model_container[n].to(device),
+                            device_ids=[default_gpu],
+                            output_device=default_gpu)
+
             elif gpus > 1:
                 self.model_container[n] = \
                     nn.DataParallel(self.model_container[n],
                                     device_ids=list(range(gpus))).cuda()
+
             if networks[n].only_eval is not None:
                 if networks[n].only_eval:
                     self.model_container[n].eval()
@@ -676,9 +724,21 @@ class EasyTrainer(object):
                           optimizer: BaseOptimizer, networks: dict) -> None:
         r"""Builds all optimizer and networks.optimizer (if any)."""
         def ex_param_groups_fn(named_params, lr, wd) -> list:
-            return [{"params": p, "lr": lr,
-                     "weight_decay": wd if self._is_decayable(p) else 0.}
-                    for n, p in named_params]
+            decayable, not_decayable = [], []
+            for name, param in named_params:
+                if self._is_decayable(param):
+                    decayable.append(param)
+                else:
+                    not_decayable.append(param)
+
+            all_ps = []
+            if len(decayable):
+                all_ps.append({
+                    "params": decayable, "lr": lr, "weight_decay": wd})
+            if len(not_decayable):
+                all_ps.append({
+                    "params": not_decayable, "lr": lr, "weight_decay": 0.})
+            return all_ps
 
         all_params = []
         for n in self.model_container.keys():
@@ -844,3 +904,81 @@ class EasyTrainer(object):
         for x in state_dict.keys():
             new_state_dict[x] = state_dict[x].data.detach().cpu()
         return new_state_dict
+
+
+class HandleDDP(object):
+
+    def __init__(self, rank: int, world_size: int):
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = "14646"
+        torch.distributed.init_process_group(
+            backend="nccl", init_method="env://",
+            world_size=world_size, rank=rank)
+        print(f" Launched DDP: {self.rank}/{self.world_size}\n " + ("=" * 17),
+              flush=True)
+        self.setup_print()
+        time.sleep(4)
+
+    def setup_print(self):
+        import builtins as __builtin__
+        builtin_print = __builtin__.print
+
+        def print(*args, **kwargs):
+            force = kwargs.pop("force", False)
+            if self.is_main_process or force:
+                builtin_print(*args, **kwargs)
+
+        __builtin__.print = print
+
+    @property
+    def is_available(self) -> bool:
+        return torch.distributed.is_available()
+
+    @property
+    def is_initialized(self) -> bool:
+        return torch.distributed.is_initialized()
+
+    @property
+    def world_size(self) -> int:
+        return torch.distributed.get_world_size() if self.is_initialized else 0
+
+    @property
+    def is_ddp(self) -> bool:
+        return (self.is_available and self.is_initialized and
+                (self.world_size > 1))
+
+    @property
+    def rank(self) -> int:
+        return (torch.distributed.get_rank() if self.is_ddp else 0)
+
+    @property
+    def is_main_process(self) -> bool:
+        return self.rank == 0
+
+    def all_reduce(self,
+                   tensor: torch.Tensor,
+                   op: str = "mean") -> torch.Tensor:
+        if self.is_ddp:
+            if op == "max":
+                torch.distributed.all_reduce(
+                    tensor, torch.distributed.ReduceOp.MAX)
+            elif op == "min":
+                torch.distributed.all_reduce(
+                    tensor, torch.distributed.ReduceOp.MIN)
+            elif op in ("mean", "sum"):
+                torch.distributed.all_reduce(
+                    tensor, torch.distributed.ReduceOp.SUM)
+                if op == "mean":
+                    tensor = tensor / self.world_size
+            elif op == "product":
+                torch.distributed.all_reduce(
+                    tensor, torch.distributed.ReduceOp.PRODUCT)
+            else:
+                raise ValueError(f"Available ops for all_reduce are "
+                                 f"'max'/'min'/'mean'/'sum': {op}")
+        return tensor
+
+    def synchronize(self):
+        if self.is_initialized and self.world_size > 1:
+            torch.distributed.barrier()
+        return
