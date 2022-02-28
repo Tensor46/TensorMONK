@@ -34,7 +34,6 @@ class Trainer(tensormonk.essentials.EasyTrainer):
         if training:
             self.backward(loss, self.optimizer)
             if self.is_ddp:
-                self.ddp_handler.synchronize()
                 loss = self.ddp_handler.all_reduce(loss)
                 top1 = self.ddp_handler.all_reduce(top1)
                 top5 = self.ddp_handler.all_reduce(top5)
@@ -53,6 +52,7 @@ class Trainer(tensormonk.essentials.EasyTrainer):
         if self.is_ddp and not self.ddp_handler.is_main_process:
             return False
 
+        criteria = True
         values = self.meter_container["test_top1"].values
         if len(values) > 2 and values[-1] < max(values[:-1]):
             criteria = False
